@@ -10,6 +10,7 @@ import {
   AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
+import { DoneArt, WaitingArt } from "./states";
 
 /* ---------- small building blocks ------------------------------------- */
 
@@ -175,13 +176,22 @@ export default function App() {
 
   if (phase === "loading") return <Centered>{T.loading}</Centered>;
   if (phase === "error") return <Centered>{T.loadError}</Centered>;
-  if (phase === "deriving") return <Centered>{T.deriving}</Centered>;
+  if (phase === "deriving")
+    return (
+      <Centered>
+        <div className="flex flex-col items-center gap-4">
+          <WaitingArt />
+          <span>{T.deriving}</span>
+        </div>
+      </Centered>
+    );
   if (phase === "done")
     return (
       <Centered>
-        <div className="text-center">
-          <div className="text-2xl font-extrabold" style={{ color: "var(--success)" }}>
-            ✓ {T.confirmedTitle}
+        <div className="flex flex-col items-center gap-4 text-center">
+          <DoneArt />
+          <div className="text-2xl font-extrabold" style={{ color: "var(--foreground)" }}>
+            {T.confirmedTitle}
           </div>
           <div className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{T.confirmedHint}</div>
         </div>

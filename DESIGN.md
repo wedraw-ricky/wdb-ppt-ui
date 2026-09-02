@@ -112,3 +112,4 @@ This screen decides visual outcomes, so every picker renders evidence:
 | 2026-09-03 | Free-text fields get preset chips | A blank box is the slowest control on the screen |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |
+| 2026-09-03 | Waiting/finished art drawn as SVG, not generated | Two generation attempts came back isometric with shadows against the flat rule; the shapes are computable, so drawing them inherits the tokens and costs a kilobyte |
