@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Button, Card, Checkbox, CheckboxGroup, Description, Input, Label,
-  Radio, RadioGroup, Switch, TextArea, TextField,
+  Switch, TextArea, TextField,
 } from "@heroui/react";
 import * as api from "./api";
 import type { Dict, Recommendations } from "./api";
 import { T, label, desc, candName, candNote } from "./i18n";
+import {
+  AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
+  PresetField, RatioChoice, Star, ThumbChoice,
+} from "./selectors";
 
 /* ---------- small building blocks ------------------------------------- */
 
@@ -25,52 +29,6 @@ function Section({ n, title, children }: { n: number; title: string; children: R
       </Card.Header>
       <Card.Content className="flex flex-col gap-4">{children}</Card.Content>
     </Card>
-  );
-}
-
-function Star() {
-  return (
-    <span
-      className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-      style={{ background: "var(--wdb-cyan)", color: "var(--wdb-charcoal)" }}
-    >
-      ★ {T.recommended}
-    </span>
-  );
-}
-
-/** Radio list over a catalog array, with the AI's pick badged. */
-function Choice({
-  legend, items, value, onChange, recommended, tags,
-}: {
-  legend?: string; items: Dict[]; value: string;
-  onChange: (v: string) => void; recommended?: string;
-  tags?: Record<string, string>;
-}) {
-  return (
-    <RadioGroup value={value} onChange={onChange}>
-      {legend ? <Label>{legend}</Label> : null}
-      {items.map((it) => (
-        <Radio key={it.id} value={it.id}>
-          <Radio.Content>
-            <Radio.Control><Radio.Indicator /></Radio.Control>
-            <span>
-              {label(it)}
-              {it.dim ? (
-                <span className="ml-2 text-xs" style={{ color: "var(--muted)" }}>· {it.dim}</span>
-              ) : null}
-              {tags?.[it.id] ? (
-                <span className="ml-2 text-xs" style={{ color: "var(--wdb-secondary)" }}>
-                  {tags[it.id]}
-                </span>
-              ) : null}
-              {recommended === it.id ? <Star /> : null}
-            </span>
-          </Radio.Content>
-          {desc(it) ? <Description>{desc(it)}</Description> : null}
-        </Radio>
-      ))}
-    </RadioGroup>
   );
 }
 
@@ -257,36 +215,53 @@ export default function App() {
             <>
               {cat.templates?.length > 1 && (
                 <Section n={++n} title={T.secTemplate}>
-                  <Choice items={cat.templates} value={state.template}
-                          onChange={(v) => set("template", v)} recommended={R.template} />
+                  <ThumbChoice
+                    items={cat.templates} value={state.template}
+                    onChange={(v) => set("template", v)} recommended={R.template}
+                    srcFor={(it) =>
+                      it.id === "free" ? null
+                        : `/api/template_preview/${encodeURIComponent(it.id)}?lang=ko`}
+                  />
                 </Section>
               )}
               <Section n={++n} title={T.secCanvas}>
-                <Choice items={cat.canvas || []} value={state.canvas}
-                        onChange={(v) => set("canvas", v)} recommended={R.canvas} />
+                <RatioChoice items={cat.canvas || []} value={state.canvas}
+                             onChange={(v) => set("canvas", v)} recommended={R.canvas} />
               </Section>
               <Section n={++n} title={T.secAudience}>
-                <TextField value={state.audience} onChange={(v: string) => set("audience", v)}>
-                  <Input placeholder={T.phAudience} />
-                </TextField>
-                <TextField value={state.content_divergence}
-                           onChange={(v: string) => set("content_divergence", v)}>
-                  <Label>{T.subDivergence}</Label>
-                  <TextArea rows={2} placeholder={T.phDivergence} />
-                </TextField>
+                <PresetField
+                  legend="가까운 것을 고르고 필요하면 고쳐 쓰세요"
+                  presets={AUDIENCE_PRESETS} value={state.audience}
+                  onChange={(v) => set("audience", v)} placeholder={T.phAudience} />
+                <PresetField
+                  legend={T.subDivergence}
+                  hint="비워 두면 알아서 균형을 잡습니다"
+                  presets={DIVERGENCE_PRESETS} value={state.content_divergence}
+                  onChange={(v) => set("content_divergence", v)} placeholder={T.phDivergence} />
                 {isPpt && (
-                  <Choice legend={T.subDelivery} items={cat.delivery_purpose || []}
-                          value={state.delivery_purpose}
-                          onChange={(v) => set("delivery_purpose", v)}
-                          recommended={R.delivery_purpose} />
+                  <div>
+                    <div className="mb-2 text-sm font-semibold">{T.subDelivery}</div>
+                    <DiagramChoice items={cat.delivery_purpose || []}
+                                   value={state.delivery_purpose}
+                                   onChange={(v) => set("delivery_purpose", v)}
+                                   recommended={R.delivery_purpose} />
+                  </div>
                 )}
               </Section>
               <Section n={++n} title={T.secStyle}>
-                <Choice legend={T.subMode} items={cat.modes || []} value={state.mode}
-                        onChange={(v) => set("mode", v)} recommended={R.mode} />
-                <Choice legend={T.subVisual} items={styleItems} value={state.visual_style}
-                        onChange={(v) => set("visual_style", v)} recommended={R.visual_style}
-                        tags={spectrum} />
+                <div>
+                  <div className="mb-2 text-sm font-semibold">{T.subMode}</div>
+                  <DiagramChoice items={cat.modes || []} value={state.mode}
+                                 onChange={(v) => set("mode", v)} recommended={R.mode} />
+                </div>
+                <div>
+                  <div className="mb-2 text-sm font-semibold">{T.subVisual}</div>
+                  <ThumbChoice
+                    items={styleItems} value={state.visual_style}
+                    onChange={(v) => set("visual_style", v)} recommended={R.visual_style}
+                    tags={spectrum} cols={3}
+                    srcFor={(it) => `/static/style_previews/${encodeURIComponent(it.id)}.svg`} />
+                </div>
                 {state.template_adherence && (
                   <Choice legend={T.subAdherence} items={cat.template_adherence || []}
                           value={state.template_adherence}
@@ -341,8 +316,8 @@ export default function App() {
                 </div>
               </Section>
               <Section n={++n} title={T.secIcons}>
-                <Choice items={cat.icons || []} value={state.icons}
-                        onChange={(v) => set("icons", v)} recommended={R.icons} />
+                <IconChoice items={cat.icons || []} value={state.icons}
+                            onChange={(v) => set("icons", v)} recommended={R.icons} />
               </Section>
               <Section n={++n} title={T.secType}>
                 <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
