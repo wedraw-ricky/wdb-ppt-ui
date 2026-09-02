@@ -36,6 +36,18 @@ in every Step 4 command — the arguments, the lifecycle, and the
 Use the staged three-stage flow by default: write `"stage": "stage1"` into
 `recommendations.json`, then re-derive and re-attach with
 `--wait-only --wait-stage stage2` and `--wait-only` as SKILL.md Step 4 describes.
+
+## Overlay deck templates
+
+The template card lists upstream's decks composed with this overlay's own, so a
+confirmed `template` id may name a deck that does not exist under
+`${{SKILL_DIR}}/templates/decks/`. Resolve the Step 3 deferred install against
+both roots, upstream first:
+
+    {ROOT / 'decks'}/<deck_id>/
+
+Overlay decks satisfy the same `kind: deck` contract; install them with the same
+kind matrix and structured preflight. Never copy one into upstream's tree.
 """
     stub.write_text(text.rstrip() + "\n" + block, encoding="utf-8")
     print(f"[wdb-ui] wired stub: {stub}")

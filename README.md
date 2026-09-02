@@ -36,6 +36,17 @@ python3 server.py <project_path> --daemon --wait
 python3 server.py <project_path> --shutdown
 ```
 
+## Deck templates
+
+`decks/` holds deck templates this overlay adds to the ppt-master library.
+`server.py` composes them with upstream's decks into `.decks-merged/`
+(symlinks + a merged index) and points `_DECKS_DIR` there, so an overlay deck
+shows up on the template card without a file ever being added to upstream.
+
+| Deck | Pages | Source |
+|---|---|---|
+| `withby-green` | 9 | ported from the `withb-green-design` skill; archetypes A–I, coordinates measured from its original 19-slide PPTX |
+
 ## UI
 
 The confirm page is a React 19 + HeroUI v3 + Tailwind v4 app in `ui/`, built

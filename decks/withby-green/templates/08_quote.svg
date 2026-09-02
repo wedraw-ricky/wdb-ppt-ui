@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-master="withby-master" data-pptx-master-name="Withby Green" data-pptx-layout="h-quote" data-pptx-layout-name="H — Press / Quote">
+  <rect id="master-bg" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="layout-header-rule" x="65" y="88" width="1150" height="1" fill="#E3E8E6" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <g id="page-number-slot" data-pptx-placeholder="slide-number" data-pptx-placeholder-idx="3" data-pptx-placeholder-bounds="1134 44 103 20">
+    <text id="page-number-carrier" data-pptx-placeholder-carrier="true" font-weight="300" text-anchor="end" x="1237" y="56" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="12" fill="#4A5250">{{PAGE_NUM}}</text>
+  </g>
+  <g id="eyebrow">
+    <text font-weight="700" x="65" y="70" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="19" fill="#039944">{{EYEBROW}}</text>
+  </g>
+  <g id="source-note">
+    <text font-weight="300" text-anchor="end" x="1214" y="678" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="12" fill="#4A5250">{{SOURCE}}</text>
+  </g>
+  <g id="title-slot" data-pptx-placeholder="title" data-pptx-placeholder-bounds="65 130 380 170">
+    <text id="title-carrier" data-pptx-placeholder-carrier="true" font-weight="600" x="65" y="172" font-family="'Paperlogy SemiBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="32" fill="#039944">{{PAGE_TITLE}}</text>
+  </g>
+  <g id="quote-period">
+    <text font-weight="500" x="65" y="330" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="19" fill="#4A5250">{{PERIOD}}</text>
+  </g>
+  <g id="picture-slot-1" data-pptx-placeholder="picture" data-pptx-placeholder-idx="10" data-pptx-placeholder-bounds="487 130 728 300">
+    <image id="picture-carrier-1" data-pptx-placeholder-carrier="true" href="../images/{{PRESS_PHOTO}}" x="487" y="130" width="728" height="300" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <g id="press-caption">
+    <text font-weight="400" x="487" y="452" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="14" fill="#4A5250">{{PHOTO_CAPTION}}</text>
+  </g>
+  <g id="press-col-1">
+    <text font-weight="300" x="487" y="500" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#1A1D1C">{{ARTICLE_1}}</text>
+  </g>
+  <g id="press-col-2">
+    <text font-weight="300" x="863" y="500" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#1A1D1C">{{ARTICLE_2}}</text>
+  </g>
+</svg>

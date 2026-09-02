@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-master="withby-master" data-pptx-master-name="Withby Green" data-pptx-layout="g-split" data-pptx-layout-name="G — Split Detail">
+  <rect id="master-bg" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="layout-header-rule" x="56" y="88" width="1159" height="1" fill="#E3E8E6" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <g id="page-number-slot" data-pptx-placeholder="slide-number" data-pptx-placeholder-idx="3" data-pptx-placeholder-bounds="1134 44 103 20">
+    <text id="page-number-carrier" data-pptx-placeholder-carrier="true" font-weight="300" text-anchor="end" x="1237" y="56" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="12" fill="#4A5250">{{PAGE_NUM}}</text>
+  </g>
+  <g id="eyebrow">
+    <text font-weight="700" x="56" y="70" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="19" fill="#039944">{{EYEBROW}}</text>
+  </g>
+  <g id="source-note">
+    <text font-weight="300" text-anchor="end" x="1214" y="678" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="12" fill="#4A5250">{{SOURCE}}</text>
+  </g>
+  <g id="split-kicker">
+    <text font-weight="200" x="56" y="104" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="21" fill="#4A5250">{{KICKER}}</text>
+  </g>
+  <g id="title-slot" data-pptx-placeholder="title" data-pptx-placeholder-bounds="56 130 411 140">
+    <text id="title-carrier" data-pptx-placeholder-carrier="true" font-weight="600" x="56" y="168" font-family="'Paperlogy SemiBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="32" fill="#039944">{{PAGE_TITLE}}</text>
+  </g>
+  <g id="body-slot" data-pptx-placeholder="body" data-pptx-placeholder-idx="1" data-pptx-placeholder-bounds="56 359 411 200">
+    <text id="body-carrier" data-pptx-placeholder-carrier="true" font-weight="300" x="56" y="380" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#4A5250">{{LEAD}}</text>
+  </g>
+  <g id="feature-1">
+    <rect x="487" y="145" width="352" height="256" rx="19" fill="#FFFFFF" stroke="#E3E8E6" stroke-width="1"/>
+    <circle cx="533" cy="195" r="30" fill="#00443D"/>
+    <text font-weight="600" x="515" y="287" font-family="'Paperlogy SemiBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="24" fill="#039944">{{FEATURE_1_TITLE}}</text>
+    <text font-weight="300" x="515" y="321" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#4A5250">{{FEATURE_1_BODY}}</text>
+  </g>
+  <g id="feature-2">
+    <rect x="863" y="145" width="352" height="256" rx="19" fill="#FFFFFF" stroke="#E3E8E6" stroke-width="1"/>
+    <circle cx="909" cy="195" r="30" fill="#00443D"/>
+    <text font-weight="600" x="891" y="287" font-family="'Paperlogy SemiBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="24" fill="#039944">{{FEATURE_2_TITLE}}</text>
+    <text font-weight="300" x="891" y="321" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#4A5250">{{FEATURE_2_BODY}}</text>
+  </g>
+  <g id="feature-3">
+    <rect x="487" y="425" width="352" height="256" rx="19" fill="#FFFFFF" stroke="#E3E8E6" stroke-width="1"/>
+    <circle cx="533" cy="475" r="30" fill="#00443D"/>
+    <text font-weight="600" x="515" y="567" font-family="'Paperlogy SemiBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="24" fill="#039944">{{FEATURE_3_TITLE}}</text>
+    <text font-weight="300" x="515" y="601" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#4A5250">{{FEATURE_3_BODY}}</text>
+  </g>
+  <g id="feature-4">
+    <rect x="863" y="425" width="352" height="256" rx="19" fill="#FFFFFF" stroke="#E3E8E6" stroke-width="1"/>
+    <circle cx="909" cy="475" r="30" fill="#00443D"/>
+    <text font-weight="600" x="891" y="567" font-family="'Paperlogy SemiBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="24" fill="#039944">{{FEATURE_4_TITLE}}</text>
+    <text font-weight="300" x="891" y="601" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="16" fill="#4A5250">{{FEATURE_4_BODY}}</text>
+  </g>
+</svg>

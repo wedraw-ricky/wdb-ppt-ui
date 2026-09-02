@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-master="withby-master" data-pptx-master-name="Withby Green" data-pptx-layout="d-chapter" data-pptx-layout-name="D — Chapter">
+  <rect id="master-bg" width="1280" height="720" fill="#00443D" data-pptx-layer="master" data-pptx-editable="false"/>
+  <g id="picture-slot-1" data-pptx-placeholder="picture" data-pptx-placeholder-idx="10" data-pptx-placeholder-bounds="0 0 1280 720">
+    <image id="picture-carrier-1" data-pptx-placeholder-carrier="true" href="../images/{{PHOTO}}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
+  </g>
+  <rect id="layout-chapter-scrim" width="1280" height="720" fill="#00443D" fill-opacity="0.62" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <g id="title-slot" data-pptx-placeholder="title" data-pptx-placeholder-bounds="65 300 1150 70">
+    <text id="title-carrier" data-pptx-placeholder-carrier="true" x="65" y="352" font-family="'Paperlogy ExtraBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="43" fill="#C8FF64">{{CHAPTER_NO}}  {{CHAPTER_TITLE}}</text>
+  </g>
+  <g id="page-number-slot" data-pptx-placeholder="slide-number" data-pptx-placeholder-idx="3" data-pptx-placeholder-bounds="1134 44 103 20">
+    <text id="page-number-carrier" data-pptx-placeholder-carrier="true" font-weight="300" text-anchor="end" x="1237" y="56" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="12" fill="#FFFFFF">{{PAGE_NUM}}</text>
+  </g>
+  <g id="chapter-summary">
+    <text font-weight="400" x="65" y="392" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="21" fill="#FFFFFF">{{CHAPTER_SUMMARY}}</text>
+  </g>
+</svg>
