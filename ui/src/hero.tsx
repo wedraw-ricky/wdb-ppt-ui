@@ -47,6 +47,48 @@ export function stageSteps(stageNum: number, state: Dict, cat: Dict, isPpt: bool
   return out;
 }
 
+/** The whole three-stage journey.
+
+    The rail below only names the current stage's fields, which left no way to
+    tell whether a decision you expected — colour, say — is coming later or is
+    never asked at all. This says up front what each stage owns. */
+const JOURNEY = [
+  { n: 1, title: "무엇을, 누구에게", covers: "템플릿 · 크기 · 대상 · 설명 방식" },
+  { n: 2, title: "어떻게 보이게", covers: "쪽수 · 색 · 아이콘 · 글꼴" },
+  { n: 3, title: "이미지", covers: "사진과 그림을 어떻게 채울지" },
+];
+
+function Journey({ stageNum }: { stageNum: number }) {
+  if (stageNum < 1) return null;   // single-pass form asks everything at once
+  return (
+    <div>
+      <div className="mb-2.5 text-sm font-bold">전체 3단계</div>
+      <ol className="flex flex-col gap-2">
+        {JOURNEY.map((s) => {
+          const done = s.n < stageNum, now = s.n === stageNum;
+          return (
+            <li key={s.n} className="flex items-start gap-2.5 text-[13px]"
+                style={{ opacity: now ? 1 : done ? 0.7 : 0.45 }}>
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
+                    style={{
+                      background: done ? "var(--wdb-cyan)"
+                        : now ? "#ffffff" : "rgba(255,255,255,0.16)",
+                      color: done || now ? "var(--wdb-charcoal)" : "#ffffff",
+                    }}>
+                {done ? "✓" : s.n}
+              </span>
+              <span className="leading-snug">
+                <b className={now ? "" : "font-normal"}>{s.title}</b>
+                <span className="block text-[11px] opacity-75">{s.covers}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
 function Rail({ steps }: { steps: Step[] }) {
   const left = steps.filter((s) => s.required && !s.filled).length;
   return (
@@ -201,6 +243,8 @@ export function Hero({
           <div className="text-sm font-bold">{T.title}</div>
         </div>
       </div>
+
+      <Journey stageNum={stageNum} />
 
       <Rail steps={steps} />
 
