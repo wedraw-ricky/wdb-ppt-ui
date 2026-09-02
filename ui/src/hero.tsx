@@ -82,30 +82,47 @@ function Rail({ steps }: { steps: Step[] }) {
   );
 }
 
-/** Stage 1 — show the deck being picked, at the ratio being picked. */
+/** Stage 1 — show the deck being picked, in the shape being picked.
+
+    The frame takes the canvas ratio; the deck preview is letterboxed inside it
+    with object-contain. Cropping to fill would hide part of the slide and imply
+    the template reflows to the new shape, which it does not — a deck declares
+    one canvas_format, so a mismatch is called out instead. */
 function AnchorPreview({ state, cat }: { state: Dict; cat: Dict }) {
-  const dim = (cat.canvas || []).find((c: Dict) => c.id === state.canvas)?.dim || "1280×720";
+  const canvas = (cat.canvas || []).find((c: Dict) => c.id === state.canvas);
+  const dim = canvas?.dim || "1280×720";
   const m = String(dim).match(/(\d+)\s*[×xX*]\s*(\d+)/);
   const [w, h] = m ? [Number(m[1]), Number(m[2])] : [1280, 720];
-  const boxW = 360;
-  const boxH = Math.round((boxW * h) / w);
+
+  // fit inside a fixed area so a tall canvas cannot push the rail off-screen
+  const MAX_W = 340, MAX_H = 300;
+  const scale = Math.min(MAX_W / w, MAX_H / h);
+  const boxW = Math.round(w * scale), boxH = Math.round(h * scale);
+
   const isDeck = state.template && state.template !== "free";
+  const deck = (cat.templates || []).find((tpl: Dict) => tpl.id === state.template);
+  const deckCanvas = deck?.canvas_format;
+  const mismatch = Boolean(isDeck && deckCanvas && deckCanvas !== state.canvas);
+  const deckDim = (cat.canvas || []).find((c: Dict) => c.id === deckCanvas)?.dim;
+
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className="overflow-hidden rounded-lg bg-white/95"
-        style={{ width: boxW, height: boxH }}
-      >
-        {isDeck ? (
-          <img
-            src={`/api/template_preview/${encodeURIComponent(state.template)}?lang=ko`}
-            alt="" className="h-full w-full object-cover object-top" />
-        ) : (
-          <div className="grid h-full place-items-center text-xs" style={{ color: "var(--wdb-gray)" }}>
-            템플릿 없이 새로 디자인합니다
-          </div>
-        )}
+      <div className="grid place-items-center rounded-lg"
+           style={{ width: MAX_W, height: MAX_H, background: "rgba(255,255,255,0.08)" }}>
+        <div className="overflow-hidden rounded-md bg-white/95"
+             style={{ width: boxW, height: boxH }}>
+          {isDeck ? (
+            <img src={`/api/template_preview/${encodeURIComponent(state.template)}?lang=ko`}
+                 alt="" className="h-full w-full object-contain" />
+          ) : (
+            <div className="grid h-full place-items-center px-3 text-center text-xs"
+                 style={{ color: "var(--wdb-gray)" }}>
+              템플릿 없이 새로 디자인합니다
+            </div>
+          )}
+        </div>
       </div>
+
       <div className="flex items-center gap-3 text-xs opacity-85">
         <span>{dim}</span>
         <span className="opacity-60">·</span>
@@ -114,6 +131,15 @@ function AnchorPreview({ state, cat }: { state: Dict; cat: Dict }) {
         </svg>
         <span>{(cat.modes || []).find((x: Dict) => x.id === state.mode)?.label_ko || ""}</span>
       </div>
+
+      {mismatch ? (
+        <div className="rounded-lg px-3 py-2 text-xs leading-relaxed"
+             style={{ background: "rgba(255,255,255,0.12)" }}>
+          이 템플릿은 <b>{deckDim || deckCanvas}</b> 기준으로 만들어졌습니다. 지금 고르신 크기와
+          달라서 위 미리보기는 원래 비율로 보여드립니다 — 그대로 진행하면 페이지를 새 비율에
+          맞춰 다시 배치합니다.
+        </div>
+      ) : null}
     </div>
   );
 }

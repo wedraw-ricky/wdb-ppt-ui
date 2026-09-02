@@ -102,6 +102,13 @@ hardcoded while someone is picking a template, because nothing moves.
 The left panel lists this stage's steps with 필수 / 선택 and a check once
 answered, so a person can see how much is left without scrolling the form.
 
+### The preview never lies about what it is showing
+
+A deck template is authored at one `canvas_format`. When the chosen canvas differs, the frame
+takes the chosen ratio and the deck preview sits inside it whole (`object-contain`) — plus a
+line saying which ratio the template was built for. Cropping to fill would hide slide content
+and imply the template reflows on its own.
+
 ## Copy
 
 - Section headings are **questions a person can answer**: "어떤 크기로
@@ -124,6 +131,7 @@ answered, so a person can see how much is left without scrolling the form.
 | 2026-09-03 | No generated art for option previews | Real thumbnails are stronger evidence than illustrations, and cost nothing |
 | 2026-09-03 | Free-text fields get preset chips | A blank box is the slowest control on the screen |
 | 2026-09-03 | Preview reads the current stage's fields | It only read colour and typography, so picking a template or canvas moved nothing and the panel read as hardcoded |
+| 2026-09-03 | Deck preview is letterboxed, never cropped, and a ratio mismatch is stated | A deck declares one `canvas_format`; cropping it into a different frame hides part of the slide and implies a reflow that does not happen |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |
