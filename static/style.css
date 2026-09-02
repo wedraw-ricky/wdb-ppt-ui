@@ -1,3 +1,52 @@
+/* ==========================================================================
+   Paperlogy — bundled web font (SIL OFL 1.1; see fonts/NOTICE.md)
+   local() first so an installed copy is used with no download; the vendored
+   woff2 is the fallback that makes this page look identical on a machine
+   without Paperlogy and with no network.
+   NOTE: @font-face is for this HTML page only. The SVG slide pipeline forbids
+   it (upstream shared-standards.md §1) and is untouched by this.
+   ========================================================================== */
+@font-face {
+    font-family: "Paperlogy";
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: local("Paperlogy Regular"), local("Paperlogy-4Regular"), local("Paperlogy"),
+         url("/static/fonts/Paperlogy-4Regular.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Paperlogy";
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+    src: local("Paperlogy Medium"), local("Paperlogy-5Medium"),
+         url("/static/fonts/Paperlogy-5Medium.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Paperlogy";
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+    src: local("Paperlogy SemiBold"), local("Paperlogy-6SemiBold"),
+         url("/static/fonts/Paperlogy-6SemiBold.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Paperlogy";
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: local("Paperlogy Bold"), local("Paperlogy-7Bold"),
+         url("/static/fonts/Paperlogy-7Bold.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Paperlogy";
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+    src: local("Paperlogy ExtraBold"), local("Paperlogy-8ExtraBold"),
+         url("/static/fonts/Paperlogy-8ExtraBold.woff2") format("woff2");
+}
+
 :root {
     /* ---- WDB design tokens (wdb-pptx skill, §2 60:30:10) ---------------
        60% dominant  white / cardBg .... surfaces the eye rests on

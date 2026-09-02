@@ -36,6 +36,16 @@ python3 server.py <project_path> --daemon --wait
 python3 server.py <project_path> --shutdown
 ```
 
+## Bundled font
+
+`static/fonts/` carries five weights of **Paperlogy** as `woff2` (SIL OFL 1.1 —
+see `static/fonts/NOTICE.md`), so the page renders in the deck typeface on any
+machine, offline, without a local install. `@font-face` lists `local()` first,
+so an installed copy is used with no download.
+
+This applies to the HTML page only — the SVG slide pipeline forbids
+`@font-face` and is unaffected.
+
 ## Layout
 
 ```
