@@ -36,6 +36,28 @@ python3 server.py <project_path> --daemon --wait
 python3 server.py <project_path> --shutdown
 ```
 
+## UI
+
+The confirm page is a React 19 + HeroUI v3 + Tailwind v4 app in `ui/`, built
+into `static/app/` and **committed**, so the page runs offline with no
+`npm install` on the machine that serves it.
+
+```bash
+cd ui && npm install      # only to change the UI
+npx vite build            # -> static/app/confirm.js + confirm.css
+```
+
+`ui/src/api.ts` holds the contract (state shape, stage payloads, validation)
+separately from the components — that split is what let the port be verified by
+diffing `result.json` against the previous vanilla page.
+
+WDB tokens are mapped onto HeroUI's semantic CSS variables in `ui/src/theme.css`
+(`--accent`, `--background`, `--surface`…), so every component inherits the
+brand without per-component colour work.
+
+The previous vanilla page is still in `static/` (`app.js`, `style.css`); point
+`static/index.html` back at them to fall back.
+
 ## Bundled font
 
 `static/fonts/` carries five weights of **Paperlogy** as `woff2` (SIL OFL 1.1 —

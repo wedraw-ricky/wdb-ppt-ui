@@ -1,0 +1,86 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* ==========================================================================
+   WDB tokens mapped onto HeroUI v3 semantic variables.
+   Source: wdb-pptx skill §2 (60:30:10) and §1 (typography).
+   Setting these here means every HeroUI component inherits the brand — no
+   per-component colour work.
+   ========================================================================== */
+:root {
+  /* raw brand values */
+  --wdb-primary: #3667ff;   /* WDB Blue   — 10% tier */
+  --wdb-cyan: #00e5d6;      /* WDB Cyan   — 2nd accent */
+  --wdb-secondary: #4916e3; /* WDB Indigo — 30% tier */
+  --wdb-card-bg: #f5f7fa;   /* soft card  — 60% tier */
+  --wdb-charcoal: #1a1a1a;
+  --wdb-gray: #45515e;
+  --wdb-grad-from: #19007f;
+  --wdb-grad-to: #3667ff;
+
+  /* HeroUI semantic mapping */
+  --accent: var(--wdb-primary);
+  --accent-foreground: #ffffff;
+  --background: var(--wdb-card-bg);
+  --foreground: var(--wdb-charcoal);
+  --surface: #ffffff;
+  --surface-foreground: var(--wdb-charcoal);
+  --default: var(--wdb-card-bg);
+  --default-foreground: var(--wdb-charcoal);
+  --muted: var(--wdb-gray);
+  --border: #e1e6ed;
+  --separator: #e1e6ed;
+  --focus: var(--wdb-primary);
+  --link: var(--wdb-primary);
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #e11d48;
+  --field-background: #ffffff;
+  --field-border: #e1e6ed;
+  --radius: 12px;
+}
+
+@font-face {
+  font-family: "Paperlogy";
+  font-weight: 400; font-style: normal; font-display: swap;
+  src: local("Paperlogy Regular"), local("Paperlogy-4Regular"), local("Paperlogy"),
+       url("/static/fonts/Paperlogy-4Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-weight: 500; font-style: normal; font-display: swap;
+  src: local("Paperlogy Medium"), local("Paperlogy-5Medium"),
+       url("/static/fonts/Paperlogy-5Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-weight: 600; font-style: normal; font-display: swap;
+  src: local("Paperlogy SemiBold"), local("Paperlogy-6SemiBold"),
+       url("/static/fonts/Paperlogy-6SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-weight: 700; font-style: normal; font-display: swap;
+  src: local("Paperlogy Bold"), local("Paperlogy-7Bold"),
+       url("/static/fonts/Paperlogy-7Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Paperlogy";
+  font-weight: 800; font-style: normal; font-display: swap;
+  src: local("Paperlogy ExtraBold"), local("Paperlogy-8ExtraBold"),
+       url("/static/fonts/Paperlogy-8ExtraBold.woff2") format("woff2");
+}
+
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: Paperlogy, Pretendard, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Malgun Gothic", sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* The one surface the WDB system allows the hero gradient on. */
+.wdb-hero {
+  background: linear-gradient(135deg, var(--wdb-grad-from) 0%, var(--wdb-grad-to) 100%);
+  color: #ffffff;
+}
