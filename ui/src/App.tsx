@@ -11,16 +11,17 @@ import {
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
 import { DoneArt, WaitingArt } from "./states";
+import { Hero, stageSteps } from "./hero";
 
 /* ---------- small building blocks ------------------------------------- */
 
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <Card className="mb-4">
-      <Card.Header>
-        <Card.Title className="flex items-center gap-3 text-base">
+    <Card className="mb-8">
+      <Card.Header className="pb-1">
+        <Card.Title className="flex items-center gap-3 text-xl font-bold">
           <span
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
             style={{ background: "var(--wdb-secondary)" }}
           >
             {n}
@@ -28,7 +29,7 @@ function Section({ n, title, children }: { n: number; title: string; children: R
           {title}
         </Card.Title>
       </Card.Header>
-      <Card.Content className="flex flex-col gap-4">{children}</Card.Content>
+      <Card.Content className="flex flex-col gap-7 pt-2">{children}</Card.Content>
     </Card>
   );
 }
@@ -66,47 +67,6 @@ function Candidates({
         </button>
       ))}
     </div>
-  );
-}
-
-/* ---------- live preview (the one gradient surface) -------------------- */
-
-function Hero({ state }: { state: Dict }) {
-  const pal = state.color?.palette || {};
-  const headCss = state.typography?.heading?.css || "Paperlogy, sans-serif";
-  const bodyCss = state.typography?.body?.css || "Paperlogy, sans-serif";
-  const bodySize = Number(state.typography?.body_size) || 24;
-  return (
-    <aside className="wdb-hero hidden w-[38%] max-w-[560px] min-w-[360px] flex-col gap-5 p-6 lg:flex">
-      <div className="flex items-center gap-3 border-b border-white/20 pb-4">
-        <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/30 bg-white/15 text-sm font-bold">
-          PM
-        </div>
-        <div>
-          <div className="text-[11px] tracking-widest opacity-80">PPT MASTER</div>
-          <div className="text-sm font-bold">{T.title}</div>
-        </div>
-      </div>
-      <div className="text-xs opacity-80">전체 인상 미리보기 · 실제 슬라이드 배치는 아닙니다</div>
-      <div
-        className="rounded-xl p-6 shadow-lg"
-        style={{ background: pal.background || "#fff", color: pal.body_text || "#1a1a1a" }}
-      >
-        <div style={{ fontFamily: headCss, fontSize: 30, fontWeight: 800, color: pal.primary }}>
-          큰 제목 <span style={{ color: pal.accent }}>섹션 제목</span>
-        </div>
-        <div style={{ fontFamily: bodyCss, fontSize: bodySize, marginTop: 12, lineHeight: 1.5 }}>
-          본문 글씨가 이 정도 크기로 보입니다.
-        </div>
-        <div className="mt-4 h-1.5 w-24 rounded" style={{ background: pal.accent }} />
-        <div
-          className="mt-4 rounded-lg px-3 py-2 text-sm"
-          style={{ background: pal.secondary_bg, color: pal.body_text }}
-        >
-          보조 배경 위의 문장
-        </div>
-      </div>
-    </aside>
   );
 }
 
@@ -209,18 +169,19 @@ export default function App() {
     if (s?.id) spectrum[s.id] = `${s.tag_ko || s.tag_en || ""}${s.note_ko ? " · " + s.note_ko : ""}`;
   });
   const styleItems = (cat.visual_styles || []).flatMap((g: Dict) => g.items || []);
+  const steps = stageSteps(stageNum, state, cat, isPpt);
   let n = 0;
 
   return (
     <div className="flex h-full">
-      <Hero state={state} />
+      <Hero state={state} cat={cat} stageNum={stageNum} steps={steps} />
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b px-6 py-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <h1 className="text-lg font-bold">{stageNum ? T.stages[stageNum - 1] : T.title}</h1>
+        <header className="border-b px-8 py-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+          <h1 className="text-xl font-bold">{stageNum ? T.stages[stageNum - 1] : T.title}</h1>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{T.hint}</p>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
           {showAnchors && (
             <>
               {cat.templates?.length > 1 && (
@@ -250,7 +211,7 @@ export default function App() {
                   onChange={(v) => set("content_divergence", v)} placeholder={T.phDivergence} />
                 {isPpt && (
                   <div>
-                    <div className="mb-2 text-sm font-semibold">{T.subDelivery}</div>
+                    <div className="mb-3 text-base font-semibold">{T.subDelivery}</div>
                     <DiagramChoice items={cat.delivery_purpose || []}
                                    value={state.delivery_purpose}
                                    onChange={(v) => set("delivery_purpose", v)}
@@ -260,12 +221,12 @@ export default function App() {
               </Section>
               <Section n={++n} title={T.secStyle}>
                 <div>
-                  <div className="mb-2 text-sm font-semibold">{T.subMode}</div>
+                  <div className="mb-3 text-base font-semibold">{T.subMode}</div>
                   <DiagramChoice items={cat.modes || []} value={state.mode}
                                  onChange={(v) => set("mode", v)} recommended={R.mode} />
                 </div>
                 <div>
-                  <div className="mb-2 text-sm font-semibold">{T.subVisual}</div>
+                  <div className="mb-3 text-base font-semibold">{T.subVisual}</div>
                   <ThumbChoice
                     items={styleItems} value={state.visual_style}
                     onChange={(v) => set("visual_style", v)} recommended={R.visual_style}
@@ -416,7 +377,7 @@ export default function App() {
                             value={state.image_ai_path}
                             onChange={(v) => set("image_ai_path", v)} recommended={R.image_ai_path} />
                     <div>
-                      <div className="mb-2 text-sm font-semibold">{T.subImageStrategy}</div>
+                      <div className="mb-3 text-base font-semibold">{T.subImageStrategy}</div>
                       <Candidates
                         block={rec.image_strategy}
                         selected={(rec.image_strategy?.candidates || []).findIndex(

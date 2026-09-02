@@ -1,0 +1,191 @@
+/* Left panel: the step rail and a preview that tracks what is being chosen.
+
+   The preview used to read only colour and typography, which are stage-2
+   fields — so while picking a template or a canvas in stage 1 nothing moved and
+   the panel looked hardcoded. It now shows the decision in front of the user. */
+
+import type { Dict } from "./api";
+import { T } from "./i18n";
+import { MODE_SHAPES } from "./selectors";
+
+export interface Step {
+  key: string;
+  title: string;
+  required: boolean;
+  filled: boolean;
+}
+
+/** Which steps this stage carries, and whether each is answered yet. */
+export function stageSteps(stageNum: number, state: Dict, cat: Dict, isPpt: boolean): Step[] {
+  const anchors = stageNum === 0 || stageNum === 1;
+  const design = stageNum === 0 || stageNum === 2;
+  const images = stageNum === 0 || stageNum === 3;
+  const out: Step[] = [];
+  const has = (v: any) => Boolean(String(v ?? "").trim());
+
+  if (anchors) {
+    if ((cat.templates || []).length > 1)
+      out.push({ key: "template", title: T.secTemplate, required: false, filled: has(state.template) });
+    out.push({ key: "canvas", title: T.secCanvas, required: true, filled: has(state.canvas) });
+    out.push({ key: "audience", title: T.secAudience, required: true, filled: has(state.audience) });
+    out.push({ key: "style", title: T.secStyle, required: true,
+               filled: has(state.mode) && has(state.visual_style) && (!isPpt || has(state.delivery_purpose)) });
+  }
+  if (design) {
+    out.push({ key: "pages", title: T.secPages, required: true, filled: has(state.page_count) });
+    out.push({ key: "color", title: T.secColor, required: true, filled: Boolean(state.color?.palette) });
+    out.push({ key: "icons", title: T.secIcons, required: false, filled: has(state.icons) });
+    out.push({ key: "type", title: T.secType, required: true, filled: Boolean(state.typography) });
+    out.push({ key: "formula", title: T.secFormula, required: false, filled: has(state.formula_policy) });
+  }
+  if (images) {
+    out.push({ key: "images", title: T.secImages, required: true,
+               filled: Array.isArray(state.image_usage) && state.image_usage.length > 0 });
+    out.push({ key: "genmode", title: T.secMode, required: false, filled: has(state.generation_mode) });
+    out.push({ key: "refine", title: T.secRefine, required: false, filled: true });
+  }
+  return out;
+}
+
+function Rail({ steps }: { steps: Step[] }) {
+  const left = steps.filter((s) => s.required && !s.filled).length;
+  return (
+    <div>
+      <div className="mb-3 flex items-baseline gap-2">
+        <span className="text-sm font-bold">이 단계에서 정할 것</span>
+        <span className="text-xs opacity-80">
+          {left ? `아직 ${left}개 남았습니다` : "다 정하셨습니다"}
+        </span>
+      </div>
+      <ol className="flex flex-col gap-1.5">
+        {steps.map((s, i) => (
+          <li key={s.key} className="flex items-center gap-2.5 text-sm">
+            <span
+              className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
+              style={{
+                background: s.filled ? "var(--wdb-cyan)" : "rgba(255,255,255,0.16)",
+                color: s.filled ? "var(--wdb-charcoal)" : "#ffffff",
+              }}
+            >
+              {s.filled ? "✓" : i + 1}
+            </span>
+            <span className={s.filled ? "opacity-70" : ""}>{s.title}</span>
+            {s.required ? (
+              <span className="text-[11px]" style={{ color: "var(--wdb-cyan)" }}>필수</span>
+            ) : (
+              <span className="text-[11px] opacity-55">선택</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Stage 1 — show the deck being picked, at the ratio being picked. */
+function AnchorPreview({ state, cat }: { state: Dict; cat: Dict }) {
+  const dim = (cat.canvas || []).find((c: Dict) => c.id === state.canvas)?.dim || "1280×720";
+  const m = String(dim).match(/(\d+)\s*[×xX*]\s*(\d+)/);
+  const [w, h] = m ? [Number(m[1]), Number(m[2])] : [1280, 720];
+  const boxW = 360;
+  const boxH = Math.round((boxW * h) / w);
+  const isDeck = state.template && state.template !== "free";
+  return (
+    <div className="flex flex-col gap-3">
+      <div
+        className="overflow-hidden rounded-lg bg-white/95"
+        style={{ width: boxW, height: boxH }}
+      >
+        {isDeck ? (
+          <img
+            src={`/api/template_preview/${encodeURIComponent(state.template)}?lang=ko`}
+            alt="" className="h-full w-full object-cover object-top" />
+        ) : (
+          <div className="grid h-full place-items-center text-xs" style={{ color: "var(--wdb-gray)" }}>
+            템플릿 없이 새로 디자인합니다
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-3 text-xs opacity-85">
+        <span>{dim}</span>
+        <span className="opacity-60">·</span>
+        <svg viewBox="0 0 88 64" className="h-7 w-10" aria-hidden="true">
+          {MODE_SHAPES[state.mode] ?? null}
+        </svg>
+        <span>{(cat.modes || []).find((x: Dict) => x.id === state.mode)?.label_ko || ""}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Stage 2 (and single pass) — the colour and type actually chosen. */
+function SkinPreview({ state }: { state: Dict }) {
+  const pal = state.color?.palette || {};
+  const headCss = state.typography?.heading?.css || "Paperlogy, sans-serif";
+  const bodyCss = state.typography?.body?.css || "Paperlogy, sans-serif";
+  const bodySize = Number(state.typography?.body_size) || 24;
+  return (
+    <div className="rounded-xl p-6 shadow-lg"
+         style={{ background: pal.background || "#fff", color: pal.body_text || "#1a1a1a" }}>
+      <div style={{ fontFamily: headCss, fontSize: 30, fontWeight: 800, color: pal.primary }}>
+        큰 제목 <span style={{ color: pal.accent }}>섹션 제목</span>
+      </div>
+      <div style={{ fontFamily: bodyCss, fontSize: bodySize, marginTop: 12, lineHeight: 1.5 }}>
+        본문 글씨가 이 정도 크기로 보입니다.
+      </div>
+      <div className="mt-4 h-1.5 w-24 rounded" style={{ background: pal.accent }} />
+      <div className="mt-4 rounded-lg px-3 py-2 text-sm"
+           style={{ background: pal.secondary_bg, color: pal.body_text }}>
+        보조 배경 위의 문장
+      </div>
+    </div>
+  );
+}
+
+/** Stage 3 — the image direction being chosen. */
+function ImagePreview({ state }: { state: Dict }) {
+  const s = state.image_strategy;
+  if (!s) return <SkinPreview state={state} />;
+  return (
+    <div className="flex flex-col gap-3">
+      {s.rendering ? (
+        <img src={`/ai-image-comparison/rendering/${encodeURIComponent(s.rendering)}.jpg`}
+             alt="" className="w-[360px] rounded-lg object-cover"
+             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+      ) : null}
+      <div className="text-sm">
+        <div className="font-semibold">{s.name}</div>
+        <div className="mt-1 text-xs opacity-80">{s.mood}</div>
+      </div>
+    </div>
+  );
+}
+
+export function Hero({
+  state, cat, stageNum, steps,
+}: { state: Dict; cat: Dict; stageNum: number; steps: Step[] }) {
+  return (
+    <aside className="wdb-hero hidden w-[38%] max-w-[560px] min-w-[380px] flex-col gap-6 overflow-y-auto p-7 lg:flex">
+      <div className="flex items-center gap-3 border-b border-white/20 pb-4">
+        <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/30 bg-white/15 text-sm font-bold">
+          PM
+        </div>
+        <div>
+          <div className="text-[11px] tracking-widest opacity-80">PPT MASTER</div>
+          <div className="text-sm font-bold">{T.title}</div>
+        </div>
+      </div>
+
+      <Rail steps={steps} />
+
+      <div className="flex flex-col gap-2">
+        <div className="text-xs opacity-80">
+          {stageNum === 1 ? "고르신 템플릿과 크기" : stageNum === 3 ? "고르신 이미지 방향" : "전체 인상 미리보기"}
+        </div>
+        {stageNum === 1 ? <AnchorPreview state={state} cat={cat} />
+          : stageNum === 3 ? <ImagePreview state={state} />
+          : <SkinPreview state={state} />}
+      </div>
+    </aside>
+  );
+}

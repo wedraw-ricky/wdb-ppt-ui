@@ -89,6 +89,19 @@ This screen decides visual outcomes, so every picker renders evidence:
   (empty, waiting and finished states).
 - The AI's pick carries the ★ badge in the cyan tier — one per group.
 
+### The preview must track the current decision
+
+The left panel shows what is being chosen **right now**, not a fixed sample. It
+reads stage-1 fields in stage 1 (the deck preview at the chosen aspect ratio,
+plus the narrative-shape diagram), the skin in stage 2, and the image direction
+in stage 3. A preview that only ever reads colour and typography looks
+hardcoded while someone is picking a template, because nothing moves.
+
+### The rail names what is still needed
+
+The left panel lists this stage's steps with 필수 / 선택 and a check once
+answered, so a person can see how much is left without scrolling the form.
+
 ## Copy
 
 - Section headings are **questions a person can answer**: "어떤 크기로
@@ -110,6 +123,8 @@ This screen decides visual outcomes, so every picker renders evidence:
 | 2026-09-03 | Every picker renders evidence, not a name | The screen chooses visual outcomes; a name asks the user to imagine one |
 | 2026-09-03 | No generated art for option previews | Real thumbnails are stronger evidence than illustrations, and cost nothing |
 | 2026-09-03 | Free-text fields get preset chips | A blank box is the slowest control on the screen |
+| 2026-09-03 | Preview reads the current stage's fields | It only read colour and typography, so picking a template or canvas moved nothing and the panel read as hardcoded |
+| 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |
 | 2026-09-03 | Waiting/finished art drawn as SVG, not generated | Two generation attempts came back isometric with shadows against the flat rule; the shapes are computable, so drawing them inherits the tokens and costs a kilobyte |

@@ -37,7 +37,7 @@ export function ThumbChoice({
   tags?: Record<string, string>; cols?: number;
 }) {
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
+    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
       {items.map((it) => {
         const src = srcFor(it);
         const on = value === it.id;
@@ -58,17 +58,17 @@ export function ThumbChoice({
               )}
             </div>
             <div className="p-3">
-              <div className="flex items-center text-sm font-semibold">
+              <div className="flex items-center text-[15px] font-semibold">
                 <span className="truncate">{label(it)}</span>
                 {recommended === it.id ? <Star /> : null}
               </div>
               {tags?.[it.id] ? (
-                <div className="mt-0.5 text-xs font-medium" style={{ color: "var(--wdb-secondary)" }}>
+                <div className="mt-1 text-[13px] font-medium" style={{ color: "var(--wdb-secondary)" }}>
                   {tags[it.id]}
                 </div>
               ) : null}
               {desc(it) ? (
-                <div className="mt-1 line-clamp-2 text-xs" style={{ color: "var(--muted)" }}>
+                <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
                   {desc(it)}
                 </div>
               ) : null}
@@ -93,14 +93,14 @@ export function RatioChoice({
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
   const BOX = 76;
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-4">
       {items.map((it) => {
         const [w, h] = parseDim(it.dim);
         const scale = BOX / Math.max(w, h);
         const on = value === it.id;
         return (
           <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="flex w-[136px] flex-col items-center gap-2 rounded-xl border p-3 transition"
+                  className="flex w-[150px] flex-col items-center gap-2 rounded-xl border p-4 transition"
                   style={cardStyle(on)}>
             <div className="grid h-[80px] w-full place-items-center">
               <div className="rounded-[3px] border-2"
@@ -111,10 +111,10 @@ export function RatioChoice({
                    }} />
             </div>
             <div className="w-full text-center">
-              <div className="flex items-center justify-center text-xs font-semibold">
+              <div className="flex items-center justify-center text-[14px] font-semibold">
                 <span className="truncate">{label(it)}</span>
               </div>
-              <div className="mt-0.5 text-[11px]" style={{ color: "var(--muted)" }}>{it.dim}</div>
+              <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>{it.dim}</div>
               {recommended === it.id ? <div className="mt-1"><Star /></div> : null}
             </div>
           </button>
@@ -153,7 +153,7 @@ function Chips({
         const on = active === p.id;
         return (
           <button key={p.id} type="button" onClick={() => onPick(p)} aria-pressed={on}
-                  className="rounded-full border px-3 py-1.5 text-sm font-medium transition"
+                  className="rounded-full border px-4 py-2 text-[15px] font-medium transition"
                   style={{
                     borderColor: on ? "var(--wdb-primary)" : "var(--border)",
                     background: on ? "rgba(54,103,255,.10)" : "var(--surface)",
@@ -178,8 +178,8 @@ export function PresetField({
   return (
     <div className="flex flex-col gap-2">
       <div>
-        <div className="text-sm font-semibold">{legend}</div>
-        {hint ? <div className="text-xs" style={{ color: "var(--muted)" }}>{hint}</div> : null}
+        <div className="text-base font-semibold">{legend}</div>
+        {hint ? <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div> : null}
       </div>
       <Chips presets={presets} active={active} onPick={(p) => onChange(p.text)} />
       <TextField value={value} onChange={onChange}>
@@ -195,7 +195,7 @@ const A = "var(--wdb-primary)";
 const N = "var(--border)";
 
 /** Tiny abstract diagrams of how each mode arranges an argument. */
-const MODE_SHAPES: Record<string, JSX.Element> = {
+export const MODE_SHAPES: Record<string, JSX.Element> = {
   text: (
     <>
       <rect x="22" y="6" width="44" height="52" rx="4" fill="var(--surface)" stroke={N} strokeWidth="2" />
@@ -263,21 +263,21 @@ export function DiagramChoice({
   items, value, onChange, recommended,
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))" }}>
+    <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))" }}>
       {items.map((it) => {
         const on = value === it.id;
         return (
           <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="rounded-xl border p-3 text-left transition" style={cardStyle(on)}>
+                  className="rounded-xl border p-4 text-left transition" style={cardStyle(on)}>
             <svg viewBox="0 0 88 64" className="mb-2 h-14 w-full" aria-hidden="true">
               {MODE_SHAPES[it.id] ?? <rect x="8" y="8" width="72" height="48" rx="4" fill={N} />}
             </svg>
-            <div className="flex items-center text-sm font-semibold">
+            <div className="flex items-center text-[15px] font-semibold">
               <span className="truncate">{label(it)}</span>
               {recommended === it.id ? <Star /> : null}
             </div>
             {desc(it) ? (
-              <div className="mt-1 line-clamp-2 text-xs" style={{ color: "var(--muted)" }}>{desc(it)}</div>
+              <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
             ) : null}
           </button>
         );
@@ -297,14 +297,14 @@ export function IconChoice({
       .then((r) => r.json()).then(setPreviews).catch(() => {});
   }, []);
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))" }}>
+    <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))" }}>
       {items.map((it) => {
         const on = value === it.id;
         const glyphs = (previews[it.id] || []).slice(0, 5);
         return (
           <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="rounded-xl border p-3 text-left transition" style={cardStyle(on)}>
-            <div className="mb-2 flex h-8 items-center gap-3"
+                  className="rounded-xl border p-4 text-left transition" style={cardStyle(on)}>
+            <div className="mb-3 flex h-9 items-center gap-3.5"
                  style={{ color: on ? "var(--wdb-primary)" : "var(--foreground)" }}>
               {glyphs.length
                 ? glyphs.map((g, i) => (
@@ -313,12 +313,12 @@ export function IconChoice({
                   ))
                 : <span className="text-xs" style={{ color: "var(--muted)" }}>—</span>}
             </div>
-            <div className="flex items-center text-sm font-semibold">
+            <div className="flex items-center text-[15px] font-semibold">
               <span className="truncate">{label(it)}</span>
               {recommended === it.id ? <Star /> : null}
             </div>
             {desc(it) ? (
-              <div className="mt-1 line-clamp-2 text-xs" style={{ color: "var(--muted)" }}>{desc(it)}</div>
+              <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
             ) : null}
           </button>
         );
