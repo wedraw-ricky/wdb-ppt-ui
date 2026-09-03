@@ -7,10 +7,11 @@ import * as api from "./api";
 import type { Dict, Recommendations } from "./api";
 import { T, label, desc, candName, candNote } from "./i18n";
 import {
-  AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
+  AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice, IMAGE_PRESETS,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
 import { Deriving, DoneArt } from "./states";
+import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
 import { Hero, stageSteps } from "./hero";
 
 /* ---------- small building blocks ------------------------------------- */
@@ -244,44 +245,26 @@ export default function App() {
           {showDesign && (
             <>
               <Section n={++n} title={T.secPages}>
-                <TextField value={state.page_count} onChange={(v: string) => set("page_count", v)}>
-                  <Input placeholder={T.phPages} />
-                </TextField>
+                <PageCount value={state.page_count} onChange={(v) => set("page_count", v)} />
               </Section>
               <Section n={++n} title={T.secColor}>
-                <Candidates
-                  block={rec.color}
-                  selected={(rec.color?.candidates || []).findIndex(
+                <PaletteChoice
+                  candidates={rec.color?.candidates || []}
+                  selectedIndex={(rec.color?.candidates || []).findIndex(
                     (c: Dict) => candName(c) === state.color?.name)}
+                  recommendedIndex={Number(rec.color?.selected) || 0}
+                  nameOf={candName} noteOf={candNote}
                   onSelect={(i) => {
                     const c = rec.color.candidates[i];
                     set("color", { name: candName(c), palette: { ...c.palette } });
                   }}
-                  render={(c) => (
-                    <div className="flex gap-1">
-                      {Object.entries(c.palette || {}).map(([k, v]) => (
-                        <span key={k} title={T.roles[k] || k}
-                              className="h-6 w-6 rounded border"
-                              style={{ background: v as string, borderColor: "var(--border)" }} />
-                      ))}
-                    </div>
-                  )}
                 />
                 <div>
-                  <div className="mb-2 text-xs font-semibold" style={{ color: "var(--muted)" }}>
-                    {T.hexOverride}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {Object.keys(state.color?.palette || {}).map((role) => (
-                      <TextField key={role} value={state.color.palette[role]}
-                                 onChange={(v: string) =>
-                                   setState((s) => ({ ...s,
-                                     color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))}>
-                        <Label className="text-xs">{T.roles[role] || role}</Label>
-                        <Input />
-                      </TextField>
-                    ))}
-                  </div>
+                  <div className="mb-3 text-[15px] font-semibold">{T.hexOverride}</div>
+                  <HexGrid palette={state.color?.palette || {}} roles={T.roles}
+                           onChange={(role, v) =>
+                             setState((s) => ({ ...s,
+                               color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))} />
                 </div>
               </Section>
               <Section n={++n} title={T.secIcons}>
@@ -289,55 +272,20 @@ export default function App() {
                             onChange={(v) => set("icons", v)} recommended={R.icons} />
               </Section>
               <Section n={++n} title={T.secType}>
-                <div className="rounded-xl border p-4" style={{ borderColor: "var(--border)" }}>
-                  <div style={{ fontFamily: state.typography?.heading?.css, fontSize: 26, fontWeight: 800 }}>
-                    {state.typography?.heading?.cjk} · 큰 제목
-                  </div>
-                  <div style={{ fontFamily: state.typography?.body?.css,
-                                fontSize: Number(state.typography?.body_size) || 24, marginTop: 8 }}>
-                    본문 글씨가 이 정도 크기로 보입니다.
-                  </div>
-                </div>
-                <TextField
-                  value={String(state.typography?.body_size ?? "")}
-                  onChange={(v: string) => {
+                <TypeSpecimen
+                  typography={state.typography || {}}
+                  onBody={(v) => setState((s) => {
                     const next = parseFloat(v);
-                    setState((s) => {
-                      const prev = Number(s.typography.body_size) || 1;
-                      const ratio = isFinite(next) && prev ? next / prev : 1;
-                      const sizes = { ...s.typography.sizes };
-                      if (isFinite(next)) for (const k of Object.keys(sizes))
-                        sizes[k] = Math.round((Number(sizes[k]) || 0) * ratio);
-                      return { ...s, typography: { ...s.typography, body_size: v, sizes } };
-                    });
-                  }}>
-                  <Label>{T.bodySize}</Label>
-                  <Input inputMode="decimal" />
-                  <Description>
-                    {T.bodySizeHint} {T.ptRelation}
-                    {isFinite(Number(state.typography?.body_size))
-                      ? ` · ${T.ptApprox(Math.round(Number(state.typography.body_size) * 0.75 * 10) / 10)}`
-                      : ""}
-                  </Description>
-                </TextField>
-                <div>
-                  <div className="mb-2 text-xs font-semibold" style={{ color: "var(--muted)" }}>
-                    {T.sizeOverride} — {T.sizeOverrideHint}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["title", "subtitle", "annotation"] as const).map((role) => (
-                      <TextField key={role} value={String(state.typography?.sizes?.[role] ?? "")}
-                                 onChange={(v: string) =>
-                                   setState((s) => ({ ...s, typography: { ...s.typography,
-                                     sizes: { ...s.typography.sizes, [role]: v } } }))}>
-                        <Label className="text-xs">
-                          {role === "title" ? T.roleTitle : role === "subtitle" ? T.roleSubtitle : T.roleAnnotation}
-                        </Label>
-                        <Input inputMode="decimal" />
-                      </TextField>
-                    ))}
-                  </div>
-                </div>
+                    const prev = Number(s.typography.body_size) || 1;
+                    const ratio = isFinite(next) && prev ? next / prev : 1;
+                    const sizes = { ...s.typography.sizes };
+                    if (isFinite(next)) for (const k of Object.keys(sizes))
+                      sizes[k] = Math.round((Number(sizes[k]) || 0) * ratio);
+                    return { ...s, typography: { ...s.typography, body_size: v, sizes } };
+                  })}
+                  onRole={(role, v) => setState((s) => ({ ...s,
+                    typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
+                />
               </Section>
               <Section n={++n} title={T.secFormula}>
                 <Choice items={cat.formula_policy || []} value={state.formula_policy}
@@ -349,26 +297,15 @@ export default function App() {
           {showImages && (
             <>
               <Section n={++n} title={T.secImages}>
-                <CheckboxGroup value={state.image_usage}
-                               onChange={(v: string[]) => set("image_usage", v)}>
-                  {(cat.image_usage || []).map((it: Dict) => (
-                    <Checkbox key={it.id} value={it.id}>
-                      <Checkbox.Content>
-                        <Checkbox.Control><Checkbox.Indicator /></Checkbox.Control>
-                        <span>
-                          {label(it)}
-                          {(Array.isArray(R.image_usage) ? R.image_usage : [R.image_usage]).includes(it.id)
-                            ? <Star /> : null}
-                        </span>
-                      </Checkbox.Content>
-                      {desc(it) ? <Description>{desc(it)}</Description> : null}
-                    </Checkbox>
-                  ))}
-                </CheckboxGroup>
-                <TextField value={state.image_notes} onChange={(v: string) => set("image_notes", v)}>
-                  <Label>{T.subImageNotes}</Label>
-                  <TextArea rows={2} placeholder={T.phImageNotes} />
-                </TextField>
+                <ImageSourceChoice
+                  items={cat.image_usage || []} value={state.image_usage}
+                  onChange={(v) => set("image_usage", v)}
+                  recommended={Array.isArray(R.image_usage) ? R.image_usage : [R.image_usage].filter(Boolean)} />
+                <PresetField
+                  legend={T.subImageNotes}
+                  hint="가까운 것을 고르고 필요하면 고쳐 쓰세요"
+                  presets={IMAGE_PRESETS} value={state.image_notes}
+                  onChange={(v) => set("image_notes", v)} placeholder={T.phImageNotes} />
                 {aiOn && (
                   <>
                     <Choice legend={T.subImagePath} items={cat.image_ai_path || []}
@@ -376,22 +313,13 @@ export default function App() {
                             onChange={(v) => set("image_ai_path", v)} recommended={R.image_ai_path} />
                     <div>
                       <div className="mb-3 text-base font-semibold">{T.subImageStrategy}</div>
-                      <Candidates
-                        block={rec.image_strategy}
-                        selected={(rec.image_strategy?.candidates || []).findIndex(
+                      <StrategyChoice
+                        candidates={rec.image_strategy?.candidates || []}
+                        selectedIndex={(rec.image_strategy?.candidates || []).findIndex(
                           (c: Dict) => c.name === state.image_strategy?.name)}
+                        recommendedIndex={Number(rec.image_strategy?.selected) || 0}
+                        nameOf={candName} noteOf={candNote}
                         onSelect={(i) => set("image_strategy", { ...rec.image_strategy.candidates[i] })}
-                        render={(c) => (
-                          <dl className="text-xs" style={{ color: "var(--muted)" }}>
-                            {Object.entries(T.strategyFields).map(([k, lab]) =>
-                              c[k] ? (
-                                <div key={k} className="flex gap-1">
-                                  <dt className="font-semibold">{lab}</dt>
-                                  <dd>{c[k]}</dd>
-                                </div>
-                              ) : null)}
-                          </dl>
-                        )}
                       />
                     </div>
                   </>

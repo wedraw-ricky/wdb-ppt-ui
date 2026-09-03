@@ -21,7 +21,7 @@ export function Star() {
   );
 }
 
-const cardStyle = (on: boolean) => ({
+export const cardStyle = (on: boolean) => ({
   borderColor: on ? "var(--wdb-primary)" : "var(--border)",
   boxShadow: on ? "0 0 0 2px rgba(54,103,255,.18)" : "none",
   background: "var(--surface)",
@@ -125,6 +125,17 @@ export function RatioChoice({
 }
 
 /* ---- 3. audience presets --------------------------------------------- */
+
+export const IMAGE_PRESETS: { id: string; label: string; text: string }[] = [
+  { id: "provided-only", label: "가진 사진만",
+    text: "가지고 있는 실사진만 씁니다. 사진이 없는 페이지는 도형과 차트로 채웁니다." },
+  { id: "cover-ai", label: "표지·간지만 생성",
+    text: "표지와 간지에만 생성 이미지를 쓰고, 내용 페이지는 실사진과 도형으로 채웁니다." },
+  { id: "mixed", label: "실사진 우선 + 빈 곳만 생성",
+    text: "가진 실사진을 먼저 배치하고, 남는 자리만 생성 이미지로 채웁니다." },
+  { id: "no-image", label: "사진 없이",
+    text: "사진을 쓰지 않고 도형·차트·타이포만으로 구성합니다." },
+];
 
 export const AUDIENCE_PRESETS: { id: string; label: string; text: string }[] = [
   { id: "exec", label: "경영진 보고", text: "경영진 — 결론과 근거를 짧은 시간에 판단해야 하는 자리" },

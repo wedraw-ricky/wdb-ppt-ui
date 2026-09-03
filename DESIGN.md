@@ -74,6 +74,11 @@ This screen decides visual outcomes, so every picker renders evidence:
 | Icon library | real glyph samples | `/api/icon-previews` |
 | Image rendering | reference imagery | `/api/ai-image-comparison` |
 | Canvas size | rectangle at true aspect ratio | computed from the format's `dim` |
+| Colour palette | a slide painted in that palette | drawn from the candidate's `palette` |
+| Typography | the title→annotation size ladder, in the chosen faces | drawn from `sizes` + `body_size` |
+| Page count | length chips + a strip of page ticks | computed from the number |
+| Image source | drawn sample of the kind of picture | inline SVG |
+| Generated-image style | rendering × palette reference frames | `/ai-image-comparison/<kind>/<id>.jpg` |
 | Narrative mode | abstract diagram of the argument's shape | inline SVG |
 | Delivery purpose | diagram of where it is read | inline SVG |
 | Audience, fidelity | preset chips that seed an editable sentence | `selectors.tsx` |
@@ -149,6 +154,9 @@ rather than drifting.
 | 2026-09-03 | Deck preview is letterboxed, never cropped, and a ratio mismatch is stated | A deck declares one `canvas_format`; cropping it into a different frame hides part of the slide and implies a reflow that does not happen |
 | 2026-09-03 | Three-stage journey listed above the rail | The rail named only the current stage's fields, so a decision arriving later (colour) was indistinguishable from one never asked |
 | 2026-09-03 | Waiting screen shows elapsed time, never a percentage | The agent's work is not instrumented, so a percentage would be invented; a rising counter proves liveness truthfully |
+| 2026-09-03 | Palette shown as a slide painted in it | Six swatches ask the reader to imagine the assembled page; the mini slide is the outcome itself |
+| 2026-09-03 | Type plan shown as the real size ladder | One sample line proves the family but not the hierarchy, which is what the numbers actually control |
+| 2026-09-03 | Image sources drawn, generated-image styles use the reference gallery | Same rule as stage 1 — a source is a kind of picture, so show one |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |
