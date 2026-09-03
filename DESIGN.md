@@ -115,6 +115,15 @@ The left panel names all three stages and what each one owns, with the current s
 A rail that lists only the current stage cannot answer "will it ask me about colour?" — the
 user has to guess whether a missing control arrives later or does not exist.
 
+### A wait must prove it is alive without inventing progress
+
+Looping art alone reads as frozen within a few seconds — the viewer recognises the loop. The
+waiting screen therefore pairs an indeterminate bar (something is running) with an elapsed
+counter (it is *still* running) and the name of the stage being prepared. No percentage and no
+fake step ticker: nothing here measures the agent's remaining work, so nothing may claim to.
+The art animates the work itself — title, body, image, palette, in the order they are decided —
+rather than drifting.
+
 ## Copy
 
 - Section headings are **questions a person can answer**: "어떤 크기로
@@ -139,6 +148,7 @@ user has to guess whether a missing control arrives later or does not exist.
 | 2026-09-03 | Preview reads the current stage's fields | It only read colour and typography, so picking a template or canvas moved nothing and the panel read as hardcoded |
 | 2026-09-03 | Deck preview is letterboxed, never cropped, and a ratio mismatch is stated | A deck declares one `canvas_format`; cropping it into a different frame hides part of the slide and implies a reflow that does not happen |
 | 2026-09-03 | Three-stage journey listed above the rail | The rail named only the current stage's fields, so a decision arriving later (colour) was indistinguishable from one never asked |
+| 2026-09-03 | Waiting screen shows elapsed time, never a percentage | The agent's work is not instrumented, so a percentage would be invented; a rising counter proves liveness truthfully |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |

@@ -84,3 +84,12 @@ body {
   background: linear-gradient(135deg, var(--wdb-grad-from) 0%, var(--wdb-grad-to) 100%);
   color: #ffffff;
 }
+
+/* Indeterminate progress band. No percentage is claimed — the agent's work is
+   not instrumented, so the bar reports "running", not "how far". */
+@keyframes wdb-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.wdb-sweep { animation: wdb-sweep 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+@media (prefers-reduced-motion: reduce) { .wdb-sweep { animation: none; width: 100%; } }

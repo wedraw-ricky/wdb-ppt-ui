@@ -10,7 +10,7 @@ import {
   AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
-import { DoneArt, WaitingArt } from "./states";
+import { Deriving, DoneArt } from "./states";
 import { Hero, stageSteps } from "./hero";
 
 /* ---------- small building blocks ------------------------------------- */
@@ -76,6 +76,7 @@ type Phase = "loading" | "form" | "deriving" | "done" | "error";
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>("loading");
+  const [waitTarget, setWaitTarget] = useState(2);
   const [rec, setRec] = useState<Recommendations>({});
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
@@ -118,11 +119,11 @@ export default function App() {
     try {
       if (stageNum === 1) {
         await api.postConfirm(api.stage1Payload(state, cat));
-        setPhase("deriving"); pollNext(2); return;
+        setWaitTarget(2); setPhase("deriving"); pollNext(2); return;
       }
       if (stageNum === 2) {
         await api.postConfirm(api.stage2Payload(state, cat));
-        setPhase("deriving"); pollNext(3); return;
+        setWaitTarget(3); setPhase("deriving"); pollNext(3); return;
       }
       await api.postConfirm(api.finalPayload(state, cat));
       setPhase("done");
@@ -139,10 +140,7 @@ export default function App() {
   if (phase === "deriving")
     return (
       <Centered>
-        <div className="flex flex-col items-center gap-4">
-          <WaitingArt />
-          <span>{T.deriving}</span>
-        </div>
+        <Deriving target={waitTarget} />
       </Centered>
     );
   if (phase === "done")
