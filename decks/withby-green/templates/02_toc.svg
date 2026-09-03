@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-master="withby-master" data-pptx-master-name="Withby Green" data-pptx-layout="b-toc" data-pptx-layout-name="B — Contents">
   <rect id="master-bg" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="layout-toc-rule" x="65" y="88" width="1149" height="1" fill="#E3E8E6" data-pptx-layer="layout" data-pptx-editable="false"/>
   <g id="page-number-slot" data-pptx-placeholder="slide-number" data-pptx-placeholder-idx="3" data-pptx-placeholder-bounds="1134 44 103 20">
     <text id="page-number-carrier" data-pptx-placeholder-carrier="true" font-weight="300" text-anchor="end" x="1237" y="56" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="12" fill="#4A5250">{{PAGE_NUM}}</text>
   </g>
-  <rect id="layout-toc-rule" x="65" y="88" width="1149" height="1" fill="#E3E8E6" data-pptx-layer="layout" data-pptx-editable="false"/>
   <g id="toc-kicker">
     <text font-weight="400" x="65" y="96" font-family="Freesentation, Paperlogy, 'Malgun Gothic', sans-serif" font-size="24" fill="#4A5250">{{KICKER}}</text>
   </g>

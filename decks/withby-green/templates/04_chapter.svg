@@ -4,7 +4,7 @@
   <g id="picture-slot-1" data-pptx-placeholder="picture" data-pptx-placeholder-idx="10" data-pptx-placeholder-bounds="0 0 1280 720">
     <image id="picture-carrier-1" data-pptx-placeholder-carrier="true" href="../images/{{PHOTO}}" x="0" y="0" width="1280" height="720" preserveAspectRatio="xMidYMid slice"/>
   </g>
-  <rect id="layout-chapter-scrim" width="1280" height="720" fill="#00443D" fill-opacity="0.62" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <g id="chapter-scrim"><rect width="1280" height="720" fill="#00443D" fill-opacity="0.62"/></g>
   <g id="title-slot" data-pptx-placeholder="title" data-pptx-placeholder-bounds="65 300 1150 70">
     <text id="title-carrier" data-pptx-placeholder-carrier="true" x="65" y="352" font-family="'Paperlogy ExtraBold', Paperlogy, 'Malgun Gothic', sans-serif" font-size="43" fill="#C8FF64">{{CHAPTER_NO}}  {{CHAPTER_TITLE}}</text>
   </g>

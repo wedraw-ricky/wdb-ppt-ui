@@ -25,7 +25,7 @@
   <g id="picture-slot-6" data-pptx-placeholder="picture" data-pptx-placeholder-idx="15" data-pptx-placeholder-bounds="1085 365 205 300">
     <image id="picture-carrier-6" data-pptx-placeholder-carrier="true" href="../images/{{PHOTO_6}}" x="1085" y="365" width="205" height="300" preserveAspectRatio="xMidYMid slice"/>
   </g>
-  <rect id="layout-cover-fade" x="0" y="365" width="1280" height="150" fill="url(#coverFade)" data-pptx-layer="layout" data-pptx-editable="false"/>
+  <rect id="cover-fade" x="0" y="365" width="1280" height="150" fill="url(#coverFade)"/>
   <g id="title-slot" data-pptx-placeholder="title" data-pptx-placeholder-bounds="90 110 1100 96">
     <text id="title-carrier" data-pptx-placeholder-carrier="true" font-weight="700" text-anchor="middle" x="640" y="178" font-family="Georgia, 'Times New Roman', serif" font-size="77" fill="#C8FF64">{{TITLE}}</text>
   </g>
