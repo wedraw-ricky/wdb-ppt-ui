@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-master="withby-master" data-pptx-master-name="Withby Green" data-pptx-layout="c-statement" data-pptx-layout-name="C — Statement">
-  <rect id="master-bg" width="1280" height="720" fill="#00443D" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="master-bg" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="layout-ground" width="1280" height="720" fill="#00443D" data-pptx-layer="layout" data-pptx-editable="false"/>
   <rect id="layout-statement-rule" x="704" y="196" width="64" height="3" fill="#C8FF64" data-pptx-layer="layout" data-pptx-editable="false"/>
   <g id="picture-slot-1" data-pptx-placeholder="picture" data-pptx-placeholder-idx="10" data-pptx-placeholder-bounds="0 0 640 720">
     <image id="picture-carrier-1" data-pptx-placeholder-carrier="true" href="../images/{{PHOTO}}" x="0" y="0" width="640" height="720" preserveAspectRatio="xMidYMid slice"/>

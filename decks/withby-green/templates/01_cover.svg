@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" data-pptx-master="withby-master" data-pptx-master-name="Withby Green" data-pptx-layout="a-cover" data-pptx-layout-name="A — Cover">
-  <rect id="master-bg" width="1280" height="720" fill="#00443D" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="master-bg" width="1280" height="720" fill="#FFFFFF" data-pptx-layer="master" data-pptx-editable="false"/>
+  <rect id="layout-ground" width="1280" height="720" fill="#00443D" data-pptx-layer="layout" data-pptx-editable="false"/>
   <defs>
     <linearGradient id="coverFade" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#00443D" stop-opacity="1"/>
