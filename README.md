@@ -126,3 +126,11 @@ static/       index.html · app.js · style.css · catalogs.json
 
 Files absent from `static/` fall through to upstream, so this repo only carries
 what it actually changes.
+
+## 라이선스
+
+MIT — [`LICENSE`](LICENSE) 참고. 자유롭게 고쳐 쓰고 본인 프로젝트에 가져가셔도 됩니다.
+
+번들된 **Paperlogy** 웹폰트는 SIL Open Font License 1.1을 따릅니다
+(`static/fonts/OFL.txt`). 폰트 파일에는 MIT가 아니라 OFL이 적용됩니다.
+`decks/withby-green/`의 레이아웃 시안과 규격 문서도 MIT로 공개합니다.
