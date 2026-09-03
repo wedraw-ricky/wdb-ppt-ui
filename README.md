@@ -15,6 +15,43 @@ inherited verbatim.
 | `_CATALOGS_PATH` | module-level constant — `/api/catalogs` would otherwise keep serving upstream's copy |
 | `app.static_folder` + static view | serve our files, fall back to upstream for everything we don't override (`style_previews/` stays current automatically) |
 
+## 처음부터 설치 (실습생용)
+
+이 저장소는 **슬라이드 생성기가 아니라 그 확인 화면**입니다. 먼저 upstream을
+받아야 합니다.
+
+준비물: Python 3.9+, git, Claude Code. macOS 기준입니다.
+
+```bash
+# 1. upstream (실제 PPT 파이프라인)
+git clone https://github.com/byungjunjang/slide-master.git ~/dev/slide-master
+
+# 2. 파이썬 의존성
+python3 -m pip install flask
+
+# 3. 이 저장소
+git clone https://github.com/wedraw-ricky/wdb-ppt-ui.git ~/dev/wdb-ppt-ui
+
+# 4. upstream 경로를 알려준다 (wdb-ui.config.json에 기록되고 gitignore됩니다)
+cd ~/dev/wdb-ppt-ui
+python3 install.py --ppt-master ~/dev/slide-master/.claude/skills/ppt-master
+```
+
+확인:
+
+```bash
+python3 server.py ~/dev/slide-master/projects/<프로젝트> --daemon
+```
+
+`--wire-stub`은 `~/.claude/skills/ppt-master/SKILL.md` 전역 스텁이 **이미 있을 때만**
+씁니다. 전역 등록을 하지 않았다면 위처럼 `server.py`를 직접 부르면 됩니다.
+
+### 서체
+
+UI 미리보기용 Paperlogy는 저장소에 웹폰트로 들어 있어 따로 설치할 필요가 없습니다.
+다만 **덱을 PPTX로 뽑을 때는** 쓰는 서체가 PC에 설치돼 있어야 합니다 — PPTX는
+서체를 파일에 품지 않습니다.
+
 ## Install
 
 ```bash
