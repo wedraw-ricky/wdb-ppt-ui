@@ -1,29 +1,33 @@
 # WDB Confirm UI
 
-A drop-in front-end for the **ppt-master** Strategist confirmation page
-(`byungjunjang/slide-master`, SKILL.md Step 4).
+**ppt-master** 파이프라인의 "디자인 정하기" 확인 화면을 위드비 스타일로 갈아 끼운
+오버레이입니다. 슬라이드를 만드는 엔진이 아니라, 만들기 직전에 **무엇을 어떻게
+만들지 고르는 화면**입니다.
 
-Upstream is never modified. `server.py` imports upstream's confirm server and
-redirects three things at it, then hands control straight back — so the lock
-file, port search, `--daemon` / `--wait` / `--shutdown` lifecycle, the `/api/*`
-routes, and the `recommendations.json` → `result.json` contract are all
-inherited verbatim.
+<p align="center">
+  <em>1단계 무엇을·누구에게 → 2단계 어떻게 보이게 → 3단계 이미지</em>
+</p>
 
-| Redirect | Why |
+## 이 저장소가 하는 일
+
+원본(upstream)을 **한 줄도 고치지 않습니다.** `server.py`가 원본의 확인 서버를
+import한 뒤 네 가지만 딴 데로 돌려놓고 제어권을 그대로 돌려줍니다. 그래서 잠금
+파일, 포트 탐색, `--daemon` / `--wait` / `--shutdown` 수명주기, `/api/*` 경로,
+`recommendations.json` → `result.json` 계약이 전부 원본 그대로 상속됩니다.
+
+| 돌려놓는 것 | 이유 |
 |---|---|
-| `server.__file__` | upstream re-spawns its own file as the serving child; every other `__file__` use there is an import-time constant, so reassigning it after import steers only that spawn |
-| `_CATALOGS_PATH` | module-level constant — `/api/catalogs` would otherwise keep serving upstream's copy |
-| `app.static_folder` + static view | serve our files, fall back to upstream for everything we don't override (`style_previews/` stays current automatically) |
+| `server.__file__` | 원본은 서빙용 자식 프로세스를 자기 파일로 다시 띄웁니다. 그 외의 `__file__` 사용처는 전부 import 시점 상수라, import 뒤에 바꾸면 이 자식 프로세스만 우리 쪽으로 옵니다 |
+| `_CATALOGS_PATH` | 모듈 상수라 그냥 두면 `/api/catalogs`가 계속 원본 카탈로그를 내보냅니다 |
+| `app.static_folder` + 정적 뷰 | 우리 파일을 먼저 주고, 우리가 안 바꾼 건 원본으로 넘깁니다 (`style_previews/` 같은 건 자동으로 최신 유지) |
+| `_DECKS_DIR` | 우리 덱과 원본 덱을 `.decks-merged/`로 합쳐 템플릿 카드에 함께 띄웁니다 |
 
 ## 처음부터 설치 (실습생용)
-
-이 저장소는 **슬라이드 생성기가 아니라 그 확인 화면**입니다. 먼저 upstream을
-받아야 합니다.
 
 준비물: Python 3.9+, git, Claude Code. macOS 기준입니다.
 
 ```bash
-# 1. upstream (실제 PPT 파이프라인)
+# 1. 원본 파이프라인 (실제로 PPT를 만드는 쪽)
 git clone https://github.com/byungjunjang/slide-master.git ~/dev/slide-master
 
 # 2. 파이썬 의존성
@@ -32,7 +36,7 @@ python3 -m pip install flask
 # 3. 이 저장소
 git clone https://github.com/wedraw-ricky/wdb-ppt-ui.git ~/dev/wdb-ppt-ui
 
-# 4. upstream 경로를 알려준다 (wdb-ui.config.json에 기록되고 gitignore됩니다)
+# 4. 원본 경로 알려주기 (wdb-ui.config.json에 기록되고 gitignore됩니다)
 cd ~/dev/wdb-ppt-ui
 python3 install.py --ppt-master ~/dev/slide-master/.claude/skills/ppt-master
 ```
@@ -43,89 +47,102 @@ python3 install.py --ppt-master ~/dev/slide-master/.claude/skills/ppt-master
 python3 server.py ~/dev/slide-master/projects/<프로젝트> --daemon
 ```
 
+원본 경로를 찾는 순서는 `WDB_UI_PPT_MASTER_DIR` 환경변수 → `wdb-ui.config.json` →
+없으면 명확한 에러입니다.
+
 `--wire-stub`은 `~/.claude/skills/ppt-master/SKILL.md` 전역 스텁이 **이미 있을 때만**
-씁니다. 전역 등록을 하지 않았다면 위처럼 `server.py`를 직접 부르면 됩니다.
+씁니다. 전역 등록을 안 했다면 위처럼 `server.py`를 직접 부르면 됩니다.
 
 ### 서체
 
 UI 미리보기용 Paperlogy는 저장소에 웹폰트로 들어 있어 따로 설치할 필요가 없습니다.
 다만 **덱을 PPTX로 뽑을 때는** 쓰는 서체가 PC에 설치돼 있어야 합니다 — PPTX는
-서체를 파일에 품지 않습니다.
+서체를 파일에 품지 않기 때문입니다.
 
-## Install
+## 실행
 
-```bash
-python3 install.py --ppt-master ~/dev/workspaces/pptskill/.claude/skills/ppt-master
-```
-
-Add `--wire-stub ~/.claude/skills/ppt-master/SKILL.md` to make the global skill
-stub launch this overlay instead of upstream's confirm server.
-
-Resolution order for the ppt-master path: `WDB_UI_PPT_MASTER_DIR` env var →
-`wdb-ui.config.json` (gitignored) → a clear error.
-
-## Run
-
-Same arguments as upstream:
+원본과 같은 인자를 씁니다.
 
 ```bash
-python3 server.py <project_path> --daemon --wait
-python3 server.py <project_path> --shutdown
+python3 server.py <프로젝트경로> --daemon --wait
+python3 server.py <프로젝트경로> --shutdown
 ```
 
-## Deck templates
+## 덱 템플릿
 
-`decks/` holds deck templates this overlay adds to the ppt-master library.
-`server.py` composes them with upstream's decks into `.decks-merged/`
-(symlinks + a merged index) and points `_DECKS_DIR` there, so an overlay deck
-shows up on the template card without a file ever being added to upstream.
+`decks/`에 이 오버레이가 추가하는 덱 템플릿이 있습니다. `server.py`가 원본 덱과
+심볼릭 링크로 합쳐 `.decks-merged/`를 만들고 `_DECKS_DIR`을 그쪽으로 돌리기 때문에,
+원본 저장소에 파일 하나 넣지 않고도 템플릿 카드에 뜹니다.
 
-| Deck | Pages | Source |
+| 덱 | 쪽수 | 출처 |
 |---|---|---|
-| `withby-green` | 9 | ported from the `withb-green-design` skill; archetypes A–I, coordinates measured from its original 19-slide PPTX |
+| `withby-green` | 9 | `withb-green-design` 스킬에서 이식. 아키타입 A–I, 좌표는 원본 19장짜리 PPTX에서 실측 |
 
-## UI
+## 화면 설계 원칙
 
-The confirm page is a React 19 + HeroUI v3 + Tailwind v4 app in `ui/`, built
-into `static/app/` and **committed**, so the page runs offline with no
-`npm install` on the machine that serves it.
+한 줄로 요약하면 **"고르는 대상을 그려서 보여준다. 목록으로 설명하지 않는다."**
+전체 규칙과 결정 기록은 [`DESIGN.md`](DESIGN.md)에 있습니다.
+
+| 고르는 것 | 화면에 보이는 것 |
+|---|---|
+| 덱 템플릿 | 그 덱의 첫 장을 실제로 렌더한 썸네일 |
+| 화면 크기 | 진짜 비율로 그린 사각형 |
+| 색 | **그 색으로 칠한 미니 슬라이드** |
+| 글꼴 | 제목→부제목→본문→주석 **실제 급수 사다리** |
+| 쪽수 | 길이 칩 + 쪽 수만큼의 눈금 |
+| 이미지 출처 | 그 출처가 만들어내는 그림 샘플 |
+| 설명 방식 | 논리 구조를 그린 다이어그램 |
+
+## UI 코드
+
+React 19 + HeroUI v3 + Tailwind v4 앱이 `ui/`에 있고, 빌드 결과가 `static/app/`에
+**커밋되어 있습니다.** 서버를 띄우는 PC에서 `npm install`을 하지 않아도 오프라인으로
+동작합니다.
 
 ```bash
-cd ui && npm install      # only to change the UI
+cd ui && npm install      # UI를 고칠 때만
 npx vite build            # -> static/app/confirm.js + confirm.css
 ```
 
-`ui/src/api.ts` holds the contract (state shape, stage payloads, validation)
-separately from the components — that split is what let the port be verified by
-diffing `result.json` against the previous vanilla page.
+`ui/src/api.ts`가 계약(상태 구조·단계별 payload·검증)을 컴포넌트와 분리해 들고
+있습니다. 이 분리 덕분에 화면을 React로 다시 만들 때 `result.json`을 이전 화면 결과와
+비교하는 것만으로 검증이 가능했습니다.
 
-WDB tokens are mapped onto HeroUI's semantic CSS variables in `ui/src/theme.css`
-(`--accent`, `--background`, `--surface`…), so every component inherits the
-brand without per-component colour work.
+위드비 토큰은 `ui/src/theme.css`에서 HeroUI의 의미 변수(`--accent`, `--background`,
+`--surface` …)에 매핑됩니다. 컴포넌트마다 색을 지정하지 않아도 브랜드가 전파됩니다.
 
-The previous vanilla page is still in `static/` (`app.js`, `style.css`); point
-`static/index.html` back at them to fall back.
+이전 바닐라 화면도 `static/`에 남아 있습니다(`app.js`, `style.css`).
+`static/index.html`을 그쪽으로 되돌리면 폴백됩니다.
 
-## Bundled font
-
-`static/fonts/` carries five weights of **Paperlogy** as `woff2` (SIL OFL 1.1 —
-see `static/fonts/NOTICE.md`), so the page renders in the deck typeface on any
-machine, offline, without a local install. `@font-face` lists `local()` first,
-so an installed copy is used with no download.
-
-This applies to the HTML page only — the SVG slide pipeline forbids
-`@font-face` and is unaffected.
-
-## Layout
+## 폴더 구조
 
 ```
-server.py     entry point + the three redirects
-install.py    writes wdb-ui.config.json, optionally wires the global stub
-static/       index.html · app.js · style.css · catalogs.json
+server.py     진입점 + 네 가지 리다이렉트
+install.py    wdb-ui.config.json 작성, 선택적으로 전역 스텁 배선
+ui/           React 소스
+static/       빌드 결과 · 폰트 · 카탈로그 · 이전 바닐라 화면
+decks/        오버레이 덱 템플릿
+DESIGN.md     화면 설계 계약과 결정 기록
 ```
 
-Files absent from `static/` fall through to upstream, so this repo only carries
-what it actually changes.
+`static/`에 없는 파일은 원본으로 넘어가므로, 이 저장소는 **실제로 바꾼 것만** 들고
+있습니다.
+
+## 만든 사람들 · 기반이 된 작업
+
+이 저장소는 혼자 선 물건이 아닙니다. 아래 작업들이 없으면 동작하지 않습니다.
+
+| 무엇 | 만든 사람 | 라이선스 | 관계 |
+|---|---|---|---|
+| **slide-master / ppt-master 파이프라인** — 실제로 문서를 SVG로 만들고 네이티브 PPTX로 내보내는 엔진 전체 | **Hugo He** (LICENSE 표기) · 커밋 이력은 **byungjunjang** (`byungjun.jang89@gmail.com`, `jangpm`) | MIT | 이 저장소는 원본을 **재배포하지 않고** import해서 씁니다. 별도로 clone해야 합니다 → [byungjunjang/slide-master](https://github.com/byungjunjang/slide-master) |
+| **Paperlogy (페이퍼로지체)** | 배포 [fonts-archive](https://github.com/fonts-archive/Paperlogy) · [freesentation.blog](https://freesentation.blog/paperlogyfont) | SIL OFL 1.1 | `static/fonts/`에 woff2 5종 번들. 상세는 [`static/fonts/NOTICE.md`](static/fonts/NOTICE.md) |
+| **HeroUI v3** · React · Tailwind CSS · React Aria | 각 프로젝트 | 각 프로젝트 라이선스 (`ui/package.json`) | UI 구성 요소 |
+| **withby-green 덱 템플릿** | 원본 `PPT 탬플릿 예시.pptx` 19장을 해부해 이식 | MIT (이 저장소) | ⚠️ **확인 필요** — 원본 PPTX를 만든 분의 성함이 확인되면 여기에 적습니다 |
+| **확인 화면 오버레이 (이 저장소)** | WeDraw (위드비) | MIT | |
+
+> 원본 파이프라인의 설계 — 3단계 확인 흐름, `recommendations.json` → `result.json`
+> 계약, 구조화 PPTX 내보내기 — 는 전부 위 원저작자의 작업입니다. 이 저장소가 바꾼
+> 것은 **그 계약을 그대로 둔 채 화면만** 다시 그린 것입니다.
 
 ## 라이선스
 

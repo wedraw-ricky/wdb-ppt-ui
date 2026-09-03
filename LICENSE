@@ -27,5 +27,11 @@ Third-party components keep their own licences:
 - Pretendard-adjacent bundled webfont **Paperlogy** — SIL Open Font License 1.1.
   Full text at `static/fonts/OFL.txt`; attribution at `static/fonts/NOTICE.md`.
   The OFL governs those font files, not this MIT grant.
-- The upstream `ppt-master` pipeline (`byungjunjang/slide-master`) is a separate
-  project under its own terms; this repository does not redistribute it.
+- The upstream `ppt-master` / slide-master pipeline is a separate project,
+  MIT-licensed, Copyright (c) 2025-2026 Hugo He, developed at
+  https://github.com/byungjunjang/slide-master. This repository imports it at
+  runtime and does not redistribute any part of it. The three-stage confirm
+  flow, the recommendations.json -> result.json contract and the structured
+  PPTX export are that project's design, not this one's.
+- The `decks/withby-green/` prototypes were ported from an existing 19-slide
+  PPTX template; the original template's author is not recorded here yet.
