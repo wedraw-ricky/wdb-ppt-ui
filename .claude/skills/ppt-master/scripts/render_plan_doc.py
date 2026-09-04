@@ -189,7 +189,13 @@ def render_docx(plan: Plan, out_path: Path, form_name: str) -> None:
             "Install it with:  pip install python-docx"
         ) from exc
 
-    writer.write_chrome(plan.intake.get("department") or "기획", plan.title)
+    writer.paint_ground()
+    nav = " → ".join(report_form.ROMAN[i] for i in range(len(plan.sections)))
+    # The header names the document's kind, not its title — the title is long and
+    # the section navigator sits on the same line.
+    label = plan.frame.label.rstrip("형") if plan.frame else ""
+    writer.write_chrome(plan.intake.get("department") or "기획", label,
+                        f"SECTION: {nav}" if nav else "")
     writer.write_title(plan.title)
 
     for i, sec in enumerate(plan.sections):

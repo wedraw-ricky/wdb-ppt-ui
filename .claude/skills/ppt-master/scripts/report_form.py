@@ -50,9 +50,15 @@ _INLINE_RE = re.compile(
     r"|\*\*(.+?)\*\*"                         # bold
     r"|\[([^\]]*(?:확인 필요|추정)[^\]]*)\]"   # badge
 )
-_FIGURE_RE = re.compile(
-    r"\d[\d,.]*\s*(?:%p|%|건|명|원|배|점|일|주|개월|년|분기|억|만원|천원)?"
-)
+# A figure is the number *and* the unit it is stated in — "18.50건" is one thing,
+# and bolding half of it splits the value from what it measures.
+_UNITS = (r"%p|%|건|명|원|점|개월|년|월|일|주|시간|분|초|회|차|개|배|억원|억"
+          r"|만원|천원|만|천|배수|명당|건당")
+_ARROW = r"(?:[▲▼△▽]\s?)?"   # a space belongs to the arrow, never to a bare figure
+# In prose a bare numeral is usually part of a name (1공구, 문항 3) — only a
+# number carrying a unit is a figure. In a table the number *is* the value.
+_FIGURE_RE = re.compile(_ARROW + r"\d[\d,.]*\s*(?:" + _UNITS + r")")
+_FIGURE_ANY_RE = re.compile(_ARROW + r"\d[\d,.]*\s*(?:" + _UNITS + r")?")
 
 
 def load_form(name: str) -> dict:
@@ -136,13 +142,19 @@ def strip_markup(text: str) -> str:
     )
 
 
-def _runs(text: str, *, figures: bool = True) -> list[tuple[str, str]]:
-    """Text split into (chunk, role) — '', 'bold', 'improve', 'worsen', 'badge'."""
+def _runs(text: str, *, figures: bool = True,
+          bare: bool = False) -> list[tuple[str, str]]:
+    """Text split into (chunk, role) — '', 'bold', 'improve', 'worsen', 'badge'.
+
+    `figures` off writes the text untouched — a 각주 carries a path and a line
+    range, and emphasising the digits inside `L12-L88` reads them as findings.
+    `bare` on also bolds a unit-less number, which is what a table cell holds.
+    """
     out: list[tuple[str, str]] = []
     cursor = 0
     for m in _INLINE_RE.finditer(text):
         if m.start() > cursor:
-            out += _plain(text[cursor:m.start()], figures)
+            out += _plain(text[cursor:m.start()], figures, bare)
         if m.group(1):
             out.append((m.group(2), "improve" if m.group(1) == "+" else "worsen"))
         elif m.group(3):
@@ -150,16 +162,16 @@ def _runs(text: str, *, figures: bool = True) -> list[tuple[str, str]]:
         else:
             out.append((m.group(4), "badge"))
         cursor = m.end()
-    out += _plain(text[cursor:], figures)
+    out += _plain(text[cursor:], figures, bare)
     return [(chunk, role) for chunk, role in out if chunk]
 
 
-def _plain(text: str, figures: bool) -> list[tuple[str, str]]:
+def _plain(text: str, figures: bool, bare: bool = False) -> list[tuple[str, str]]:
     if not figures:
         return [(text, "")]
     out: list[tuple[str, str]] = []
     cursor = 0
-    for m in _FIGURE_RE.finditer(text):
+    for m in (_FIGURE_ANY_RE if bare else _FIGURE_RE).finditer(text):
         if m.start() > cursor:
             out.append((text[cursor:m.start()], ""))
         out.append((m.group(0), "bold"))
@@ -177,16 +189,17 @@ class ReportWriter:
     def __init__(self, form: dict):
         from docx import Document
         from docx.enum.table import WD_TABLE_ALIGNMENT
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
         from docx.oxml import OxmlElement
         from docx.oxml.ns import qn
-        from docx.shared import Mm, Pt, RGBColor
+        from docx.shared import Emu, Mm, Pt, RGBColor
 
         self.form = form
         self.doc = Document()
-        self.Mm, self.Pt, self.RGBColor = Mm, Pt, RGBColor
+        self.Mm, self.Pt, self.RGBColor, self.Emu = Mm, Pt, RGBColor, Emu
         self.qn, self.OxmlElement = qn, OxmlElement
         self.ALIGN, self.TABLE_ALIGN = WD_ALIGN_PARAGRAPH, WD_TABLE_ALIGNMENT
+        self.TAB_RIGHT = WD_TAB_ALIGNMENT.RIGHT
         self._setup_page()
 
     # -- primitives --
@@ -222,6 +235,43 @@ class ReportWriter:
         borders.append(bottom)
         para._p.get_or_add_pPr().append(borders)
 
+    def _no_auto_space(self) -> None:
+        """Stop Word padding the seam between Hangul and Latin.
+
+        On by default, it renders "1,015명" as "1,015 명" — the figure split from
+        the unit it is stated in. Set on the document defaults, where `w:pPr` is
+        empty and the schema's element order cannot be violated.
+        """
+        styles = self.doc.styles.element
+        defaults = styles.find(self.qn("w:docDefaults"))
+        if defaults is None:
+            defaults = self.OxmlElement("w:docDefaults")
+            styles.insert(0, defaults)
+        ppr_default = defaults.find(self.qn("w:pPrDefault"))
+        if ppr_default is None:
+            ppr_default = self.OxmlElement("w:pPrDefault")
+            defaults.append(ppr_default)
+        ppr = ppr_default.find(self.qn("w:pPr"))
+        if ppr is None:
+            ppr = self.OxmlElement("w:pPr")
+            ppr_default.append(ppr)
+        # `w:pPr` is an ordered sequence and both elements precede `w:spacing`,
+        # which python-docx has already written — so insert at the front.
+        for tag in ("w:autoSpaceDN", "w:autoSpaceDE"):
+            el = self.OxmlElement(tag)
+            el.set(self.qn("w:val"), "0")
+            ppr.insert(0, el)
+
+    def top_rule(self, para, color: str, size: int = 6) -> None:
+        borders = self.OxmlElement("w:pBdr")
+        top = self.OxmlElement("w:top")
+        top.set(self.qn("w:val"), "single")
+        top.set(self.qn("w:sz"), str(size))
+        top.set(self.qn("w:space"), "6")
+        top.set(self.qn("w:color"), color)
+        borders.append(top)
+        para._p.get_or_add_pPr().append(borders)
+
     def _setup_page(self) -> None:
         page = self.form["page"]
         s = self.doc.sections[0]
@@ -237,6 +287,7 @@ class ReportWriter:
             self.qn("w:eastAsia"), self.form["fonts"]["body"])
         style.paragraph_format.space_after = self.Pt(1)
         style.paragraph_format.line_spacing = self.form["line_spacing"]["base"]
+        self._no_auto_space()
 
     # -- content --
 
@@ -262,7 +313,7 @@ class ReportWriter:
         blanket_bold = level == "core" and "**" not in text
         self.font(para.add_run(f"{marker} "), name=f["fonts"]["body"], size=size,
                   bold=level == "core", color=body_color)
-        for chunk, role in _runs(text):
+        for chunk, role in _runs(text, figures=not text.lstrip().startswith("근거:")):
             run = self.font(
                 para.add_run(chunk), name=f["fonts"]["body"], size=size,
                 bold=blanket_bold or role in ("bold", "improve", "worsen", "badge"),
@@ -282,6 +333,7 @@ class ReportWriter:
         width = max(len(r) for r in rows)
         table = self.doc.add_table(rows=0, cols=width)
         table.alignment = self.TABLE_ALIGN.CENTER
+        table.autofit = False
         self._table_borders(table)
 
         for i, row in enumerate(rows):
@@ -302,7 +354,7 @@ class ReportWriter:
                     continue
                 if j == 0:
                     self.shade(cell._tc.get_or_add_tcPr(), colors["table_label_bg"])
-                for chunk, role in _runs(text):
+                for chunk, role in _runs(text, bare=True):
                     self.font(
                         para.add_run(chunk), name=f["fonts"]["body"],
                         size=cell_size,
@@ -311,7 +363,40 @@ class ReportWriter:
                         else colors["worsen"] if role == "worsen"
                         else colors["text"],
                     )
+        self._table_widths(table, width, rows)
         self.doc.add_paragraph().paragraph_format.space_after = self.Pt(2)
+
+    def _table_widths(self, table, cols: int, rows: list) -> None:
+        """Give the label column the room its text needs, split the rest evenly."""
+        section = self.doc.sections[0]
+        usable = section.page_width - section.left_margin - section.right_margin
+        # Share the width by what each column actually holds, so a long label
+        # column does not wrap while a 증감 column sits half empty. Hangul is
+        # about twice the advance of a Latin character.
+        def weight(text: str) -> int:
+            return sum(2 if ord(c) > 0x1100 else 1 for c in strip_markup(text))
+
+        # Column widths are only honoured under a fixed layout; the default
+        # autofit recomputes them from content and discards what we set.
+        layout = self.OxmlElement("w:tblLayout")
+        layout.set(self.qn("w:type"), "fixed")
+        table._tbl.tblPr.append(layout)
+
+        demand = [max((weight(row[j]) for row in rows if j < len(row)), default=1)
+                  for j in range(cols)]
+        floor = 0.10
+        share = [max(d / sum(demand), floor) for d in demand]
+        share = [v / sum(share) for v in share]
+        widths = [self.Emu(int(usable * v)) for v in share]
+        grid = table._tbl.find(self.qn("w:tblGrid"))
+        if grid is not None:
+            for j, col in enumerate(grid.findall(self.qn("w:gridCol"))):
+                if j < len(widths):
+                    col.set(self.qn("w:w"), str(int(widths[j].twips)))
+        for row in table.rows:
+            for j, cell in enumerate(row.cells):
+                if j < len(widths):
+                    cell.width = widths[j]
 
     def _table_borders(self, table) -> None:
         """Horizontal rules only unless the form keeps vertical ones."""
@@ -382,22 +467,50 @@ class ReportWriter:
             else:
                 self.write_line(level, payload, size=sizes["appendix"])
 
-    def write_chrome(self, dept: str, doc_name: str) -> None:
+    def paint_ground(self) -> None:
+        """Fill the page. The reference sits on a tinted ground, not on white."""
+        ground = self.form["colors"].get("ground", "FFFFFF")
+        if ground.upper() == "FFFFFF":
+            return
+        bg = self.OxmlElement("w:background")
+        bg.set(self.qn("w:color"), ground)
+        self.doc.element.insert(0, bg)
+        # CT_Settings orders displayBackgroundShape straight after w:zoom.
+        settings = self.doc.settings.element
+        show = self.OxmlElement("w:displayBackgroundShape")
+        zoom = settings.find(self.qn("w:zoom"))
+        if zoom is not None:
+            zoom.addnext(show)
+        else:
+            settings.insert(0, show)
+
+    def _right_tab(self, para) -> None:
+        section = self.doc.sections[0]
+        width = section.page_width - section.left_margin - section.right_margin
+        para.paragraph_format.tab_stops.add_tab_stop(width, self.TAB_RIGHT)
+
+    def write_chrome(self, dept: str, doc_name: str, nav: str = "") -> None:
         f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
         chrome = f.get("chrome", {})
         section = self.doc.sections[0]
         if chrome.get("header"):
             para = section.header.paragraphs[0]
             para.paragraph_format.space_after = self.Pt(2)
+            self._right_tab(para)
             self.font(para.add_run(f"{dept}"), name=f["fonts"]["body"],
                       size=sizes["chrome"], bold=True, color=colors["accent"])
-            self.font(para.add_run(f"  |  {doc_name}"), name=f["fonts"]["body"],
-                      size=sizes["chrome"], color=colors["text"])
+            if doc_name:
+                self.font(para.add_run(f"  |  {doc_name}"), name=f["fonts"]["body"],
+                          size=sizes["chrome"], color=colors["text"])
+            if nav:
+                self.font(para.add_run(f"\t{nav}"), name=f["fonts"]["body"],
+                          size=sizes["chrome"], color=colors["rule"])
             self.bottom_rule(para, colors["rule"], 6)
         if chrome.get("footer"):
             para = section.footer.paragraphs[0]
             para.alignment = self.ALIGN.RIGHT
-            self.font(para.add_run(f"{dept}   "), name=f["fonts"]["body"],
+            self.top_rule(para, colors["rule"], 6)
+            self.font(para.add_run(f"{dept}   |   "), name=f["fonts"]["body"],
                       size=sizes["chrome"], color=colors["accent"])
             self.font(para.add_run("- "), name=f["fonts"]["body"],
                       size=sizes["chrome"], color=colors["text"])

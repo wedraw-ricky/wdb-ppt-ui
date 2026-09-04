@@ -43,7 +43,8 @@
     "table_header_fg": "000000",
     "table_label_bg": "F2F2F2",
     "badge_bg": "F2F2F2",
-    "badge_fg": "000000"
+    "badge_fg": "000000",
+    "ground": "FFFFFF"
   },
   "rules": {
     "title_rule": true,

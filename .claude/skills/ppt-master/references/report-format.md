@@ -132,8 +132,8 @@ form, selected with `--form`. `forms_index.json` names the default.
 | `bok` | 한국은행 보도자료형 — 흑백, `□`/`─`, 맑은 고딕 제목 위 한컴바탕 본문, ruled 통계표 with vertical rules |
 | `khnp` | 한수원 개조식형 — accent `#224C9D` 대제목·표 머리, `▢`/`◦`, 머리말·꼬리말, 세로선 없는 표, 개선 파랑 / 악화 빨강 |
 
-Each form carries `page`, `fonts`, `sizes`, `line_spacing`, `markers`, `colors`,
-`rules`, `chrome`. A new house style is a new JSON file — never a change to the
+Each form carries `page`, `fonts`, `sizes`, `line_spacing`, `markers`, `colors`
+(including the page `ground`), `rules`, `chrome`. A new house style is a new JSON file — never a change to the
 renderer.
 
 **Type scale (Word points)** — both shipped forms use the same one; a new form may
@@ -152,6 +152,19 @@ set its own:
 
 **Line spacing**: 1.3 throughout; marker lines (`▢` `◦` `*`) run at 1.5 so the list
 breathes against the surrounding text.
+
+**Hard rule**: Word pads the seam between Hangul and Latin by default, which renders
+`1,015명` as `1,015 명` — the figure split from its unit. `autoSpaceDE` / `autoSpaceDN`
+are turned off in the document defaults. LibreOffice ignores both flags on import, so a
+LibreOffice preview still shows the gap; Word does not.
+
+**Hard rule**: A table sets a fixed layout and shares its width by what each column
+holds. Under the default autofit a long label column wraps every row while a 증감 column
+sits half empty.
+
+**Hard rule**: Figures are bolded with their unit. In prose a bare numeral is left alone
+— `1공구` and `문항 3` are names, not values. In a table cell the number *is* the value,
+so it is bolded there with or without a unit.
 
 **Hard rule**: A `▢` 핵심 line is bold as a whole. Where the author marked part of it
 with `**`, that markup wins and the rest stays at normal weight — an option line

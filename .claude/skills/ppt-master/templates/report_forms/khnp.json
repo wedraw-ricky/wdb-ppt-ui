@@ -9,8 +9,8 @@
     "margin_side_mm": 20
   },
   "fonts": {
-    "title": "맑은 고딕",
-    "body": "맑은 고딕"
+    "title": "Pretendard",
+    "body": "Pretendard"
   },
   "sizes": {
     "title": 22,
@@ -43,7 +43,8 @@
     "table_header_fg": "FFFFFF",
     "table_label_bg": "ECEEF2",
     "badge_bg": "FEF3C7",
-    "badge_fg": "92400E"
+    "badge_fg": "92400E",
+    "ground": "F7F8FA"
   },
   "rules": {
     "title_rule": true,
