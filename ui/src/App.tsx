@@ -14,6 +14,10 @@ import { Deriving, DoneArt } from "./states";
 import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
 import { Hero, stageSteps } from "./hero";
 import { Intake } from "./intake";
+import { OutlineEditor } from "./outline";
+import {
+  localStamp, metaGet, metaSet, parseOutline, serializeOutline, type Doc, type Row,
+} from "./outline/model";
 
 /* ---------- small building blocks ------------------------------------- */
 
@@ -74,13 +78,14 @@ function Candidates({
 
 /* ---------- app -------------------------------------------------------- */
 
-type Phase = "loading" | "form" | "deriving" | "done" | "error";
+type Phase = "loading" | "intake" | "outline" | "form" | "deriving" | "done" | "error";
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [waitTarget, setWaitTarget] = useState(2);
   const [mismatchAck, setMismatchAck] = useState(false);
   const [intakeDraft, setIntakeDraft] = useState<any | null>(null);
+  const [outlineDoc, setOutlineDoc] = useState<Doc | null>(null);
   const [rec, setRec] = useState<Recommendations>({});
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
@@ -105,6 +110,14 @@ export default function App() {
       let intake: any = null;
       try { intake = await api.readPlanning("intake"); } catch { /* server may predate the route */ }
       if (intake === null) { setIntakeDraft({}); setPhase("intake"); return; }
+      // The skeleton is settled before any design choice (SKILL.md Step 3.7):
+      // what the deck says decides what it needs to look like, not the reverse.
+      let outline: any = null;
+      try { outline = await api.readPlanning("outline"); } catch { /* same */ }
+      if (outline?.text) {
+        const doc = parseOutline(outline.text);
+        if (!metaGet(doc, "confirmed_at")) { setOutlineDoc(doc); setPhase("outline"); return; }
+      }
       setPhase("form");
     } catch {
       setPhase("error");
@@ -176,6 +189,23 @@ export default function App() {
           } catch {
             setMsg(T.errRetry);
           }
+        }}
+      />
+    );
+  if (phase === "outline" && outlineDoc)
+    return (
+      <OutlineEditor
+        doc={outlineDoc}
+        onConfirm={async (rows: Row[]) => {
+          // `confirmed_at` is the person's approval, and it is also what makes
+          // the write land: the agent waits on this file *changing*
+          // (`--wait-planning outline`), so confirming an outline nobody edited
+          // has to still differ from the version the agent wrote.
+          const next = metaSet({ ...outlineDoc, rows }, "confirmed_at", localStamp());
+          await api.savePlanning("outline", { text: serializeOutline(next) });
+          setWaitTarget(1);
+          setPhase("deriving");
+          pollNext(1);
         }}
       />
     );
