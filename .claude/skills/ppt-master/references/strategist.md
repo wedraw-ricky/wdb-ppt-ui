@@ -216,9 +216,28 @@ See [`../templates/icons/README.md`](../templates/icons/README.md) for the curre
 
 ### g. Typography Plan Confirmation (Font + Size)
 
-🚧 **GATE — read the locked style's type character first**: `read_file` the visual-style file locked at §d Layer 2 (`visual-styles/<visual_style>.md`) and pull its **§2 Typography character** (you only read the catalog index there; the per-style character lives in the file). Both combinations below MUST realize it, and the **title carries the personality** — the CJK body may stay a neutral pre-installed sans, but the title leads with the character the style asks for (e.g. `ink-wash` → calligraphic `KaiTi` / `FangSong`; `brutalist` / `memphis` / `vintage-poster` / `zine` → display `SimHei` / `Impact`; `editorial` / `data-journalism` / `photo-editorial` → serif `Georgia` / `Cambria` / `SimSun`; `dark-tech` / `blueprint` → clean sans + `Consolas` mono; `swiss-minimal` / `soft-rounded` → grotesque / friendly sans). For `visual_style: custom`, realize its `visual_style_behavior` character instead. Letting the title default to a neutral sans when the style asks for character is the failure mode to avoid.
+🚧 **GATE — applies at font-precedence rank 1 and 2 only** (see the table
+immediately below; at rank 3 the family is Pretendard and character comes from
+weight and size, never from a second face). When a font is genuinely being
+chosen: `read_file` the visual-style file locked at §d Layer 2 (`visual-styles/<visual_style>.md`) and pull its **§2 Typography character** (you only read the catalog index there; the per-style character lives in the file). Both combinations below MUST realize it, and the **title carries the personality** — the CJK body may stay a neutral pre-installed sans, but the title leads with the character the style asks for (e.g. `ink-wash` → calligraphic `KaiTi` / `FangSong`; `brutalist` / `memphis` / `vintage-poster` / `zine` → display `SimHei` / `Impact`; `editorial` / `data-journalism` / `photo-editorial` → serif `Georgia` / `Cambria` / `SimSun`; `dark-tech` / `blueprint` → clean sans + `Consolas` mono; `swiss-minimal` / `soft-rounded` → grotesque / friendly sans). For `visual_style: custom`, realize its `visual_style_behavior` character instead. Letting the title default to a neutral sans when the style asks for character is the failure mode to avoid.
 
-> **🔒 Install-local font lock — Pretendard (standing user preference on this machine).** Typography is **fixed to the Pretendard family** for every deck. This supersedes the two-combination mandate below: do NOT propose alternative families — present one Pretendard plan (weight roles + size ramp) at the confirmation stage. Deviate only when the user explicitly names another font in the current conversation, or a Step 3 template declares its own stacks (template precedence). Everything below in this section then serves only as background/fallback guidance.
+> **🔒 Font precedence — one rule, three sources.** There is exactly one order,
+> and it decides every deck. Read it before anything else in this section.
+>
+> | Rank | Source | When it wins |
+> |---|---|---|
+> | 1 | **The user, in this conversation** | They name a font. Nothing overrides this |
+> | 2 | **The template loaded at Step 3** | It declares `title` / `body` stacks in `<project_path>/templates/design_spec.md §III Typography` / §IV |
+> | 3 | **Pretendard — the install default** | Neither of the above. Present one Pretendard plan (weight roles + size ramp), not a family choice |
+>
+> **Hard rule**: never invent a fourth source. Do not propose alternative families
+> when rank 3 applies — the two-combination mandate further down is *background for
+> rank 1 and 2 only*, and never a reason to shop for a face on your own.
+>
+> **Hard rule**: whichever rank wins, the chosen family must be installed on the
+> machine that exports. PPTX does not embed fonts, so a missing face substitutes
+> silently and the whole deck ships wrong. `validate_spec.py` warns on the locked
+> `font_family`; say so in the Design Spec when the deck will be opened elsewhere.
 > - **Stack**: `Pretendard, "Malgun Gothic", sans-serif` (tail is preview/fallback only; converter exports Pretendard for both Latin and EA slots — it is registered in `DUAL_SCRIPT_FONTS`).
 > - **Weights**: `Pretendard` + `font-weight` covers Regular(400)/Bold(700). Intermediate cuts are separate installed family names — `"Pretendard Light"`, `"Pretendard Medium"`, `"Pretendard SemiBold"`, `"Pretendard ExtraBold"` (author them as the font-family with normal weight).
 > - **Style character (§2 GATE)** is realized through weight span (e.g. ExtraBold title / Light body), size ramp, letter-spacing, casing, and color — never by switching families.
@@ -246,9 +265,9 @@ See [`../templates/icons/README.md`](../templates/icons/README.md) for the curre
 - `"Times New Roman"` ↔ `Times`
 - `Georgia` ↔ `Cambria`
 
-**Mandatory**: propose **two** combinations to the user — one concord (safe), one contrast (with tension). Do not default to "title = body, same font" without explicit user request. Pick each family by subject fit and the locked `visual_style`'s **§2 character** (read at the GATE above) — there is **no default family**; type should follow the deck's content and aesthetic, not fall back to one safe face.
+**Applies at rank 1 and 2 only** (see the precedence table at the top of §g). When the user has named a font or a template declares stacks, propose **two** combinations — one concord (safe), one contrast (with tension). Do not default to "title = body, same font" without explicit user request. Pick each family by subject fit and the locked `visual_style`'s **§2 character** (read at the GATE above). **At rank 3 this section does not apply**: Pretendard is the family and hierarchy comes from weight and size, not from a second face.
 
-> **Template precedence**: when a template was loaded at Step 3 via an explicit path and declares `title` / `body` font stacks in `<project_path>/templates/design_spec.md §III Typography` / §IV (or whichever heading the fused spec uses), lock those directly and skip the two-combination presentation. Same precedence as e. — user override > template values.
+> **Template precedence** is rank 2 in the table at the top of §g. Lock the declared stacks directly and skip the two-combination presentation.
 
 **Cross-platform pre-installed reference**:
 

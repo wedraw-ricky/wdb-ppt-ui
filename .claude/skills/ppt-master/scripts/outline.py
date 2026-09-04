@@ -23,6 +23,8 @@ Checks (see references/storyline.md):
     - E-SHAPE  a `shape` value is absent from charts_index.json
     - W-SAME   (warning) three or more slides in a row share one layout
     - E-COVER  a `확정` plan_spec section reaches no slide
+    - E-END    the deck misses the conclusion, or concludes with a figure
+               the document does not state
     - E-SYNC   outline row count or numbering disagrees with §IX
 
 Usage:
@@ -75,12 +77,15 @@ FLOW_DEFAULTS: dict[str, tuple[str, str]] = {
 # Section → golden-circle layer, per storyline.md §1.
 LAYERS: dict[str, dict[str, str]] = {
     "problem": {"현상": "why", "영향": "why", "원인": "how", "배경": "how",
-                "목표": "how", "목적 검증": "how", "기대효과": "what", "과제": "what"},
+                "목표": "how", "목적 검증": "how", "기대효과": "what", "과제": "what",
+                "컨셉": "what", "해결책": "what", "실행 계획": "what",
+                "리스크 대책": "what"},
     "hypothesis": {"가설": "why", "착안 근거": "why", "기회 크기": "how",
                    "검증 방법": "how", "예상 결과": "what", "리스크": "what",
-                   "다음 단계": "what"},
+                   "다음 단계": "what", "실행 계획": "what"},
     "report": {"하기로 한 것": "why", "한 것": "how", "결과": "how",
-               "결과 해석": "how", "한계": "what", "다음": "what"},
+               "결과 해석": "how", "한계": "what", "다음": "what",
+               "실행 계획": "what", "리스크 대책": "what"},
     "intro": {"왜 존재하나": "why", "무엇인가": "how", "무엇이 다른가": "how",
               "근거·사례": "what", "다음 행동": "what"},
     "teach": {"학습 목표": "why", "왜 필요한가": "why", "개념": "how",
@@ -138,6 +143,20 @@ def figure_units(body: str) -> list[str]:
     return [_UNIT_FAMILY.get(u, u) for u in units]
 
 
+_FIGURE_RE = re.compile(
+    r"\d[\d,.]*\s*(?:%p|%|만원|억원|천원|억|점|건|명|원|일|배|개월|개소|회|시간)")
+
+
+def figures(text: str) -> set[str]:
+    """The figures a statement actually makes, spacing removed for comparison."""
+    return {m.group(0).replace(" ", "") for m in _FIGURE_RE.finditer(text)}
+
+
+def bullet_lines(body: str) -> list[str]:
+    """The body's listed items — how many things it is putting side by side."""
+    return re.findall(r"^\s*[-*·◦▢]\s+\S", body, re.M)
+
+
 def pick_shape(body: str) -> str:
     """Choose a layout from the content's shape. See storyline.md §5.
 
@@ -147,13 +166,19 @@ def pick_shape(body: str) -> str:
     one report to the same KPI grid.
     """
     for pattern, shape in SHAPE_SIGNALS:
-        if re.search(pattern, body, re.S):
-            return shape
+        if not re.search(pattern, body, re.S):
+            continue
+        # 전후 비교는 항목 수가 모양을 가른다. `comparison_columns` 는 가격제
+        # 카드 2~4개를 위한 마케팅 레이아웃이라, 항목이 다섯을 넘으면 그 안에서
+        # 눌린다. 카탈로그가 그 자리에 두라고 말하는 것이 dumbbell 이다.
+        if shape == "comparison_columns" and len(bullet_lines(body)) >= 5:
+            return "dumbbell_chart"
+        return shape
     units = figure_units(body)
     # §5 says "three or more figures, mixed units" — both halves matter.
     if len(units) >= 3 and len(set(units)) >= 2:
         return "kpi_cards"
-    bullets = re.findall(r"^\s*[-*·◦▢]\s+\S", body, re.M)
+    bullets = bullet_lines(body)
     if 3 <= len(bullets) <= 6:
         return "vertical_list"
     return "body"
@@ -342,10 +367,44 @@ def run_check(project: Path) -> list[str]:
             if sec.status == "확정" and sec.body and sec.name not in covered:
                 errs.append(f"E-COVER section '{sec.name}' is 확정 but reaches no slide")
 
+        # 결론은 하나여야 한다. The flow may reorder everything else — a deck
+        # argues in whatever order the room needs — but the deck and the
+        # document have to land on the same conclusion. Two ways that breaks:
+        # the deck never reaching the conclusion section, and a conclusion
+        # slide stating a figure the document never states. The 2안 slide is
+        # exempt: an alternative method carries its own numbers by design.
+        if frame.action not in covered:
+            errs.append(
+                f"E-END the deck never reaches '{frame.action}' — "
+                f"that is where the document concludes"
+            )
+        concluding = next((s for s in sections if s.name == frame.action), None)
+        if concluding is not None and concluding.body:
+            stated = figures(concluding.body)
+            for sl in slides:
+                if sl.role == "proposal_alt":
+                    continue
+                if sl.source.split("#")[-1] != frame.action:
+                    continue
+                stray = figures(f"{sl.title} {sl.script}") - stated
+                if stray:
+                    errs.append(
+                        f"E-END slide {sl.n} concludes with "
+                        f"{', '.join(sorted(stray))}, which '{frame.action}' "
+                        f"does not state — the deck and the document must "
+                        f"reach the same conclusion"
+                    )
+
     design_path = project / "design_spec.md"
     if design_path.is_file():
         text = design_path.read_text(encoding="utf-8")
         nums = [int(n) for n in re.findall(r"^#### Slide (\d+)", text, re.M)]
+        if not nums and slides and re.search(r"^## IX", text, re.M):
+            # §IX 가 있는데 장이 하나도 없다 — 가장 큰 불일치인데, 개수를 비교하기
+            # 전에 빠져나가면 가장 조용히 지나간다. §IX 가 아직 생성되지 않은
+            # 경우와 구분하기 위해 머리글 유무로 판단한다.
+            errs.append(f"E-SYNC design_spec §IX carries no slides but "
+                        f"outline.md has {len(slides)}")
         if nums:
             want = [s.n for s in slides]
             if nums != want:

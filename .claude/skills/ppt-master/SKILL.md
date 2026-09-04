@@ -524,6 +524,21 @@ The default `--format auto` follows
 without it the Markdown still lands and the run says what is missing). Pass
 `--format docx` or `--format both` to require the Word file.
 
+**Work ahead while the user reads (E-6)** — the flow candidates depend on the
+`frame` alone, which was fixed back at Step 3.5. Deriving them now costs the user
+nothing and removes them from the next wait. Record what you assumed so Step 3.7
+can tell whether it still holds:
+
+```bash
+python3 ${SKILL_DIR}/scripts/outline.py <project_path> --propose
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> --stash outline \
+    --assumed '{"frame": "<frame>"}'
+```
+
+**Hard rule**: working ahead may never change what the user is shown. It is
+speculative work kept to one side; if the assumption breaks, it is thrown away
+and nothing about the run differs.
+
 **✅ Checkpoint — `plan_spec.py --check` passes and every non-optional section is `확정`.**
 
 ---
@@ -557,6 +572,30 @@ python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --wait-planning
 
 **Note**: `--wait-planning` is independent of the three-stage machine; it blocks on the file, not on `result.json`.
 
+Before blocking, check whether the flows you derived at Step 3.6 still hold:
+
+```bash
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> --check outline \
+    --confirmed '{"frame": "<frame>"}'
+```
+
+`VALID` (exit 0) — use them as they are. `STALE` (exit 1) — the message names the
+anchors the user moved; re-derive only what hangs off those and keep the rest.
+
+**Work ahead while the user edits the outline (E-6)** — Step 4's audience, style
+objective, colour and typography candidates follow from `intake.json` and
+`plan_spec.md`, not from the outline rows. Author them now, and time the wait so
+the saving is visible rather than assumed:
+
+```bash
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> --begin strategist
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> --stash strategist \
+    --assumed '{"audience": "<audience>", "purpose": "<purpose>", "frame": "<frame>"}'
+```
+
+Page count and per-slide shape are **not** pre-derivable — they follow the outline
+the user is editing. Derive those after confirmation.
+
 ```bash
 python3 ${SKILL_DIR}/scripts/outline.py <project_path> --check
 ```
@@ -576,6 +615,24 @@ python3 ${SKILL_DIR}/scripts/outline.py <project_path> --render
 ```
 
 Editing §IX by hand breaks the direction between the outline and the deck and is caught by `outline.py --check`.
+
+**Pick up the work done ahead (E-6)** — Step 3.7 may already have authored the
+candidates that follow from `intake.json` and `plan_spec.md`. Ask whether they
+still hold before authoring anything twice:
+
+```bash
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> --check strategist \
+    --confirmed '{"audience": "<audience>", "purpose": "<purpose>", "frame": "<frame>"}'
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> --end strategist
+```
+
+`VALID` — carry those candidates straight into the bundle and author only what
+depends on the confirmed outline (page count, per-slide shape). `STALE` — the
+message names what moved; re-derive that branch only. A missing stash is `STALE`
+too, and simply means the whole bundle is authored here as before.
+
+`--report` prints how long each transition actually took. Use it when the user
+asks why a step was slow; do not quote it as a promise.
 
 First, read the role definition:
 ```

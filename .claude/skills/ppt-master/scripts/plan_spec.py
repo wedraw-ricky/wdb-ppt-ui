@@ -17,6 +17,15 @@ Checks (per selected frame, see references/planner.md §4):
     - E-ALT    option block present where the frame suppresses options,
                or absent where the frame requires one
     - E-ORDER  sections missing, extra, or out of chain order
+    - E-BROAD  목적 rests on a 대목적 — 매출 증대 and friends (교안 48)
+    - E-DUP    현상·영향·원인 carry the same line (2강 첨삭)
+    - E-ACT    과제 states no period (교안 74·79·80)
+
+  Advisories, printed but never blocking:
+    - W-GAIN   기대효과 lists more than 영향 costs (교안 73)
+    - W-AIM    목적 검증 lists several ends instead of picking one (교안 73)
+    - W-BASE   현상 states a figure with nothing to read it against
+    - W-SPEC   과제 reads as a build requirement (교안 122)
 
 Usage:
     python3 scripts/plan_spec.py <project_path> --scaffold
@@ -63,38 +72,58 @@ class Frame:
     target: Optional[str]
     action: str
     options: str  # "on" | "off" | "tail" | "scenario"
+    # "full"  — 기획부터 한다. The planner block is part of the chain and
+    #           the document is grouped into reader-facing items.
+    # "short" — the content is already settled. The frame carries its own
+    #           chain and nothing is appended; a 교안 or a 소개서 does not
+    #           need 실행 계획 and 리스크 대책 to be a finished thing.
+    route: str  # "full" | "short"
 
 
 FRAMES: dict[str, Frame] = {
     "problem": Frame(
         key="problem",
         label="문제 해결형",
-        sections=("현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과", "과제"),
+        # 교안 63·65·66: the client block (1-8) is followed by the concept
+        # block (9·10) and the planner block (11·12). Stopping at 8 yields
+        # what to do but never when, by whom, at what cost, or what breaks —
+        # the four things an approver asks first.
+        sections=("현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과",
+                  "과제", "컨셉", "해결책", "실행 계획", "리스크 대책"),
         fact_required=("현상", "원인", "배경"),
         pairs=(("영향", "기대효과"),),
         target="목표",
         action="과제",
         options="on",
+        route="full",
     ),
     "hypothesis": Frame(
         key="hypothesis",
         label="가설 검증형",
-        sections=("가설", "착안 근거", "기회 크기", "검증 방법", "예상 결과", "리스크", "다음 단계"),
+        # 검증도 사람이 일정과 예산을 들여 하는 일이라 실행 계획을 진다.
+        # 리스크 대책은 따로 두지 않는다 — 여기서는 `리스크` 가 그 자리다.
+        sections=("가설", "착안 근거", "기회 크기", "검증 방법", "예상 결과",
+                  "리스크", "다음 단계", "실행 계획"),
         fact_required=("착안 근거", "기회 크기"),
         pairs=(("가설", "예상 결과"),),
         target="예상 결과",
         action="다음 단계",
         options="on",
+        route="full",
     ),
     "report": Frame(
         key="report",
         label="성과 보고형",
-        sections=("하기로 한 것", "한 것", "결과", "결과 해석", "한계", "다음"),
+        # 보고서에도 다음 계획이 따라붙는다 — 무엇을 했는지로 끝나는 보고는
+        # 읽는 사람이 "그래서 다음은" 을 되묻게 만든다.
+        sections=("하기로 한 것", "한 것", "결과", "결과 해석", "한계", "다음",
+                  "실행 계획", "리스크 대책"),
         fact_required=("한 것", "결과"),
         pairs=(("하기로 한 것", "결과"),),
         target="하기로 한 것",
         action="다음",
         options="tail",
+        route="full",
     ),
     "intro": Frame(
         key="intro",
@@ -105,6 +134,7 @@ FRAMES: dict[str, Frame] = {
         target=None,
         action="다음 행동",
         options="off",
+        route="short",
     ),
     "teach": Frame(
         key="teach",
@@ -115,6 +145,7 @@ FRAMES: dict[str, Frame] = {
         target=None,
         action="실습·적용",
         options="off",
+        route="short",
     ),
     "ir": Frame(
         key="ir",
@@ -126,6 +157,7 @@ FRAMES: dict[str, Frame] = {
         target="재무",
         action="요청",
         options="scenario",
+        route="short",
     ),
 }
 
@@ -293,7 +325,17 @@ def check_facts(frame: Frame, by_name: dict[str, Section]) -> list[str]:
     errs = []
     for name in frame.fact_required:
         sec = by_name.get(name)
-        if sec is None or not sec.body:
+        if sec is None:
+            continue
+        if not sec.body:
+            # 비어 있는 것 자체는 잘못이 아니다 — 아직 안 채운 상태다. 잘못은
+            # 비어 있으면서 `확정` 이라고 말하는 것이다. IR 의 재무를 통째로
+            # 비워두면 E-IR 도 같은 이유로 조용해, 재무 없는 IR 이 통과했다.
+            if sec.status == "확정":
+                errs.append(
+                    f"E-FACT '{name}' is 확정 but empty — a settled section "
+                    f"with nothing in it claims a fact nobody wrote"
+                )
             continue
         if not sec.source:
             errs.append(
@@ -534,6 +576,127 @@ def check_options(frame: Frame, by_name: dict[str, Section]) -> list[str]:
     return errs
 
 
+# ---- 강의 첨삭이 잡아낸 것들 --------------------------------------------------
+# 2강 첨삭과 교안 28·48·73·122. 기계가 확실히 아는 것만 오류(E-)로 두고, 사람의
+# 판단이 섞이는 것은 경고(W-)로 둔다. 맞는 기획서를 막는 검사는 결국 아무도 보지
+# 않게 되고, 그러면 검사가 없는 것과 같다.
+
+def _items(body: str) -> list[str]:
+    """한 절이 말하는 것의 개수. 낱말이 아니라 개수로 세는 이유는, 같은 뜻을
+    다른 낱말로 쓰는 글에서 낱말 겹침이 멀쩡한 기획서를 잡기 때문이다."""
+    out = []
+    for raw in body.splitlines():
+        if raw.lstrip().startswith(("▢", "□", "◦", "○", "─", "-", "·")):
+            line = _MARKER_RE.sub("", raw).strip()
+            if line:
+                out.append(line)
+    return out
+
+
+# 교안 48: 매출증대·이익증대·역량강화 는 목적이 아니라 대목적이다.
+BROAD_ENDS = ("매출증대", "매출 증대", "이익증대", "이익 증대", "역량강화",
+              "역량 강화", "이윤창출", "이윤 창출", "이윤 극대화", "매출 극대화",
+              "수익 극대화", "경쟁력 강화")
+
+# 수치를 읽을 바탕. 하나도 없으면 50% 가 좋은 건지 나쁜 건지 알 수 없다.
+GROUND_HINTS = ("바람직", "전년", "작년", "대비", "기준", "평균", "목표", "정상",
+                "이었", "였으", "에서", "수준", "동기", "업계")
+
+# 368행의 `_FIGURE_RE` 는 "숫자가 있느냐" 를 묻는다. 이쪽은 "단위까지 붙은
+# 수치냐" 를 묻는 다른 질문이라 이름도 달라야 한다. 같은 이름을 쓰면 뒤에
+# 정의된 것이 앞을 덮어, 제목·거버닝 메시지 검사가 조용히 다르게 동작한다.
+_MEASURED_RE = re.compile(
+    r"\d[\d,.]*\s*(?:%p|%|만원|억원|천원|억|점|건|명|원|일|배|개월|회|시간)")
+_SPEC_RE = re.compile(r"기능\s*(?:추가|개발|구현)|버튼|팝업|화면\s*개발|API")
+_MARKER_RE = re.compile(r"^[\s▢□◦○─\-*※·]+")
+
+
+def check_broad_purpose(by_name: dict[str, Section]) -> list[str]:
+    errs = []
+    for name in ("목적 검증", "목표"):
+        sec = by_name.get(name)
+        if sec is None or not sec.body:
+            continue
+        hit = next((p for p in BROAD_ENDS if p in sec.body), None)
+        if hit:
+            errs.append(
+                f"E-BROAD '{name}' rests on {hit} — a 대목적 names no place to "
+                f"act on. Say what stops working, for whom"
+            )
+    return errs
+
+
+def check_overlap(by_name: dict[str, Section]) -> list[str]:
+    """현상·영향·원인이 같은 줄을 나눠 가지면 셋 중 둘은 사실 비어 있다."""
+    seen: dict[str, str] = {}
+    errs = []
+    for name in ("현상", "영향", "원인"):
+        sec = by_name.get(name)
+        if sec is None or not sec.body:
+            continue
+        for raw in sec.body.splitlines():
+            line = _MARKER_RE.sub("", raw).strip()
+            if len(line) < 8:
+                continue
+            owner = seen.get(line)
+            if owner is not None and owner != name:
+                errs.append(
+                    f"E-DUP '{owner}' and '{name}' carry the same line — "
+                    f"\"{line[:28]}…\". One of the two is not filled in"
+                )
+            seen.setdefault(line, name)
+    return errs
+
+
+def check_task_shape(frame: Frame, by_name: dict[str, Section]) -> list[str]:
+    """교안 74·79·80: 기획과제는 언제까지 무엇을 하는지까지 간다."""
+    if frame.key != "problem":
+        return []
+    sec = by_name.get("과제")
+    if sec is None or not sec.body:
+        return []
+    if any(h in sec.body for h in PERIOD_HINTS):
+        return []
+    return ["E-ACT '과제' states no period — the lecture's 기획과제 always says "
+            "by when. Without it nobody can say whether it was done"]
+
+
+def advisories(frame: Frame, by_name: dict[str, Section]) -> list[str]:
+    """Judgement calls. These are said out loud, never used to block a run."""
+    if frame.key != "problem":
+        return []
+    out: list[str] = []
+
+    영향, 기대효과 = by_name.get("영향"), by_name.get("기대효과")
+    if 영향 and 영향.body and 기대효과 and 기대효과.body:
+        # 교안 73: 기대효과는 "문제로 인한 영향 중" 얻는 것이다. 영향보다 긴
+        # 기대효과는 문제가 값을 치르지 않은 이득을 세고 있다는 뜻이다.
+        if len(_items(기대효과.body)) > len(_items(영향.body)):
+            out.append("W-GAIN '기대효과' lists more than '영향' costs — the "
+                       "lecture takes the gain out of the impact, so it cannot "
+                       "be the longer list")
+
+    목적 = by_name.get("목적 검증")
+    if 목적 and 목적.body and len(_items(목적.body)) > 1:
+        # 교안 73: 바람직한 상태란 "발생가능한 영향에서 가장 우선순위를 선택"한 것.
+        out.append("W-AIM '목적 검증' lists several ends — the lecture picks one "
+                   "impact, the one that matters most, and lets the rest go")
+
+    현상 = by_name.get("현상")
+    if (현상 is not None and 현상.body and _MEASURED_RE.search(현상.body)
+            and not any(g in 현상.body for g in GROUND_HINTS)):
+        out.append("W-BASE '현상' states a figure with nothing to read it against "
+                   "— 바람직한 상태, 전년, 목표, 평균. Without one, 50% is neither "
+                   "good nor bad")
+
+    과제 = by_name.get("과제")
+    if (과제 is not None and 과제.body and _SPEC_RE.search(과제.body)
+            and not any(k in 과제.body for k in ("위한", "위해", "통해", "통한"))):
+        out.append("W-SPEC '과제' reads as a build request — 기능 추가 is a "
+                   "requirement, not a plan (교안 122). Say what it changes")
+    return out
+
+
 def run_check(project: Path) -> list[str]:
     spec_path = project / "plan_spec.md"
     if not spec_path.is_file():
@@ -555,7 +718,21 @@ def run_check(project: Path) -> list[str]:
     errs += check_governing(meta)
     errs += check_headings(sections)
     errs += check_register(sections)
+    errs += check_broad_purpose(by_name)
+    errs += check_overlap(by_name)
+    errs += check_task_shape(frame, by_name)
     return errs
+
+
+def run_advisories(project: Path) -> list[str]:
+    spec_path = project / "plan_spec.md"
+    if not spec_path.is_file():
+        return []
+    meta, sections = parse(spec_path.read_text(encoding="utf-8"))
+    frame = FRAMES.get(meta.get("frame", ""))
+    if frame is None:
+        return []
+    return advisories(frame, {s.name: s for s in sections})
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -589,6 +766,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(str(out))
         return 0
 
+    for note in run_advisories(project):
+        print(f"  ! {note}", file=sys.stderr)
     errors = run_check(project)
     if errors:
         print(f"[plan_spec] FAIL ({len(errors)} error(s)):", file=sys.stderr)

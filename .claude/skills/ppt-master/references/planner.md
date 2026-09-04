@@ -14,6 +14,36 @@ Role definition for the **planning path**: read the intake answers plus the sour
 
 ---
 
+## 0. Planning · Making · Presentation
+
+The lecture this stage implements runs in three bands (교안 26·42·54). They are
+distinct stages with distinct outputs, and this file owns the first two.
+
+| Band | What happens | Output |
+|---|---|---|
+| **Planning** | 기획 and 계획 — the frame chain is filled | `plan_spec.md` |
+| **Making** | that content is laid out as the document a person receives | `exports/…기획서.md` · `.docx` |
+| **Presentation** | the deck is argued from the same content | `outline.md` → deck |
+
+**Hard rule**: the deck's order is free — a room decides how an argument is best
+made, and the flow candidates of [`storyline.md`](./storyline.md) exist for that.
+The **conclusion** is not free. The deck and the document reach the same one, and
+`outline.py --check` raises `E-END` when the deck misses the frame's action
+section or concludes with a figure the document does not state.
+
+### 0.1 Two Routes
+
+Not every deck is a planning job. A 교안 or a 소개서 is finished content being
+presented; forcing it through 실행 계획 and 리스크 대책 asks for work nobody
+needs. The route follows from the frame — the user is never asked a second time.
+
+| Route | Frames | Carries 실행 계획 | Document grouped (§6.2) |
+|---|---|---|---|
+| `full` — 기획부터 한다 | `problem` · `hypothesis` · `report` | Yes | Yes |
+| `short` — 내용이 이미 정해져 있다 | `intro` · `teach` · `ir` | No | No |
+
+---
+
 ## 1. Division of Labor
 
 | Actor | Owns |
@@ -105,6 +135,14 @@ Each frame is an ordered chain of sections. `plan_spec.md` carries exactly the c
 | 6 | 목적 검증 | Whether the target serves the desired end state; priority among targets |
 | 7 | 기대효과 | What target attainment yields |
 | 8 | 과제 | Action items that reach the selected target |
+| 9 | 컨셉 | The solution said in one line (교안 63) |
+| 10 | 해결책 | Concrete activities — attacking the 원인, the 장애요인, the 기회요인 |
+| 11 | 실행 계획 | Schedule, owner, budget (교안 65 액션플랜) |
+| 12 | 리스크 대책 | What is expected to go wrong, with prevention and response |
+
+Sections 1–8 are the 클라이언트 블록 the lecture teaches as a thinking tool.
+9–10 are the 컨셉 블록 and 11–12 the 플래너 블록. Stopping at 8 yields what to
+do and never when, by whom, at what cost, or what breaks.
 
 ### 3.2 `hypothesis` — Hypothesis Validation
 
@@ -117,6 +155,9 @@ Each frame is an ordered chain of sections. `plan_spec.md` carries exactly the c
 | 5 | 예상 결과 | Expected outcome of the test |
 | 6 | 리스크 | What breaks it |
 | 7 | 다음 단계 | The next commitment being requested |
+| 8 | 실행 계획 | Schedule, owner, budget for running the test |
+
+No 리스크 대책 here — `리스크` already holds that seat.
 
 ### 3.3 `report` — Results Report
 
@@ -128,6 +169,10 @@ Each frame is an ordered chain of sections. `plan_spec.md` carries exactly the c
 | 4 | 결과 해석 | Why the outcome came out that way |
 | 5 | 한계 | What did not work or remains unresolved |
 | 6 | 다음 | The next period's commitment |
+| 7 | 실행 계획 | Schedule, owner, budget for that commitment |
+| 8 | 리스크 대책 | What is expected to go wrong, with prevention and response |
+
+A report that ends on what was done leaves the reader asking what comes next.
 
 ### 3.4 `intro` — Introduction and Proposal
 
@@ -211,6 +256,35 @@ Rules activate per frame. A rule that is not listed for a frame does not apply t
 
 ---
 
+## 4.5 What the Lecture Corrects
+
+Rules taken from the 2강 첨삭 and 교안 28·48·73·122. They apply to `problem` only.
+The split matters: an error stops the run, an advisory is said and let go. A check
+that blocks a correct plan teaches people to ignore checks.
+
+| Code | Stops? | Rule |
+|---|---|---|
+| `E-BROAD` | Yes | 목적 rests on a 대목적 — 매출 증대 · 이익 증대 · 역량 강화 · 이윤 창출. Those name no place to act on (교안 48) |
+| `E-DUP` | Yes | 현상 · 영향 · 원인 carry the same line. Two of the three are then empty |
+| `E-ACT` | Yes | 과제 states no period. Every 기획과제 in the lecture says by when (교안 74·79·80) |
+| `W-GAIN` | No | 기대효과 lists more items than 영향. The gain comes out of the impact, so it cannot be the longer list (교안 73) |
+| `W-AIM` | No | 목적 검증 lists several ends. 바람직한 상태 is *one* impact chosen by priority (교안 73) |
+| `W-BASE` | No | 현상 states a figure with no ground to read it against. 50% is neither good nor bad on its own |
+| `W-SPEC` | No | 과제 reads as a build requirement — 기능 추가 is a spec, not a plan (교안 122) |
+
+**Hard rule**: correspondence between sections is judged **by count, never by
+wording.** 정산 지연 최소화 and 회계 일정 딜레이 are the same thing said twice;
+a checker that compares words flags a correct document and gets switched off.
+
+**Not built** — two rules in the lecture have no machine form yet:
+
+| Rule | Why not |
+|---|---|
+| 지시사항을 그대로 목적으로 쓰지 않는다 (교안 48) | The instruction's own wording is never collected. It needs one more intake line |
+| 문제점은 원인 중 대책을 세울 수 있는 것 (교안 28) | Whether 폭설 can be acted on is a judgement no rule reaches |
+
+---
+
 ## 5. Option Drafting
 
 ### 5.1 When to Draft Options
@@ -280,6 +354,37 @@ The renderer formats this contract and never authors it; a section still at `초
 `확인 필요` is rendered carrying that state.
 
 **Validation**: Section count and order match the selected frame's chain exactly. A missing or reordered section is an error.
+
+### 6.2 Making — the document a person receives
+
+The chain is the thinking; the document is what a reader is handed. 교안 121 gives
+the 기획서 six items, and its four worked examples (125 · 127 · 129 · 131) all keep
+them. A `full`-route frame is grouped into those items; a `short`-route frame keeps
+one item per section.
+
+| Item | `problem` | `hypothesis` | `report` |
+|---|---|---|---|
+| 제목 | the document title (§2.5) | — | — |
+| 목적 | 배경 · 현상 · 영향 · 원인 · 목적 검증 | 가설 · 착안 근거 | 개요 ← 하기로 한 것 |
+| 개요 | 목표 · 과제 | 검증 방법 · 다음 단계 | 추진 내용 ← 한 것 |
+| 내용 및 계획 | 컨셉 · 해결책 · 실행 계획 | 실행 계획 | 결과 ← 결과 · 결과 해석 |
+| 리스크 대책 | 리스크 대책 | 리스크 | 한계 ← 한계 |
+| 기대효과 | 기대효과 | 기회 크기 · 예상 결과 | 향후 계획 ← 다음 · 실행 계획 · 리스크 대책 |
+
+**Hard rule**: the renderer **groups, never condenses.** Shortening five sections
+into one paragraph is writing, and writing belongs to the planner
+([`report-format.md`](./report-format.md) §1). Where the document should read
+shorter than the chain, the planner writes it shorter.
+
+**Hard rule**: an item is only as settled as its least settled section. One
+`확인 필요` inside it makes the whole item `확인 필요`, or the badge tells a reader
+the document is closed while a piece of it is open.
+
+**Hard rule**: no section is dropped on the way to the document. A section this
+table forgets is appended as its own item rather than disappearing.
+
+> `report` and `hypothesis` shapes are ours, not the lecture's — it specifies the
+> 기획서 only. Item names there are **확인 필요** pending the 대표's word.
 
 ---
 

@@ -206,6 +206,111 @@ class SlideTitles(unittest.TestCase):
         self.assertEqual([s.title for s in slides if s.role == "body"], ["현상"])
 
 
+class PlanningChain(unittest.TestCase):
+    """교안 63·65·66 — 클라이언트 블록만으로는 기획이 끝나지 않는다."""
+
+    def frame(self):
+        return plan_spec.FRAMES["problem"]
+
+    def test_컨셉과_플래너_블록까지_이어진다(self):
+        names = self.frame().sections
+        for name in ("컨셉", "해결책", "실행 계획", "리스크 대책"):
+            self.assertIn(name, names)
+
+    def test_클라이언트_블록_여덟_절이_앞에_그대로_있다(self):
+        self.assertEqual(
+            self.frame().sections[:8],
+            ("현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과", "과제"))
+
+    def test_제안이_시작되는_자리는_그대로_과제다(self):
+        # 뒤에 절이 붙어도 분석과 제안의 경계는 움직이지 않는다 (planner.md §4.4).
+        self.assertEqual(self.frame().action, "과제")
+
+
+class DocumentShape(unittest.TestCase):
+    """교안 121 — 사람이 받는 문서는 골격이 아니라 여섯 항목이다."""
+
+    def plan(self, sections, frame="problem"):
+        return render_plan_doc.Plan(
+            title="제목", governing="", meta={}, sections=sections,
+            frame=plan_spec.FRAMES[frame], intake={}, appendix=[])
+
+    def filled(self, status="확정"):
+        return [plan_spec.Section(name=n, status=status, body=f"{n} 본문")
+                for n in plan_spec.FRAMES["problem"].sections]
+
+    def test_열두_절이_다섯_항목으로_묶인다(self):
+        items = render_plan_doc.doc_items(self.plan(self.filled()))
+        self.assertEqual([i.name for i in items],
+                         ["목적", "개요", "내용 및 계획", "리스크 대책", "기대효과"])
+
+    def test_어떤_절도_문서에서_사라지지_않는다(self):
+        sections = self.filled()
+        items = render_plan_doc.doc_items(self.plan(sections))
+        placed = [s.name for i in items for s in i.sections]
+        self.assertCountEqual(placed, [s.name for s in sections])
+
+    def test_표에_없는_절도_버려지지_않고_뒤에_붙는다(self):
+        sections = self.filled() + [
+            plan_spec.Section(name="새 절", status="확정", body="본문")]
+        items = render_plan_doc.doc_items(self.plan(sections))
+        self.assertIn("새 절", [s.name for i in items for s in i.sections])
+
+    def test_항목은_가장_덜_닫힌_절만큼만_닫힌다(self):
+        sections = self.filled()
+        for sec in sections:
+            if sec.name == "영향":
+                sec.status = "확인 필요"
+        items = render_plan_doc.doc_items(self.plan(sections))
+        목적 = next(i for i in items if i.name == "목적")
+        self.assertEqual(목적.status, "확인 필요")
+
+    def test_짧은_길_골격은_예전대로_절마다_한_항목(self):
+        # 교육·강의형은 기획서를 쓰는 일이 아니라 묶을 항목도 없다.
+        sections = [plan_spec.Section(name=n, status="확정", body="본문")
+                    for n in plan_spec.FRAMES["teach"].sections]
+        items = render_plan_doc.doc_items(self.plan(sections, frame="teach"))
+        self.assertEqual(len(items), len(sections))
+
+    def test_성과_보고서도_읽는_항목으로_묶인다(self):
+        sections = [plan_spec.Section(name=n, status="확정", body="본문")
+                    for n in plan_spec.FRAMES["report"].sections]
+        items = render_plan_doc.doc_items(self.plan(sections, frame="report"))
+        self.assertEqual([i.name for i in items],
+                         ["개요", "추진 내용", "결과", "한계", "향후 계획"])
+
+
+class Route(unittest.TestCase):
+    """어느 골격이 기획부터 하는 일이고 어느 골격이 아닌지 (대표 2026-09-04)."""
+
+    def test_기획부터_하는_일은_풀코스다(self):
+        for key in ("problem", "hypothesis", "report"):
+            self.assertEqual(plan_spec.FRAMES[key].route, "full", key)
+
+    def test_내용이_이미_정해진_일은_짧은_길이다(self):
+        for key in ("intro", "teach", "ir"):
+            self.assertEqual(plan_spec.FRAMES[key].route, "short", key)
+
+    def test_풀코스만_실행_계획을_진다(self):
+        # 리스크를 부르는 이름은 골격마다 다르다(problem·report 는 `리스크 대책`,
+        # hypothesis 는 `리스크`). 길을 가르는 것은 실행 계획이 있느냐다.
+        for frame in plan_spec.FRAMES.values():
+            self.assertEqual("실행 계획" in frame.sections,
+                             frame.route == "full", frame.key)
+
+    def test_풀코스는_어떤_이름으로든_리스크를_진다(self):
+        for frame in plan_spec.FRAMES.values():
+            if frame.route != "full":
+                continue
+            self.assertTrue(any(s.startswith("리스크") for s in frame.sections),
+                            frame.key)
+
+    def test_풀코스만_문서_항목으로_묶인다(self):
+        for frame in plan_spec.FRAMES.values():
+            grouped = frame.key in render_plan_doc.DOC_SHAPE
+            self.assertEqual(grouped, frame.route == "full", frame.key)
+
+
 class OutputFormat(unittest.TestCase):
     def test_a_report_asks_for_word(self):
         self.assertEqual(render_plan_doc.resolve_format("auto", {"doc_kind": "보고서"}), "both")

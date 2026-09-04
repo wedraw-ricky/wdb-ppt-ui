@@ -27,6 +27,9 @@ sys.path.insert(0, str(SCRIPTS))
 
 import outline  # noqa: E402
 import plan_spec  # noqa: E402
+import stage_cache  # noqa: E402
+import template_lint  # noqa: E402
+import validate_spec  # noqa: E402
 
 
 def section(name, body="", status="확정", source="", options=None):
@@ -150,13 +153,310 @@ class L1_4_Options(unittest.TestCase):
         )
 
 
+class LectureCorrections(unittest.TestCase):
+    """2강 첨삭과 교안 28·48·73·122 가 잡아낸 것들."""
+
+    def errs(self, *sections):
+        names = by_name(*sections)
+        return (plan_spec.check_broad_purpose(names)
+                + plan_spec.check_overlap(names)
+                + plan_spec.check_task_shape(PROBLEM, names))
+
+    def notes(self, *sections):
+        return plan_spec.advisories(PROBLEM, by_name(*sections))
+
+    # --- 오류 ---------------------------------------------------------------
+
+    def test_대목적은_목적이_아니다(self):
+        errs = self.errs(section("목적 검증", body="▢ 매출 증대"))
+        self.assertTrue(any("E-BROAD" in e for e in errs))
+
+    def test_손댈_자리가_있는_목적은_통과한다(self):
+        self.assertEqual(
+            self.errs(section("목적 검증", body="▢ 정산 지연 최소화")), [])
+
+    def test_같은_줄이_두_절에_있으면_멈춘다(self):
+        errs = self.errs(section("현상", body="▢ 회계 정정이 절반 가까이 발생한다"),
+                         section("영향", body="▢ 회계 정정이 절반 가까이 발생한다"))
+        self.assertTrue(any("E-DUP" in e for e in errs))
+
+    def test_과제에_기한이_없으면_멈춘다(self):
+        errs = self.errs(section("과제", body="▢ 자동계산 시스템 개발"))
+        self.assertTrue(any("E-ACT" in e for e in errs))
+
+    def test_기한이_있으면_통과한다(self):
+        self.assertEqual(
+            self.errs(section("과제", body="▢ 1년 내 자동계산 시스템 개발")), [])
+
+    # --- 경고 ---------------------------------------------------------------
+
+    def test_기대효과가_영향보다_길면_알린다(self):
+        notes = self.notes(
+            section("영향", body="▢ 일정 지연"),
+            section("기대효과", body="▢ 일정 회복\n◦ 사기 진작\n◦ 이직률 감소"))
+        self.assertTrue(any("W-GAIN" in n for n in notes))
+
+    def test_목적이_여러_개면_알린다(self):
+        notes = self.notes(
+            section("목적 검증", body="▢ 매출\n◦ 신뢰도\n◦ 사기"))
+        self.assertTrue(any("W-AIM" in n for n in notes))
+
+    def test_비교_기준_없는_수치는_알린다(self):
+        notes = self.notes(section("현상", body="▢ 정정 50건 발생"))
+        self.assertTrue(any("W-BASE" in n for n in notes))
+
+    def test_비교_기준이_있으면_조용하다(self):
+        notes = self.notes(section("현상", body="▢ 전년 대비 정정 50건 발생"))
+        self.assertFalse(any("W-BASE" in n for n in notes))
+
+    def test_개발_요건은_기획과제가_아니라고_알린다(self):
+        notes = self.notes(section("과제", body="▢ 1년 내 일괄 결재 기능 추가"))
+        self.assertTrue(any("W-SPEC" in n for n in notes))
+
+    # regression — 낱말 겹침으로 판단하던 때 멀쩡한 기획서를 잡던 것.
+    # '정산 지연 최소화' 와 '회계 일정 딜레이' 는 같은 말인데 글자가 다르다.
+    def test_같은_뜻을_다른_낱말로_써도_잡지_않는다(self):
+        notes = self.notes(
+            section("영향", body="▢ 회계 일정 딜레이 발생\n◦ 신뢰도 하락"),
+            section("목적 검증", body="▢ 정산 지연 최소화"),
+            section("기대효과", body="▢ 정산 지연 최소화"))
+        self.assertEqual(notes, [])
+
+    def test_짧은_길_골격에는_첨삭이_붙지_않는다(self):
+        self.assertEqual(
+            plan_spec.advisories(TEACH, by_name(section("개념", body="▢ 매출 증대"))),
+            [])
+
+
+class ShapeChoice(unittest.TestCase):
+    """전후 비교는 항목 수가 모양을 가른다 (설계 §5.3)."""
+
+    FEW = "▢ 요금제\n◦ 기본에서 프로로 올림\n◦ 두 가지"
+    MANY = ("▢ 부서별 정정 건수 전후\n"
+            "◦ 회계팀 50건에서 12건으로 줄임\n◦ 총무팀 40건에서 9건으로\n"
+            "◦ 인사팀 33건에서 7건으로\n◦ 교무팀 28건에서 5건으로\n"
+            "◦ 행정팀 21건에서 4건으로")
+
+    def test_항목이_많은_전후는_dumbbell(self):
+        self.assertEqual(outline.pick_shape(self.MANY), "dumbbell_chart")
+
+    def test_항목이_적으면_예전대로(self):
+        self.assertEqual(outline.pick_shape(self.FEW), "comparison_columns")
+
+    def test_고른_모양은_카탈로그에_있어야_한다(self):
+        # E-SHAPE 가 잡기 전에 여기서 걸린다.
+        self.assertIn("dumbbell_chart", outline.load_shapes())
+
+
+class SilentHoles(unittest.TestCase):
+    """검사가 있는데 조용히 지나가던 자리들 (gap-detector 2026-09-05)."""
+
+    def test_확정이라면서_빈_절은_잡는다(self):
+        # IR 의 재무를 통째로 비우면 E-IR 도 같은 이유로 조용해, 재무 없는
+        # IR 기획서가 검사를 통과했다.
+        errs = plan_spec.check_facts(
+            plan_spec.FRAMES["ir"], by_name(section("재무", body="", status="확정")))
+        self.assertTrue(any("E-FACT" in e for e in errs))
+
+    def test_아직_안_채운_절은_잡지_않는다(self):
+        # 비어 있는 것 자체는 잘못이 아니다 — 아직 안 쓴 상태다.
+        errs = plan_spec.check_facts(
+            plan_spec.FRAMES["ir"],
+            by_name(section("재무", body="", status="확인 필요")))
+        self.assertEqual(errs, [])
+
+    def test_IX_가_통째로_비면_잡는다(self):
+        slides = [outline.Slide(n=1, layer="why", role="cover", title="")]
+        path = self.project_with(slides, "## IX. Content Outline\n\n")
+        self.assertTrue(any("E-SYNC" in e for e in outline.run_check(path)))
+
+    def test_IX_가_아직_없으면_잡지_않는다(self):
+        slides = [outline.Slide(n=1, layer="why", role="cover", title="")]
+        path = self.project_with(slides, "# design_spec\n\n## I. Overview\n")
+        self.assertFalse(any("E-SYNC" in e for e in outline.run_check(path)))
+
+    def project_with(self, slides, design_text):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name)
+        (path / "outline.md").write_text(
+            outline.dump(plan_spec.FRAMES["problem"], "problem-first", slides),
+            encoding="utf-8")
+        (path / "design_spec.md").write_text(design_text, encoding="utf-8")
+        return path
+
+
+class FigureRules(unittest.TestCase):
+    """수치를 묻는 질문이 둘이라 규칙도 둘이다 (regression).
+
+    '숫자가 있느냐'(제목·거버닝)와 '단위까지 붙은 수치냐'(W-BASE)는 다른
+    질문이다. 한때 같은 이름으로 정의해 뒤엣것이 앞을 덮었고, 제목 검사가
+    '2026년' 을 수치 없음으로 보게 됐다. 테스트 217건이 전부 통과하는 동안
+    아무도 이 경로를 밟지 않았다."""
+
+    def test_제목_검사는_단위_없는_숫자도_수치로_본다(self):
+        self.assertTrue(plan_spec._FIGURE_RE.search("2026년 3대 과제"))
+
+    def test_W_BASE_는_단위까지_붙어야_수치로_본다(self):
+        self.assertIsNone(plan_spec._MEASURED_RE.search("2026년"))
+        self.assertTrue(plan_spec._MEASURED_RE.search("정정 50건"))
+
+    def test_두_규칙은_서로_다른_것이어야_한다(self):
+        self.assertIsNot(plan_spec._FIGURE_RE, plan_spec._MEASURED_RE)
+
+    def test_거버닝_메시지에_연도만_있어도_수치로_친다(self):
+        gov = ("2026년 들어 회계 정정이 늘고 있다. 자동계산 시스템을 도입한다. "
+               "정정 건수를 줄인다.")
+        self.assertEqual(
+            [e for e in plan_spec.check_governing({"governing": gov})
+             if "수치" in e], [])
+
+
+class WorkAhead(unittest.TestCase):
+    """단계 전환 시간 (PRD §14 7번) — 미리 뽑아둔 것이 아직 유효한지 판단한다.
+
+    틀리는 방향이 한쪽으로만 안전하다: 낡은 것을 멀쩡하다고 하면 잘못된 덱이
+    나가고, 멀쩡한 것을 낡았다고 하면 다시 뽑을 뿐이다."""
+
+    def project(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        return Path(tmp.name)
+
+    def test_가정이_그대로면_다시_뽑지_않는다(self):
+        p = self.project()
+        stage_cache.stash(p, "outline", {"frame": "problem"})
+        self.assertEqual(stage_cache.drifted(p, "outline", {"frame": "problem"}), [])
+
+    def test_바뀐_값의_이름을_대준다(self):
+        # '달라졌다' 만 알면 전부 다시 뽑아야 한다. 이름을 알아야 그것만 뽑는다.
+        p = self.project()
+        stage_cache.stash(p, "outline", {"frame": "problem", "doc_kind": "둘 다"})
+        self.assertEqual(
+            stage_cache.drifted(p, "outline",
+                                {"frame": "problem", "doc_kind": "발표자료"}),
+            ["doc_kind"])
+
+    def test_새로_생긴_값도_바뀐_것으로_센다(self):
+        p = self.project()
+        stage_cache.stash(p, "outline", {"frame": "problem"})
+        self.assertEqual(
+            stage_cache.drifted(p, "outline", {"frame": "problem", "canvas": "16:9"}),
+            ["canvas"])
+
+    def test_미리_뽑은_것이_없으면_없다고_한다(self):
+        self.assertIsNone(stage_cache.drifted(self.project(), "outline", {"a": 1}))
+
+    def test_깨진_기록은_없는_것으로_본다(self):
+        # 읽을 수 없는 기록을 '유효' 로 처리하면 낡은 후보가 그대로 나간다.
+        p = self.project()
+        stage_cache.cache_dir(p).mkdir(parents=True)
+        (stage_cache.cache_dir(p) / "outline.json").write_text("{ 깨짐",
+                                                              encoding="utf-8")
+        self.assertIsNone(stage_cache.drifted(p, "outline", {"a": 1}))
+
+    def test_전환에_걸린_시간을_잰다(self):
+        p = self.project()
+        stage_cache.mark(p, "strategist", "begin", now=100.0)
+        stage_cache.mark(p, "strategist", "end", now=142.0)
+        self.assertEqual(stage_cache.timings(p), [("strategist", 42.0)])
+
+    def test_끝나지_않은_전환은_시간을_지어내지_않는다(self):
+        p = self.project()
+        stage_cache.mark(p, "strategist", "begin", now=100.0)
+        self.assertEqual(stage_cache.timings(p), [("strategist", None)])
+
+
+class TemplateLint(unittest.TestCase):
+    """템플릿 결함을 등록할 때 잡는다 (PRD §14 10번). 한 번 놓치면 그 템플릿을
+    쓰는 모든 덱에서 되풀이된다."""
+
+    HEAD = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">'
+    BG = '<rect x="0" y="0" width="1280" height="720" fill="#ffffff"/>'
+    TITLE = '<text x="80" y="200">제목</text>'
+
+    def lint(self, *body):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "page.svg"
+        path.write_text(self.HEAD + "".join(body) + "</svg>", encoding="utf-8")
+        return template_lint.check_svg(path)
+
+    def test_글자_뒤에_와야_할_배경이_위에_있으면_잡는다(self):
+        faults = self.lint(self.BG, self.TITLE,
+                           '<rect x="0" y="0" width="1280" height="720" fill="#224C9D"/>')
+        self.assertTrue(any("T-COVER" in f for f in faults))
+
+    def test_배경이_글자_뒤에_있으면_통과한다(self):
+        self.assertEqual(self.lint(self.BG, self.TITLE), [])
+
+    def test_일부만_덮는_도형은_잡지_않는다(self):
+        # 캔버스 일부를 덮는 것은 디자인이지 결함이 아니다.
+        faults = self.lint(self.BG, self.TITLE,
+                           '<rect x="80" y="300" width="400" height="120" fill="#224C9D"/>')
+        self.assertEqual(faults, [])
+
+    def test_비치는_도형은_가림이_아니다(self):
+        faults = self.lint(self.BG, self.TITLE,
+                           '<rect x="0" y="0" width="1280" height="720" '
+                           'fill="#000" opacity="0.3"/>')
+        self.assertEqual(faults, [])
+
+    def test_캔버스_밖_글자를_잡는다(self):
+        faults = self.lint(self.BG, self.TITLE, '<text x="1900" y="200">각주</text>')
+        self.assertTrue(any("T-OUT" in f for f in faults))
+
+    def test_옮겨온_글자는_밖에_있다고_하지_않는다(self):
+        # transform 이 걸린 글자를 좌표만 보고 판단하면 화면 안에 있는 글자를
+        # 밖에 있다고 잘못 말한다.
+        faults = self.lint(self.BG, self.TITLE,
+                           '<g transform="translate(2000,0)">'
+                           '<text x="-1500" y="600">옮겨온 글자</text></g>')
+        self.assertEqual(faults, [])
+
+    def test_defs_안의_도형은_그려지지_않으므로_무시한다(self):
+        faults = self.lint(self.BG, self.TITLE,
+                           '<defs><rect x="0" y="0" width="1280" height="720" '
+                           'fill="#224C9D"/></defs>')
+        self.assertEqual(faults, [])
+
+    def test_viewBox_가_없으면_읽을_수_없다고_말한다(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "page.svg"
+        path.write_text('<svg xmlns="http://www.w3.org/2000/svg"></svg>',
+                        encoding="utf-8")
+        self.assertTrue(any("T-PARSE" in f for f in template_lint.check_svg(path)))
+
+
+class FontTruth(unittest.TestCase):
+    """서체 진실이 둘이던 것 (PRD §14 11번) — 이기는 서체가 설치돼 있어야 한다."""
+
+    def test_실제로_나가는_것은_스택의_머리다(self):
+        # 꼬리는 미리보기 대비책일 뿐이라, 꼬리를 보고 통과시키면 진짜 서체가
+        # 없는 덱이 그냥 나간다.
+        self.assertEqual(
+            validate_spec.locked_family('Pretendard, "Malgun Gothic", sans-serif'),
+            "Pretendard")
+
+    def test_없는_서체는_알린다(self):
+        notes = validate_spec.check_font_available('"Nonexistent Face", sans-serif')
+        self.assertTrue(any("not installed" in n for n in notes))
+
+    def test_제네릭_이름은_확인하지_않는다(self):
+        self.assertEqual(validate_spec.check_font_available("sans-serif"), [])
+
+
 class ChainOrder(unittest.TestCase):
     """절 구성과 순서는 프레임 사슬과 정확히 같아야 한다 (planner.md §6)."""
 
     def test_a_missing_section_is_named(self):
+        # 빠뜨린 절의 이름을 사슬에서 읽는다. 이름을 박아두면 사슬이 길어질 때마다
+        # 계약이 아니라 이 파일이 깨진다.
+        dropped = REPORT.sections[-1]
         errs = plan_spec.check_order(REPORT, [section(n) for n in REPORT.sections[:-1]])
         self.assertIn("E-ORDER", errs[0])
-        self.assertIn("다음", errs[0])
+        self.assertIn(dropped, errs[0])
 
     def test_an_extra_section_is_named(self):
         errs = plan_spec.check_order(
@@ -248,6 +548,52 @@ class OutlineGate(unittest.TestCase):
     def slide(self, n, layer="how", role="body", title="", shape="body", source=""):
         return outline.Slide(n=n, layer=layer, role=role, title=title,
                              shape=shape, source=source)
+
+    # --- E-END — 문서와 덱은 같은 결론에 닿아야 한다 ------------------------
+    # 발표 순서는 상황마다 달라도 되지만 결론이 갈리면 안 된다.
+
+    END_SPEC = (
+        "---\nframe: problem\n---\n\n# 정정 감축\n\n"
+        "## 8. 과제\nstatus: 확정\n"
+        "▢ 출결 자동계산 시스템으로 정정 건수 30% 미만 감축\n"
+    )
+
+    def end_errors(self, slides):
+        errs = outline.run_check(self.project(slides, spec=self.END_SPEC))
+        return [e for e in errs if "E-END" in e]
+
+    def test_결론_절에_닿지_않는_덱은_멈춘다(self):
+        slides = [self.slide(1, layer="why", role="cover"),
+                  self.slide(2, layer="why", source="plan_spec.md#현상")]
+        self.assertTrue(self.end_errors(slides))
+
+    def test_문서에_없는_수치로_끝나면_멈춘다(self):
+        slides = [self.slide(1, layer="why", role="cover"),
+                  self.slide(2, layer="why", source="plan_spec.md#현상"),
+                  self.slide(3, layer="what", role="proposal_primary",
+                             title="정정 건수 5건 이하로 감축",
+                             source="plan_spec.md#과제")]
+        self.assertTrue(any("5건" in e for e in self.end_errors(slides)))
+
+    def test_문서와_같은_수치로_끝나면_조용하다(self):
+        slides = [self.slide(1, layer="why", role="cover"),
+                  self.slide(2, layer="why", source="plan_spec.md#현상"),
+                  self.slide(3, layer="what", role="proposal_primary",
+                             title="정정 건수 30% 미만으로 감축",
+                             source="plan_spec.md#과제")]
+        self.assertEqual(self.end_errors(slides), [])
+
+    def test_2안은_제_숫자를_써도_된다(self):
+        # 2안은 같은 목표를 다른 방법으로 가는 안이라 비용·기간이 다르다.
+        slides = [self.slide(1, layer="why", role="cover"),
+                  self.slide(2, layer="why", source="plan_spec.md#현상"),
+                  self.slide(3, layer="what", role="proposal_primary",
+                             title="정정 건수 30% 미만으로 감축",
+                             source="plan_spec.md#과제"),
+                  self.slide(4, layer="what", role="proposal_alt",
+                             title="수기 이중확인으로 12개월 내 감축",
+                             source="plan_spec.md#과제")]
+        self.assertEqual(self.end_errors(slides), [])
 
     def sound_deck(self):
         return [

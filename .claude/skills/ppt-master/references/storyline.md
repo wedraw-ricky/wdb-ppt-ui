@@ -55,6 +55,22 @@ Every presentation opens on Why. The frame's sections fold into three layers.
 
 **Hard rule**: Present exactly two flows with a one-line reason each. A presentation carries one narrative arc; the user selects one.
 
+### 2.3 The order is free; the conclusion is not
+
+The deck does not follow the document's order. A room decides how an argument
+lands, and that changes with the audience — which is why two flows are offered at
+all. What cannot change is where the argument arrives.
+
+**Hard rule**: the deck reaches the frame's action section — `problem` 과제,
+`hypothesis` 다음 단계, `report` 다음, `intro` 다음 행동, `teach` 실습·적용,
+`ir` 요청. A deck that never gets there ends somewhere the document does not.
+
+**Hard rule**: a concluding slide states no figure the action section does not
+state. The `proposal_alt` slide is exempt — a 2안 reaches the same goal by another
+method ([`planner.md`](./planner.md) §5.2), so its cost and period differ by design.
+
+Both are `E-END` in `outline.py --check`.
+
 ---
 
 ## 3. Slide Count

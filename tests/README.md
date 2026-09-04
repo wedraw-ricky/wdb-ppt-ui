@@ -12,7 +12,7 @@ Neither suite installs anything. Python uses `unittest`; the TypeScript suite
 uses Node's own runner and type stripping, so `model.ts` is read as-is.
 
 ```bash
-python3 -m unittest discover -s tests                       # 계약 + 게이트 · 106건
+python3 -m unittest discover -s tests                       # 계약 + 게이트 · 211건
 node --test --experimental-strip-types tests/*.test.mts     # 화면 모델 · 17건
 ```
 

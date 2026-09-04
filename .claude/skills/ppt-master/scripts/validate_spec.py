@@ -144,6 +144,40 @@ def load_charts_index() -> dict[str, str]:
         return {}
 
 
+def locked_family(stack: str) -> str:
+    """The family that actually gets exported — the head of the stack.
+
+    `Pretendard, "Malgun Gothic", sans-serif` exports Pretendard; the tail is
+    preview fallback only. Checking the tail would pass a deck whose real
+    typeface is missing.
+    """
+    head = stack.split(",")[0].strip().strip('"').strip("'")
+    return head
+
+
+# 서체 진실이 둘이던 것 (PRD §14 11번). 어느 서체가 이기든 — 사용자가 이번
+# 대화에서 지정했든, 템플릿이 선언했든, 설치 기본인 Pretendard 든 — 그 서체가
+# 이 PC 에 없으면 PPTX 는 조용히 다른 글꼴로 바뀐다. PPTX 는 서체를 파일에
+# 품지 않기 때문이다. 그래서 잠긴 서체를 그대로 확인한다.
+def check_font_available(stack: str) -> list[str]:
+    family = locked_family(stack)
+    if not family or family.lower() in {"sans-serif", "serif", "monospace"}:
+        return []
+    try:
+        from preflight import font_installed
+    except ImportError:
+        return []
+    state = font_installed(family)
+    if state is True:
+        return []
+    if state is None:
+        return [f"could not determine whether the locked font '{family}' is "
+                f"installed — verify before export if the deck renders wrong"]
+    return [f"locked font '{family}' is not installed on this machine — PPTX "
+            f"does not embed fonts, so the deck exports with a substitute. "
+            f"Install it, or pick a font that is installed"]
+
+
 def check_slides(slides: list[dict]) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -228,6 +262,8 @@ def check_spec_lock(sections: dict[str, dict[str, str]], page_count: int,
     typo = sections["typography"]
     if not typo.get("font_family"):
         errors.append("spec_lock.md typography has no `font_family`")
+    else:
+        warnings += check_font_available(typo["font_family"])
     if not typo.get("body"):
         errors.append("spec_lock.md typography has no `body` size")
 
