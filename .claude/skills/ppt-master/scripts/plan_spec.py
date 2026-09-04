@@ -184,7 +184,14 @@ def scaffold(frame: Frame, intake: dict) -> str:
         f"assignment: {intake.get('assignment', '')}\n"
         f"generated_at: {stamp}\n"
         "---\n\n"
-        f"# {intake.get('conclusion') or '제목 미정'}\n\n"
+        # intake's `conclusion` is the writer's own sentence, not a 제목. It is
+        # parked as the governing message's raw material; the 제목 is written
+        # to shape (report-format.md §2.2) and cannot be a lifted sentence.
+        "# [핵심 수단] + [결과 수치] — 12~18자\n\n"
+        "## 거버닝 메시지\n"
+        "<!-- [현황/문제 1문장] + [해결 1문장] + [정량 결과 1문장]. "
+        "현황 진단으로 시작한다 — 선언으로 시작하지 않는다. -->\n"
+        f"{intake.get('conclusion', '')}\n\n"
     )
     blocks = []
     for i, name in enumerate(frame.sections, 1):
@@ -228,6 +235,18 @@ def parse(text: str) -> tuple[dict, list[Section]]:
                 meta[k.strip()] = v.strip()
 
     body, _appendix = split_appendix(body)
+
+    title_match = re.search(r"^#\s+(.+?)\s*$", body, re.M)
+    meta["title"] = title_match.group(1) if title_match else ""
+    gov_match = re.search(
+        r"^##\s*거버닝 메시지\s*$(.*?)(?=^##\s|\Z)", body, re.M | re.S)
+    gov = gov_match.group(1) if gov_match else ""
+    gov = re.sub(r"<!--.*?-->", "", gov, flags=re.S).strip()
+    meta["governing"] = gov
+    # The governing block is not a frame section; the chain check must not see it.
+    if gov_match:
+        body = body[:gov_match.start()] + body[gov_match.end():]
+
     sections: list[Section] = []
     parts = re.split(r"^## \d+\.\s*", body, flags=re.M)[1:]
     for part in parts:
@@ -304,6 +323,110 @@ def check_direction_marks(sections: list[Section]) -> list[str]:
                 f"E-MARK '{sec.name}' has an empty {{{sign}}} — the mark wraps "
                 f"the figure it describes: write {{{sign}75.7%}}, not 75.7%{{{sign}}}"
             )
+    return errs
+
+
+# report-format.md §2.1. Each of these carries no information: delete it, or
+# replace it with the concrete term it is standing in for.
+BANNED_WORDS = (
+    "차세대", "지능형", "혁신적", "종합적", "획기적", "최적의", "효과적인",
+    "다양한", "폭넓은", "여러 가지", "전반적", "적극적", "다각적",
+)
+
+_FIGURE_RE = re.compile(r"\d")
+# `*` and `※` are 각주 — explanatory prose that takes a full stop. The 개조식
+# rule governs the 핵심/세부 markers only.
+_BULLET_RE = re.compile(r"^\s*[▢◦─·\-]\s*(.+?)\s*$", re.M)
+# 개조식 must end 명사형 / ~함 / 추진 / 구축 — a 서술형 ending is the other register.
+_NARRATIVE_END_RE = re.compile(r"(?:다|까|요|죠)\.?$")
+# Two independent signals, because either alone misses: "무엇을 했나" ends in
+# 나, "어디가 문제인가" ends in 인가, and both open with a question word.
+_QUESTION_END_RE = re.compile(r"(?:\?|나|까|은가|는가|인가|한가|런가|던가|ㄹ까)$")
+_QUESTION_START_RE = re.compile(r"^(?:무엇|무슨|어디|어떤|어떻게|왜|언제|누가|얼마)")
+
+
+def _is_question(head: str) -> bool:
+    return bool(_QUESTION_END_RE.search(head) or _QUESTION_START_RE.match(head))
+
+
+def _banned_in(text: str) -> list[str]:
+    return [w for w in BANNED_WORDS if w in text]
+
+
+def check_title(meta: dict) -> list[str]:
+    """report-format.md §2.2 제목 — `[핵심 수단] + [결과/수치]`, 12~18자.
+
+    The scaffold used to drop `intake.conclusion` here, so the 제목 arrived as
+    whatever sentence the writer had typed about their conclusion: two clauses,
+    no figure, thirty-odd characters. That is a 거버닝 메시지, not a 제목.
+    """
+    errs = []
+    title = (meta.get("title") or "").strip()
+    if not title or title.startswith("["):
+        return ["E-TITLE 제목이 비어 있다 — [핵심 수단] + [결과 수치] 로 12~18자"]
+    length = len(re.sub(r"\s", "", title))
+    if length > 24:
+        errs.append(f"E-TITLE 제목이 {length}자 — 12~18자로 줄인다 "
+                    f"(수단과 결과 수치만 남긴다)")
+    if len(re.findall(r"[.!?]\s|[.!?]$", title)) >= 2 or title.count(". ") >= 1:
+        errs.append("E-TITLE 제목이 두 문장 — 제목은 한 덩어리다. "
+                    "나머지는 거버닝 메시지로 옮긴다")
+    if not _FIGURE_RE.search(title):
+        errs.append("E-TITLE 제목에 수치가 없다 — 결과는 정량으로 (§2.2)")
+    for w in _banned_in(title):
+        errs.append(f"E-TITLE 제목의 '{w}' — 최상위·추상 수식어는 삭제하거나 "
+                    f"검증 가능한 구체어로 바꾼다")
+    return errs
+
+
+def check_governing(meta: dict) -> list[str]:
+    """report-format.md §2.2 거버닝 메시지 — 2~3문장, 현황 진단으로 시작."""
+    gov = (meta.get("governing") or "").strip()
+    if not gov:
+        return ["E-GOV 거버닝 메시지가 없다 — [현황/문제] + [해결] + [정량 결과] "
+                "2~3문장으로 제목 아래에 쓴다"]
+    errs = []
+    sentences = [x for x in re.split(r"(?<=[.다])\s+", gov) if x.strip()]
+    if not 2 <= len(sentences) <= 3:
+        errs.append(f"E-GOV 거버닝 메시지가 {len(sentences)}문장 — 2~3문장")
+    if not _FIGURE_RE.search(gov):
+        errs.append("E-GOV 거버닝 메시지에 수치가 없다 — 마지막은 정량 결과")
+    for w in _banned_in(gov):
+        errs.append(f"E-GOV 거버닝 메시지의 '{w}' — 구체어로 바꾼다")
+    return errs
+
+
+def check_headings(sections: list[Section]) -> list[str]:
+    """report-format.md §2.2 소제목 — `[대상/범위] + [핵심 조치]`, 명사형 20자 내외."""
+    errs = []
+    for sec in sections:
+        head = (sec.heading or "").strip()
+        if not head:
+            continue
+        if _is_question(head):
+            errs.append(f"E-HEAD '{sec.name}' 의 소제목 '{head}' 이 의문형 — "
+                        f"[대상] + [조치] 명사형으로 (예: '지역사업소 참여율 56.3%')")
+        if len(re.sub(r"\s", "", head)) > 28:
+            errs.append(f"E-HEAD '{sec.name}' 의 소제목이 너무 길다 — 20자 내외")
+        for w in _banned_in(head):
+            errs.append(f"E-HEAD '{sec.name}' 의 소제목에 '{w}' — 형용사 금지")
+    return errs
+
+
+def check_register(sections: list[Section]) -> list[str]:
+    """report-format.md §2.1 — 수식어, and 개조식 종결·마침표."""
+    errs = []
+    for sec in sections:
+        for w in _banned_in(sec.body or ""):
+            errs.append(f"E-WORD '{sec.name}' 본문의 '{w}' — 삭제하거나 "
+                        f"검증 가능한 구체어로 바꾼다")
+        for line in _BULLET_RE.findall(sec.body or ""):
+            if line.endswith("."):
+                errs.append(f"E-PUNCT '{sec.name}' 개조식 줄에 마침표 — "
+                            f"개조식은 마침표 없이 끝난다: '{line[:24]}…'")
+            elif _NARRATIVE_END_RE.search(line):
+                errs.append(f"E-PUNCT '{sec.name}' 개조식 줄이 서술형 종결 — "
+                            f"명사형·~함·추진·구축 으로: '{line[:24]}…'")
     return errs
 
 
@@ -384,6 +507,10 @@ def run_check(project: Path) -> list[str]:
     errs += check_target(frame, by_name)
     errs += check_options(frame, by_name)
     errs += check_direction_marks(sections)
+    errs += check_title(meta)
+    errs += check_governing(meta)
+    errs += check_headings(sections)
+    errs += check_register(sections)
     return errs
 
 

@@ -57,6 +57,13 @@ the figure.
 | 본문 서술형 | `[현황] + [원인] + [영향]` | 1문장 1메시지(최대 2문장), 근거 1개 이상 |
 | 본문 개조식 | `[주체] + [조치] + [수치]` | 형용사 금지, 명사형·`~함`·`추진`·`구축` 종결, 마침표 없음 |
 
+**Enforced, not merely stated.** `plan_spec.py --check` reads this section:
+`E-TITLE` (제목 shape, length, figure, 수식어), `E-GOV` (거버닝 메시지 present,
+2–3문장, lands on a figure), `E-HEAD` (소제목 명사형, not a question, no
+형용사), `E-WORD` (금지 수식어 in a body), `E-PUNCT` (개조식 마침표 and
+서술형 종결). A register that only lives in a document is read once; run
+against a document written without it, these found 29 violations.
+
 ### 2.3 Data
 
 **Hard rule**: Only figures present in the input. A figure that is not in `sources/` is

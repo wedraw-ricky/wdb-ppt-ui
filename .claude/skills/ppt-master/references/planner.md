@@ -26,6 +26,8 @@ Role definition for the **planning path**: read the intake answers plus the sour
 
 **Hard rule**: Numeric values from the source or from research are transcribed, never generated. A figure absent from the source is absent from `plan_spec.md`.
 
+**Hard rule**: The document opens with two things the frame does not supply — a `# 제목` and a `## 거버닝 메시지` block. The 제목 is `[핵심 수단] + [결과 수치]` in 12–18자 ([`report-format.md`](./report-format.md) §2.2), never the writer's conclusion sentence lifted whole. The 거버닝 메시지 is `[현황/문제] + [해결] + [정량 결과]` in 2–3문장, opening on the situation rather than on a declaration. `plan_spec.py --check` enforces both (`E-TITLE`, `E-GOV`): a reader who reads nothing else reads these.
+
 **Hard rule**: Every section carries a `heading:` line — the 소제목 the document shows, written per [`report-format.md`](./report-format.md) §2.2: 명사형, 20자 내외, 형용사 금지. The `## N. {절 이름}` heading is the frame's own vocabulary and is never what a reader sees.
 
 **Hard rule**: The body carries the argument. Supporting tables, 원자료 and research go to `## 별첨 N. …` blocks at the end of `plan_spec.md`; they sit outside the frame chain and are rendered after the argument at 별첨 size.

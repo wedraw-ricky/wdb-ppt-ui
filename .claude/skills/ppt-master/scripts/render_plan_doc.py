@@ -63,6 +63,7 @@ class Plan:
     """Everything the renderers need, read once from the project."""
 
     title: str
+    governing: str
     meta: dict
     sections: list[Section]
     frame: Optional[Frame]
@@ -96,6 +97,7 @@ def build_plan(project: Path) -> Plan:
               f"plan_spec.md — rendering the sections as written", file=sys.stderr)
     return Plan(
         title=heading.group(1).strip() if heading else DOC_SUFFIX,
+        governing=str(meta.get("governing", "")).strip(),
         meta=meta,
         sections=sections,
         frame=frame,
@@ -169,6 +171,13 @@ def render_markdown(plan: Plan) -> str:
         out += [f"| {k} | {v} |" for k, v in rows]
         out.append("")
 
+    # The governing message is what a reader who reads nothing else takes away.
+    # It sits under the title, before the chain, and is written to shape by the
+    # planner (report-format.md §2.2) — the renderer only places it.
+    if plan.governing:
+        out += [f"> {line}" for line in plan.governing.splitlines() if line.strip()]
+        out.append("")
+
     for i, sec in enumerate(plan.sections, 1):
         out += [f"## {i}. {sec.heading or sec.name}", ""]
         if sec.status != "확정":
@@ -216,6 +225,8 @@ def render_docx(plan: Plan, out_path: Path, form_name: str) -> None:
     writer.write_chrome(plan.intake.get("department") or "기획", label,
                         f"SECTION: {nav}" if nav else "")
     writer.write_title(plan.title)
+    if plan.governing:
+        writer.write_governing(plan.governing)
 
     for i, sec in enumerate(plan.sections):
         # The frame's section name is pipeline vocabulary — '하기로 한 것' is how

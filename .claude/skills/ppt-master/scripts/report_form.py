@@ -446,6 +446,42 @@ class ReportWriter:
         if f["rules"].get("title_rule"):
             self.bottom_rule(para, colors["accent"], 18)
 
+    def write_governing(self, text: str) -> None:
+        """The summary a reader who reads nothing else takes away.
+
+        Set apart from the body — indented, on a tinted ground — because it is
+        the one block that is not part of the chain. It states the situation,
+        what was done about it, and the figure that came out; the planner writes
+        it to that shape and this only places it.
+        """
+        f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
+        para = self.doc.add_paragraph()
+        para.paragraph_format.space_after = self.Pt(14)
+        para.paragraph_format.left_indent = self.Pt(14)
+        para.paragraph_format.right_indent = self.Pt(14)
+        para.paragraph_format.line_spacing = f["line_spacing"]["base"]
+        for chunk, role in _runs(text):
+            self.font(
+                para.add_run(chunk), name=f["fonts"]["body"],
+                size=sizes["core"],
+                bold=role in ("bold", "improve", "worsen", "badge"),
+                color=colors["improve"] if role == "improve"
+                else colors["worsen"] if role == "worsen"
+                else colors["text"],
+            )
+        self.shade(para._p.get_or_add_pPr(), colors.get("table_label_bg", "F2F4F7"))
+        self.left_rule(para, colors["accent"], 12)
+
+    def left_rule(self, para, color: str, size: int = 12) -> None:
+        borders = self.OxmlElement("w:pBdr")
+        left = self.OxmlElement("w:left")
+        left.set(self.qn("w:val"), "single")
+        left.set(self.qn("w:sz"), str(size))
+        left.set(self.qn("w:space"), "8")
+        left.set(self.qn("w:color"), color)
+        borders.append(left)
+        para._p.get_or_add_pPr().append(borders)
+
     def write_section(self, index: int, name: str, status: str) -> None:
         f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
         numeral = ROMAN[index] if index < len(ROMAN) else str(index + 1)
