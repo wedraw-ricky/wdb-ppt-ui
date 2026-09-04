@@ -26,58 +26,60 @@ const shapeLabel = (id: string) =>
 
 /* ---- left pane -------------------------------------------------------- */
 
-function Rail({ rows, current, onPick }: {
-  rows: Row[]; current: number; onPick: (i: number) => void;
-}) {
+/* 어디까지 왔나. 장 목록은 오른쪽에 이미 있으므로 여기서 되풀이하지 않는다 —
+   같은 15장을 한 화면에 두 번 적으면 덜 쓸모 있는 쪽이 자리를 차지한다. */
+const JOURNEY = [
+  { id: "intake", label: "무엇을 · 누구에게" },
+  { id: "plan", label: "기획서" },
+  { id: "outline", label: "뼈대" },
+  { id: "design", label: "디자인" },
+];
+
+function Journey({ here }: { here: string }) {
+  const at = JOURNEY.findIndex((s) => s.id === here);
   return (
-    <div className="flex flex-col gap-3">
-      {LAYERS.map((layer) => {
-        const mine = rows
-          .map((r, i) => ({ r, i }))
-          .filter(({ r }) => r.layer === layer.id);
-        return (
-          <div key={layer.id}>
-            <div className="flex items-baseline gap-2">
-              <span className="text-[13px] font-bold">{layer.label}</span>
-              <span className="text-[11px] opacity-70">{layer.note}</span>
-              <span className="ml-auto text-[11px] opacity-70">{mine.length}장</span>
-            </div>
-            <div className="mt-1.5 flex flex-col gap-1 border-l border-white/25 pl-3">
-              {mine.length === 0 ? (
-                <div className="text-[12px] opacity-60">아직 없습니다</div>
-              ) : mine.map(({ r, i }) => (
-                <button key={i} type="button" onClick={() => onPick(i)}
-                        className="truncate rounded px-1.5 py-0.5 text-left text-[12px] transition"
-                        style={{ background: i === current ? "rgba(255,255,255,.18)" : "transparent",
-                                 opacity: i === current ? 1 : 0.82 }}>
-                  {r.n}. {r.title.trim() || "제목 미정"}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+      {JOURNEY.map((s, i) => (
+        <li key={s.id} className="flex items-center gap-2">
+          <span className={i === at ? "font-bold" : ""}
+                style={{ opacity: i < at ? 0.6 : i === at ? 1 : 0.4 }}>
+            {i < at ? "✓ " : ""}{s.label}
+          </span>
+          {i < JOURNEY.length - 1 ? (
+            <span aria-hidden="true" style={{ opacity: 0.35 }}>›</span>
+          ) : null}
+        </li>
+      ))}
+    </ol>
   );
 }
 
-function Preview({ row }: { row: Row | undefined }) {
+/* 고른 장 하나를 크게. 이 화면의 약속이 "고르는 걸 그려서 보여준다" 이므로,
+   그림이 가장 큰 자리를 갖는다 — 목록 아래로 밀리면 노트북에서는 안 보인다. */
+function Detail({ row }: { row: Row | undefined }) {
   if (!row) return null;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="text-xs opacity-80">
-        {row.n}번째 장 · {ROLE_LABELS[row.role] || row.role} · {shapeLabel(row.shape)}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <span className="text-[13px] font-bold">{row.n}번째 장</span>
+        <span className="text-[12px]" style={{ color: "var(--muted)" }}>
+          {shapeLabel(row.shape)}
+        </span>
       </div>
-      <div className="overflow-hidden rounded-lg bg-white/95 p-2">
+      <div className="overflow-hidden rounded-lg border"
+           style={{ borderColor: "var(--border)" }}>
         <SlideArt shape={row.shape} />
       </div>
-      <div className="text-[13px] font-semibold">{row.title.trim() || "제목 미정"}</div>
+      <div className="text-[15px] font-bold leading-snug">
+        {row.title.trim() || "제목 미정"}
+      </div>
       {row.screen.trim() ? (
-        <div className="whitespace-pre-line text-[12px] leading-relaxed opacity-85">
-          {row.screen}
-        </div>
+        <div className="whitespace-pre-line text-[13px] leading-relaxed"
+             style={{ color: "var(--muted)" }}>{row.screen}</div>
       ) : (
-        <div className="text-[12px] opacity-70">화면에 넣을 내용은 아직 비어 있습니다</div>
+        <div className="text-[13px]" style={{ color: "var(--muted)" }}>
+          화면에 넣을 내용은 아직 비어 있습니다
+        </div>
       )}
     </div>
   );
@@ -85,80 +87,89 @@ function Preview({ row }: { row: Row | undefined }) {
 
 /* ---- row -------------------------------------------------------------- */
 
-function RowCard({
-  row, index, total, open, picked, onOpen, onPick, onMove, onDelete, children,
+/* 한 장 = 스토리보드의 한 컷.
+
+   줄로 늘어놓으면 순서는 읽히지만 흐름이 안 읽힌다 — 이 화면이 묻는 것은
+   "이 순서로 이야기할까요" 이므로 여러 장이 한눈에 들어와야 한다. 그래서 컷을
+   격자로 놓고, 그림을 카드 너비만큼 키운다. `art.tsx` 는 이미 레이아웃 14종을
+   제 도형으로 그리고 있었고, 104px 로 줄여 쓰느라 그 노력이 안 보였다.
+
+   글자로는 절 이름 하나만 쓴다. 모양(글 위주 · 항목 나열)은 그림이 이미 말하고,
+   역할은 표지 · 1안 · 2안일 때만 — 본문일 때는 적어도 정보가 늘지 않는다. */
+function ChapterCard({
+  row, index, total, selected, picked, onOpen, onPick, onMove, onDelete,
 }: {
-  row: Row; index: number; total: number; open: boolean; picked: boolean;
+  row: Row; index: number; total: number; selected: boolean; picked: boolean;
   onOpen: () => void; onPick: () => void;
   onMove: (to: number) => void; onDelete: () => void;
-  children: React.ReactNode;
 }) {
+  const roleBadge = row.role !== "body" ? (ROLE_LABELS[row.role] || row.role) : "";
+  // 절 이름이 제목과 같은 말이면 두 번 쓰지 않는다 — 잉크만 늘고 아는 것은 그대로다.
+  const source = row.source.split("#").pop() || "";
+  const sourceLabel = source && source !== row.title.trim() ? source : "";
   return (
-    <div className="rounded-xl border transition" style={cardStyle(open || picked)}>
-      <div className="flex items-stretch gap-3 p-3">
-        <div className="flex flex-col items-center justify-center gap-1.5 pl-1">
-          <span className="cursor-grab select-none text-[13px] leading-none opacity-45"
-                aria-hidden="true">⋮⋮</span>
-          <input type="checkbox" checked={picked} onChange={onPick}
-                 aria-label={`${row.n}번째 장 선택`} />
-        </div>
+    <div className="group relative flex flex-col gap-2 rounded-lg border p-2 transition"
+         style={{
+           borderColor: selected ? "var(--wdb-primary)" : "var(--border)",
+           borderWidth: selected ? 2 : 1,
+           padding: selected ? 7 : 8,
+           background: "var(--surface)",
+         }}>
+      <button type="button" onClick={onOpen}
+              className="overflow-hidden rounded-md border text-left"
+              style={{ borderColor: "var(--border)" }}
+              aria-label={`${row.n}번째 장 고르기`} aria-pressed={selected}>
+        <SlideArt shape={row.shape} />
+      </button>
 
-        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full
-                         text-[11px] font-bold text-white"
-              style={{ background: "var(--wdb-secondary)" }}>
-          {row.n}
-        </span>
+      <span className="pointer-events-none absolute left-3.5 top-3.5 grid h-5 w-5
+                       place-items-center rounded text-[10px] font-bold text-white"
+            style={{ background: "var(--wdb-secondary)" }}>{row.n}</span>
 
-        <button type="button" onClick={onOpen}
-                className="w-[104px] shrink-0 overflow-hidden rounded-md border"
-                style={{ borderColor: "var(--border)" }}
-                aria-label={`${row.n}번째 장 펼치기`}>
-          <SlideArt shape={row.shape} />
-        </button>
-
-        <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[15px] font-semibold">
-              {row.title.trim() || "제목 미정"}
+      <div className="flex min-w-0 flex-col gap-0.5 px-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-[14px] font-semibold leading-snug">
+            {row.title.trim() || "제목 미정"}
+          </span>
+          {row.edited ? (
+            <span className="shrink-0 rounded px-1.5 text-[10px] font-semibold"
+                  style={{ background: "var(--wdb-cyan)", color: "var(--wdb-charcoal)" }}>
+              고침
             </span>
-            {row.edited ? (
-              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                    style={{ background: "var(--wdb-cyan)", color: "var(--wdb-charcoal)" }}>
-                고침
+          ) : null}
+        </div>
+        {roleBadge || sourceLabel ? (
+          <div className="flex items-center gap-1.5 text-[12px]"
+               style={{ color: "var(--muted)" }}>
+            {roleBadge ? (
+              <span className="rounded px-1.5 font-semibold"
+                    style={{ background: "var(--wdb-card-bg)", color: "var(--wdb-secondary)" }}>
+                {roleBadge}
               </span>
             ) : null}
+            {sourceLabel ? <span className="truncate">{sourceLabel}</span> : null}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]"
-               style={{ color: "var(--muted)" }}>
-            <span>{ROLE_LABELS[row.role] || row.role}</span>
-            <span aria-hidden="true">·</span>
-            <span>{shapeLabel(row.shape)}</span>
-            {row.source.trim() ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="truncate">{row.source.split("#").pop()}</span>
-              </>
-            ) : null}
-          </div>
-          {!open && row.screen.trim() ? (
-            <div className="mt-1.5 line-clamp-2 whitespace-pre-line text-[12px] leading-relaxed"
-                 style={{ color: "var(--muted)" }}>
-              {row.screen}
-            </div>
-          ) : null}
-        </button>
-
-        <div className="flex shrink-0 flex-col items-end justify-between gap-1">
-          <div className="flex gap-1">
-            <IconBtn label="위로" disabled={index === 0} onClick={() => onMove(index - 1)}>↑</IconBtn>
-            <IconBtn label="아래로" disabled={index === total - 1}
-                     onClick={() => onMove(index + 1)}>↓</IconBtn>
-          </div>
-          <IconBtn label="이 장 지우기" onClick={onDelete}>✕</IconBtn>
-        </div>
+        ) : null}
       </div>
-      {open ? <div className="border-t px-3 pb-4 pt-4"
-                   style={{ borderColor: "var(--border)" }}>{children}</div> : null}
+
+      {/* 손대는 장에만 보인다. 45개가 늘 떠 있으면 눈이 갈 곳이 45군데가 된다. */}
+      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition
+                      group-hover:opacity-100 group-focus-within:opacity-100">
+        <IconBtn label="앞으로" disabled={index === 0}
+                 onClick={() => onMove(index - 1)}>←</IconBtn>
+        <IconBtn label="뒤로" disabled={index === total - 1}
+                 onClick={() => onMove(index + 1)}>→</IconBtn>
+        <IconBtn label="이 장 지우기" onClick={onDelete}>✕</IconBtn>
+      </div>
+
+      <label className="absolute bottom-2 right-2 flex items-center gap-1 text-[11px]
+                        opacity-0 transition group-hover:opacity-100
+                        group-focus-within:opacity-100 has-[:checked]:opacity-100"
+             style={{ color: "var(--muted)" }}>
+        <input type="checkbox" checked={picked} onChange={onPick}
+               aria-label={`${row.n}번째 장 선택`} />
+        합치기
+      </label>
     </div>
   );
 }
@@ -192,7 +203,7 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
                style={fieldStyle} />
       </label>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <label className="flex flex-col gap-1.5">
           <span className="text-[13px] font-semibold">화면에 보이는 글</span>
           <span className="-mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
@@ -244,7 +255,7 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
         ) : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <div>
           <div className="text-[13px] font-semibold">이야기의 어느 대목인가요?</div>
           <div className="mt-2 flex gap-2">
@@ -344,28 +355,43 @@ export function OutlineEditor({ doc, onConfirm }: {
 
   return (
     <div className="flex h-full">
-      <aside className="wdb-hero hidden w-[34%] max-w-[480px] min-w-[340px] flex-col gap-6
-                        overflow-y-auto p-7 lg:flex">
-        <div className="flex items-center gap-3 border-b border-white/20 pb-4">
-          <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/30
-                          bg-white/15 text-sm font-bold">PM</div>
-          <div>
-            <div className="text-[11px] tracking-widest opacity-80">PPT MASTER</div>
-            <div className="text-sm font-bold">뼈대 정하기</div>
+      {/* 왼쪽은 "지금 손대는 장" 하나만 맡는다. 장 목록은 오른쪽에 있고,
+          그라데이션은 브랜드를 알리는 얇은 띠로만 남긴다 — 판 전체를 덮는
+          장식 그라데이션은 정보를 나르지 않으면서 그 위 글자를 읽기 어렵게 한다. */}
+      <aside className="hidden w-[420px] shrink-0 flex-col overflow-y-auto border-r lg:flex"
+             style={{ borderColor: "var(--border)", background: "var(--background)" }}>
+        <div className="wdb-hero flex items-center gap-3 px-6 py-4">
+          <div className="grid h-8 w-8 place-items-center rounded-lg border border-white/30
+                          bg-white/15 text-[12px] font-bold">PM</div>
+          <div className="min-w-0">
+            <div className="text-[10px] tracking-widest opacity-80">PPT MASTER</div>
+            <div className="truncate text-[13px] font-bold">뼈대 정하기</div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <div className="text-xs opacity-80">고르신 이야기 흐름</div>
-          <div className="text-[13px] font-semibold">
-            {FLOW_LABELS[flow] || flow || "—"}
+        <div className="flex flex-col gap-3 border-b px-6 py-4"
+             style={{ borderColor: "var(--border)" }}>
+          <Journey here="outline" />
+          <div className="flex flex-wrap items-baseline gap-x-2 text-[12px]"
+               style={{ color: "var(--muted)" }}>
+            <span>이야기 흐름</span>
+            <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+              {FLOW_LABELS[flow] || flow || "—"}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>모두 {rows.length}장</span>
           </div>
-          <div className="text-[12px] opacity-75">모두 {rows.length}장</div>
         </div>
 
-        <Rail rows={rows} current={current} onPick={(i) => setOpen(i)} />
-
-        <Preview row={rows[current]} />
+        <div className="flex flex-col gap-5 px-6 py-5">
+          <Detail row={rows[current]} />
+          {rows[current] ? (
+            <div className="border-t pt-5" style={{ borderColor: "var(--border)" }}>
+              <Editor row={rows[current]}
+                      onPatch={(p) => setRows(patchRow(rows, current, p))} />
+            </div>
+          ) : null}
+        </div>
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
@@ -403,66 +429,72 @@ export function OutlineEditor({ doc, onConfirm }: {
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-2.5">
-            {rows.map((row, i) => {
-              const bandStart = i === 0 || rows[i - 1].layer !== row.layer;
-              const layer = LAYERS.find((l) => l.id === row.layer);
+          {/* Why · How · What 을 띠로 묶고 그 안에 컷을 늘어놓는다. 15개가 각자
+              테두리를 두르면 정작 묶여야 할 세 덩어리의 경계가 안 보인다. */}
+          <div className="flex flex-col gap-7">
+            {LAYERS.map((layer) => {
+              const items = rows
+                .map((row, i) => ({ row, i }))
+                .filter(({ row }) => row.layer === layer.id);
+              if (!items.length) return null;
               return (
-                <div key={i}>
-                  {bandStart ? (
-                    <div className={`mb-2.5 flex items-center gap-3 ${i ? "mt-4" : ""}`}>
-                      <span className="text-[13px] font-bold">
-                        {layer?.label || row.layer}
-                      </span>
-                      <span className="text-[12px]" style={{ color: "var(--muted)" }}>
-                        {layer?.note}
-                      </span>
-                      <span className="h-px flex-1" style={{ background: "var(--border)" }} />
-                    </div>
-                  ) : null}
+                <section key={layer.id} className="flex flex-col gap-3">
+                  <header className="flex items-baseline gap-3">
+                    <h2 className="text-[14px] font-bold">{layer.label}</h2>
+                    <span className="text-[12px]" style={{ color: "var(--muted)" }}>
+                      {layer.note}
+                    </span>
+                    <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                    <span className="text-[12px] tabular-nums" style={{ color: "var(--muted)" }}>
+                      {items.length}장
+                    </span>
+                  </header>
 
-                  <div
-                    draggable={open !== i}
-                    onDragStart={() => setDragging(i)}
-                    onDragEnd={() => { setDragging(null); setOver(null); }}
-                    onDragOver={(e) => { e.preventDefault(); setOver(i); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (dragging !== null && dragging !== i) move(dragging, i);
-                      setDragging(null); setOver(null);
-                    }}
-                    style={{ opacity: dragging === i ? 0.45 : 1,
-                             borderTop: over === i && dragging !== null && dragging !== i
-                               ? "2px solid var(--wdb-primary)" : "2px solid transparent" }}
-                  >
-                    <RowCard
-                      row={row} index={i} total={rows.length}
-                      open={open === i} picked={picked.includes(i)}
-                      onOpen={() => setOpen(open === i ? -1 : i)}
-                      onPick={() => setPicked((p) =>
-                        p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}
-                      onMove={(to) => move(i, to)}
-                      onDelete={() => { setPendingDelete(i); setMsg(deleteWarning(rows, i)); }}
-                    >
-                      <Editor row={row}
-                              onPatch={(p) => setRows(patchRow(rows, i, p))} />
-                    </RowCard>
-
-                    {pendingDelete === i ? (
-                      <div className="mt-1.5 flex items-center gap-3 rounded-lg border px-4 py-2.5
-                                      text-[13px]"
-                           style={{ borderColor: "var(--danger)", background: "var(--surface)" }}>
-                        <span>{row.n}번째 장을 지울까요?</span>
-                        <button type="button" onClick={() => apply(deleteRow(rows, i))}
-                                className="rounded-md px-3 py-1 text-[12px] font-semibold text-white"
-                                style={{ background: "var(--danger)" }}>지웁니다</button>
-                        <button type="button" onClick={() => { setPendingDelete(-1); setMsg(""); }}
-                                className="rounded-md border px-3 py-1 text-[12px]"
-                                style={{ borderColor: "var(--border)" }}>그대로 둡니다</button>
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                    {items.map(({ row, i }) => (
+                      <div key={i}
+                           draggable
+                           onDragStart={() => setDragging(i)}
+                           onDragEnd={() => { setDragging(null); setOver(null); }}
+                           onDragOver={(e) => { e.preventDefault(); setOver(i); }}
+                           onDrop={(e) => {
+                             e.preventDefault();
+                             if (dragging !== null && dragging !== i) move(dragging, i);
+                             setDragging(null); setOver(null);
+                           }}
+                           style={{
+                             opacity: dragging === i ? 0.4 : 1,
+                             outline: over === i && dragging !== null && dragging !== i
+                               ? "2px solid var(--wdb-primary)" : "none",
+                             outlineOffset: 2, borderRadius: 10,
+                           }}>
+                        <ChapterCard
+                          row={row} index={i} total={rows.length}
+                          selected={current === i} picked={picked.includes(i)}
+                          onOpen={() => setOpen(i)}
+                          onPick={() => setPicked((q) =>
+                            q.includes(i) ? q.filter((x) => x !== i) : [...q, i])}
+                          onMove={(to) => move(i, to)}
+                          onDelete={() => { setPendingDelete(i); setMsg(deleteWarning(rows, i)); }}
+                        />
+                        {pendingDelete === i ? (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg
+                                          border px-3 py-2 text-[12px]"
+                               style={{ borderColor: "var(--danger)", background: "var(--surface)" }}>
+                            <span>{row.n}번째 장을 지울까요?</span>
+                            <button type="button" onClick={() => apply(deleteRow(rows, i))}
+                                    className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-white"
+                                    style={{ background: "var(--danger)" }}>지웁니다</button>
+                            <button type="button"
+                                    onClick={() => { setPendingDelete(-1); setMsg(""); }}
+                                    className="rounded-md border px-2.5 py-1 text-[11px]"
+                                    style={{ borderColor: "var(--border)" }}>그대로 둡니다</button>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+                    ))}
                   </div>
-                </div>
+                </section>
               );
             })}
           </div>

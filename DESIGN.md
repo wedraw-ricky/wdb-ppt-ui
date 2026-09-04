@@ -234,6 +234,11 @@ defect, not a wording problem.
 | 2026-09-04 | The waiting screen lists the agent's own notes, ticked as they finish | A fixed stage label reads as frozen within half a minute — the counter proves the page is alive but not that the work is. Notes are a record of the past, so they add movement without implying a total the pipeline never measured |
 | 2026-09-04 | The page pings the server while it is open, and says so when it stops answering | Filling in the form makes no requests, so the server's idle watchdog could not tell a reading user from a closed tab and shut down under one twice; the ping restarts its clock, and closing the tab stops the ping so the timeout still works. The banner waits for two missed pings — one blip must not flash an alarm mid-decision |
 | 2026-09-05 | Which fields each stage's preview tracks lives in `api.ts`, not in this file | Two defects came from stage rules being prose — a preview reading the next stage's fields, and stage 1 redesigned a day ahead of stages 2 and 3. Both were fixed by hand and neither had a guard. A map every payload is checked against fails by field name instead |
+| 2026-09-05 | 뼈대 화면의 장은 줄이 아니라 스토리보드 컷 | 화면이 묻는 것은 "이 순서로 이야기할까요" 다. 순서를 판단하려면 여러 장이 한눈에 들어와야 하는데, 줄로 늘어놓으면 한 번에 대여섯 장뿐이고 15개가 서로 구별되지도 않았다. 격자로 놓으니 컷이 카드 너비만큼 커져 `art.tsx` 가 이미 그리고 있던 레이아웃 14종이 실제로 보인다 — 104px 로 줄여 쓰느라 버리던 것이다 |
+| 2026-09-05 | 왼쪽 판은 목차가 아니라 지금 손대는 장 | 같은 15장이 왼쪽과 오른쪽에 두 번 있었고, 왼쪽 사본은 그림도 조작도 없어 덜 쓸모 있는 쪽이 265px 를 차지했다. 목록을 걷어내고 그 자리를 고른 장 하나에 준다 — 큰 그림과 편집 칸 |
+| 2026-09-05 | 그라데이션은 판 전체가 아니라 머리띠 | 판을 덮는 장식 그라데이션은 정보를 나르지 않으면서 그 위 글자를 읽기 어렵게 한다. 브랜드는 얇은 띠로 충분하고, 편집 칸은 밝은 바탕에서 읽힌다. (색 자체는 위드로우비즈니스 로고 색이므로 그대로) |
+| 2026-09-05 | 모양은 그림이 말하고, 글자는 이름만 말한다 | `본문 · 글 위주 · 현상` 은 역할·모양·절 이름이라는 서로 다른 세 층위를 라벨 없이 붙여 둔 것이었다. 모양은 컷이 이미 보여주고, 역할은 표지·1안·2안일 때만 적는다. 절 이름이 제목과 같은 말이면 두 번 쓰지 않는다 |
+| 2026-09-05 | 장을 옮기고 지우는 단추는 손대는 장에만 | 15장 × 3개 = 45개가 늘 떠 있으면 눈이 갈 곳이 45군데가 된다. 가리키거나 고른 장에서만 나타난다 |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |
