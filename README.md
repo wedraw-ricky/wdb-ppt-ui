@@ -1,143 +1,196 @@
-# WDB Confirm UI
+# 위드비 기획·발표자료 도구
 
-**ppt-master** 파이프라인의 "디자인 정하기" 확인 화면을 위드비 스타일로 갈아 끼운
-오버레이입니다. 슬라이드를 만드는 엔진이 아니라, 만들기 직전에 **무엇을 어떻게
-만들지 고르는 화면**입니다.
+자료를 주면 **인터뷰 → 기획서 → 발표자료 뼈대 → PPTX** 까지, 강의에서 배운 순서
+그대로 만들어 주는 도구입니다.
 
-<p align="center">
-  <em>1단계 무엇을·누구에게 → 2단계 어떻게 보이게 → 3단계 이미지</em>
-</p>
+핵심은 자동 생성이 아닙니다. **판단해야 하는 지점마다 멈추고 사람에게 묻는 것**이
+이 도구가 하는 일입니다. 근거 없는 숫자를 지어내지 않고, 비어 있는 칸은 비어
+있다고 표시합니다.
 
-## 이 저장소가 하는 일
+---
 
-원본(upstream)을 **한 줄도 고치지 않습니다.** `server.py`가 원본의 확인 서버를
-import한 뒤 네 가지만 딴 데로 돌려놓고 제어권을 그대로 돌려줍니다. 그래서 잠금
-파일, 포트 탐색, `--daemon` / `--wait` / `--shutdown` 수명주기, `/api/*` 경로,
-`recommendations.json` → `result.json` 계약이 전부 원본 그대로 상속됩니다.
+## 강의에서 배운 것이 어디에 들어가 있나
 
-| 돌려놓는 것 | 이유 |
+교육생이 손으로 채우던 것을 도구가 초안까지 채워 놓고, 고르는 일만 남겨 둡니다.
+
+| 강의에서 배운 것 | 도구에서 하는 일 |
 |---|---|
-| `server.__file__` | 원본은 서빙용 자식 프로세스를 자기 파일로 다시 띄웁니다. 그 외의 `__file__` 사용처는 전부 import 시점 상수라, import 뒤에 바꾸면 이 자식 프로세스만 우리 쪽으로 옵니다 |
-| `_CATALOGS_PATH` | 모듈 상수라 그냥 두면 `/api/catalogs`가 계속 원본 카탈로그를 내보냅니다 |
-| `app.static_folder` + 정적 뷰 | 우리 파일을 먼저 주고, 우리가 안 바꾼 건 원본으로 넘깁니다 (`style_previews/` 같은 건 자동으로 최신 유지) |
-| `_DECKS_DIR` | 우리 덱과 원본 덱을 `.decks-merged/`로 합쳐 템플릿 카드에 함께 띄웁니다 |
+| **클라이언트 블록** 8항목 | `문제 해결형` 골격 — 현상 · 영향 · 원인 · 배경 · 목표 · 목적 검증 · 기대효과 · 과제 를 자료에서 뽑아 채웁니다 |
+| **제목은 `[목적]을 위한 [실행안]`** | 목적 없는 제목(`노션 도입안`)이나 너무 넓은 목적(`업무 효율을 위한`)은 통과시키지 않습니다 |
+| **목표는 기간과 수준** | 둘 중 하나라도 없으면 멈추고 두 가지 안을 그려서 고르게 합니다 |
+| **팩트 / 의견 / 추론 구분** | 근거가 필요한 절은 자료에 있는 것만 씁니다. 없으면 `확인 필요` 로 세워 두고 지어내지 않습니다 |
+| **영향 → 기대효과는 이어져야 한다** | 영향에 없던 이야기가 기대효과에 나오면 걸러 냅니다 |
+| **분석과 제안은 섞지 않는다** | 제안은 골격의 정해진 자리(과제·다음 단계)에서만 나옵니다 |
+| **두괄식 · 개조식 문체** | 최상위 수식어, 문장 중간에 파묻힌 수치, 개조식 줄의 마침표를 잡아냅니다 |
+| **1안 · 2안** | 2안은 축소판이 아니라 **같은 목표를 다른 방법으로** 가는 안입니다 |
 
-## 처음부터 설치 (실습생용)
+> 문제 해결형 말고도 **가설 검증형 · 성과 보고형 · 소개형 · 교육 강의형 · IR** 골격이
+> 있습니다. 인터뷰 답변을 보고 도구가 알아서 고릅니다.
 
-준비물: **Python 3.10 이상**, git, Claude Code. macOS 기준입니다.
-(파이프라인 스크립트가 `str | None` 문법을 쓰기 때문에 3.9에서는 동작하지 않습니다.)
+---
+
+## 시작하기
+
+준비물은 **Python 3.10 이상**, git, Claude Code 입니다. macOS 기준입니다.
+
+### 1. 받기
 
 ```bash
-# 1. 이 저장소 하나만 받으면 됩니다 (파이프라인이 안에 들어 있습니다)
 git clone https://github.com/wedraw-ricky/wdb-ppt-ui.git ~/dev/wdb-ppt-ui
+```
 
-# 2. 파이썬 패키지
-#    python-pptx / Pillow 가 없으면 PPTX 내보내기 자체가 실패합니다.
+경로를 이어 붙이는 설정 단계는 없습니다. 파이프라인이 저장소 안에 함께 들어 있어서
+저장소가 스스로를 찾습니다.
+
+### 2. 파이썬 패키지
+
+```bash
 python3 -m pip install python-pptx Pillow flask numpy requests
 ```
 
-경로를 연결하는 설정 단계는 없습니다. 파이프라인이 `.claude/skills/ppt-master/`
-안에 함께 들어 있어서 저장소가 스스로를 찾습니다.
+`python-pptx` 와 `Pillow` 가 없으면 PPTX 로 내보내는 것 자체가 안 됩니다.
 
-### 설치가 됐는지 확인
+기획서를 **Word 로** 받으실 거면 하나 더 깔면 됩니다. 안 깔아도 Markdown 으로는
+항상 나옵니다.
+
+```bash
+python3 -m pip install python-docx
+```
+
+### 3. 잘 깔렸는지 확인
 
 ```bash
 python3 ~/dev/wdb-ppt-ui/.claude/skills/ppt-master/scripts/preflight.py
 ```
 
-`[preflight] PASS — environment ready` 가 나오면 정상입니다. 빠진 패키지가 있으면
-`pip install <이름>` 형태로 무엇을 깔아야 하는지 그대로 알려줍니다.
+`[preflight] PASS — environment ready` 가 나오면 정상입니다. 빠진 게 있으면 무엇을
+어떻게 깔아야 하는지 그대로 알려 줍니다.
 
-### 쓰는 법
+### 4. 만들기
 
-Claude Code를 이 폴더에서 열고 자료를 주면서 PPT를 만들어 달라고 하면 됩니다.
-`.claude/skills/` 안의 스킬을 Claude Code가 자동으로 찾습니다.
+Claude Code 를 이 폴더에서 열고, 자료를 주면서 만들어 달라고 하면 됩니다.
+스킬은 Claude Code 가 알아서 찾습니다.
 
-확인 화면은 덱 작업이 시작되면 자동으로 뜹니다. 직접 띄우려면:
+---
+
+## 만들어지는 과정
+
+| | 단계 | 여기서 무슨 일이 | 사람이 하는 것 |
+|---|---|---|---|
+| 1 | 자료 읽기 | PDF · 워드 · 한글 문서를 읽어 들입니다 | — |
+| 2 | 작업 폴더 만들기 | `projects/` 안에 하나 생깁니다 | — |
+| 3 | 템플릿 고르기 | 쓸 디자인이 있으면 여기서 | 고르기 |
+| **3.5** | **인터뷰** | 자료만 봐서는 알 수 없는 것을 묻습니다 — 무엇을 위한 자료인지, 누구에게 보여주는지, 결론은 무엇인지 | **답하기** (초안이 채워져 있어 고치기만) |
+| **3.6** | **기획서** | 골격을 고르고 자료에서 각 절을 채웁니다 | **비어 있는 칸 · 1안 2안 고르기** |
+| **3.7** | **뼈대** | 기획서를 발표 순서로 펼칩니다 (WHY → HOW → WHAT) | **순서 · 합치기 · 장별 모양 편집** |
+| 4 | 디자인 정하기 | 색 · 글꼴 · 쪽수 · 이미지 출처 | **고르기** |
+| 5 | 이미지 | 필요한 그림을 구합니다 | — |
+| 6 | 슬라이드 | 실제로 그립니다 | — |
+| 7 | 내보내기 | 편집 가능한 PPTX 로 | — |
+
+굵게 표시된 네 곳에서 **화면이 뜹니다.** 나머지는 기다리시면 됩니다.
+
+---
+
+## 나오는 것
+
+| 산출물 | 형식 | 비고 |
+|---|---|---|
+| 기획서 | Markdown (항상) · Word (`python-docx` 있을 때) | 양식 2종 — **한국은행형** `bok`, **한수원형** `khnp` |
+| 발표자료 | PPTX | 도형과 글자가 살아 있어 파워포인트에서 그대로 고칠 수 있습니다 |
+
+---
+
+## 물어보는 화면은 이렇게 생겼습니다
+
+한 줄로 하면 **"고르는 대상을 그려서 보여준다. 목록으로 설명하지 않는다."**
+
+| 고르는 것 | 화면에 보이는 것 |
+|---|---|
+| 템플릿 | 그 덱의 첫 장을 실제로 그린 그림 |
+| 화면 크기 | 진짜 비율로 그린 사각형 |
+| 색 | **그 색으로 칠한 미니 슬라이드** |
+| 글꼴 | 제목 → 부제목 → 본문 → 주석 실제 크기 사다리 |
+| 쪽수 | 길이 칩 + 쪽 수만큼의 눈금 |
+| 이미지 출처 | 그 출처가 만들어 내는 그림 샘플 |
+
+전체 규칙과 결정 기록은 [`DESIGN.md`](DESIGN.md) 에 있습니다.
+
+---
+
+## 자주 막히는 곳
+
+| 증상 | 이유와 해결 |
+|---|---|
+| PPTX 내보내기가 실패한다 | `python-pptx` · `Pillow` 를 안 깔았습니다. 3번(preflight)을 돌려 보세요 |
+| 파이썬이 문법 오류를 낸다 | 3.9 이하입니다. **3.10 이상**이 필요합니다 |
+| 기획서가 Word 로 안 나온다 | `python-docx` 가 없습니다. Markdown 으로는 항상 나옵니다 |
+| 다른 PC 에서 열었더니 글꼴이 다르다 | PPTX 는 글꼴을 파일 안에 품지 않습니다. 그 PC 에도 **Pretendard** 를 깔아야 합니다 |
+| 화면이 안 뜬다 | 덱 작업이 시작되면 자동으로 뜹니다. 직접 띄우려면 `python3 server.py projects/<프로젝트> --daemon` |
+
+**선택 사항** — `playwright` 는 그려 놓은 슬라이드를 픽셀로 검사하는 데 씁니다.
+없으면 그 단계만 건너뜁니다.
 
 ```bash
-python3 server.py projects/<프로젝트> --daemon
+python3 -m pip install playwright && python3 -m playwright install chromium
 ```
 
-### 선택 사항
+---
 
-- `playwright` — 6단계 픽셀 검사와 시각 리뷰에 쓰입니다. 없으면 그 단계만 건너뜁니다.
-  `python3 -m pip install playwright && python3 -m playwright install chromium`
+## 고칠 때 (개발)
 
-### 서체
+### 이 저장소가 담고 있는 것
 
-UI 미리보기용 Paperlogy는 저장소에 웹폰트로 들어 있어 따로 설치할 필요가 없습니다.
-다만 **덱을 PPTX로 뽑을 때는** 쓰는 서체가 PC에 설치돼 있어야 합니다 — PPTX는
-서체를 파일에 품지 않기 때문입니다.
+파이프라인과 확인 화면이 **한 저장소에 같이** 있습니다. 경로를 이어 붙이는 설정이
+없는 이유입니다.
 
-## 실행
+```
+.claude/skills/ppt-master/   파이프라인 — 원저작 Hugo He · byungjunjang (아래 참조)
+  ├ SKILL.md                 만드는 순서 (3.5~3.7 이 기획 단계)
+  ├ references/              역할 계약 — planner · storyline · report-format · strategist
+  ├ scripts/                 돌아가는 코드
+  └ templates/report_forms/  기획서 양식 (bok · khnp)
+server.py                    확인 화면을 띄우는 진입점
+ui/                          React 소스
+static/                      빌드 결과 · 글꼴 · 이전 화면
+decks/                       덱 템플릿
+tests/                       테스트
+DESIGN.md                    화면 설계 계약
+CLAUDE.md                    작업 규칙 · 무엇이 누구 것인지
+```
 
-원본과 같은 인자를 씁니다.
+원래 이 저장소는 원본 파이프라인을 건드리지 않는 **덧씌우기**로 시작했습니다.
+지금은 파이프라인이 안으로 들어와 있고 기획 단계 · 판단 게이트처럼 **직접 고친
+부분이 있습니다.** 다만 `server.py` 는 여전히 파이프라인의 확인 서버를 *가져다
+쓰는* 방식이라, 잠금 파일 · 포트 찾기 · `--daemon` / `--wait` / `--shutdown` ·
+`/api/*` 규약을 그대로 물려받습니다.
+
+### 화면 고치기
+
+```bash
+cd ui && npm install      # 화면을 고칠 때만
+npx vite build            # → static/app/confirm.js + confirm.css
+```
+
+빌드 결과가 저장소에 **커밋되어 있어서**, 쓰는 사람은 `npm install` 없이 동작합니다.
+
+### 테스트
+
+새로 깔 것 없이 그대로 돌아갑니다.
+
+```bash
+python3 -m unittest discover -s tests
+node --test --experimental-strip-types tests/*.test.mts
+```
+
+### 실행
 
 ```bash
 python3 server.py <프로젝트경로> --daemon --wait
 python3 server.py <프로젝트경로> --shutdown
 ```
 
-## 덱 템플릿
-
-`decks/`에 이 오버레이가 추가하는 덱 템플릿이 있습니다. `server.py`가 원본 덱과
-심볼릭 링크로 합쳐 `.decks-merged/`를 만들고 `_DECKS_DIR`을 그쪽으로 돌리기 때문에,
-원본 저장소에 파일 하나 넣지 않고도 템플릿 카드에 뜹니다.
-
-| 덱 | 쪽수 | 출처 |
-|---|---|---|
-| `withby-green` | 9 | `withb-green-design` 스킬에서 이식. 아키타입 A–I, 좌표는 원본 19장짜리 PPTX에서 실측 |
-
-## 화면 설계 원칙
-
-한 줄로 요약하면 **"고르는 대상을 그려서 보여준다. 목록으로 설명하지 않는다."**
-전체 규칙과 결정 기록은 [`DESIGN.md`](DESIGN.md)에 있습니다.
-
-| 고르는 것 | 화면에 보이는 것 |
-|---|---|
-| 덱 템플릿 | 그 덱의 첫 장을 실제로 렌더한 썸네일 |
-| 화면 크기 | 진짜 비율로 그린 사각형 |
-| 색 | **그 색으로 칠한 미니 슬라이드** |
-| 글꼴 | 제목→부제목→본문→주석 **실제 급수 사다리** |
-| 쪽수 | 길이 칩 + 쪽 수만큼의 눈금 |
-| 이미지 출처 | 그 출처가 만들어내는 그림 샘플 |
-| 설명 방식 | 논리 구조를 그린 다이어그램 |
-
-## UI 코드
-
-React 19 + HeroUI v3 + Tailwind v4 앱이 `ui/`에 있고, 빌드 결과가 `static/app/`에
-**커밋되어 있습니다.** 서버를 띄우는 PC에서 `npm install`을 하지 않아도 오프라인으로
-동작합니다.
-
-```bash
-cd ui && npm install      # UI를 고칠 때만
-npx vite build            # -> static/app/confirm.js + confirm.css
-```
-
-`ui/src/api.ts`가 계약(상태 구조·단계별 payload·검증)을 컴포넌트와 분리해 들고
-있습니다. 이 분리 덕분에 화면을 React로 다시 만들 때 `result.json`을 이전 화면 결과와
-비교하는 것만으로 검증이 가능했습니다.
-
-위드비 토큰은 `ui/src/theme.css`에서 HeroUI의 의미 변수(`--accent`, `--background`,
-`--surface` …)에 매핑됩니다. 컴포넌트마다 색을 지정하지 않아도 브랜드가 전파됩니다.
-
-이전 바닐라 화면도 `static/`에 남아 있습니다(`app.js`, `style.css`).
-`static/index.html`을 그쪽으로 되돌리면 폴백됩니다.
-
-## 폴더 구조
-
-```
-.claude/skills/ppt-master/   파이프라인 (원저작 Hugo He · byungjunjang)
-server.py     진입점 — 확인 화면을 우리 것으로 바꿔 파이프라인 서버를 띄운다
-ui/           React 소스
-static/       빌드 결과 · 폰트 · 카탈로그 · 이전 바닐라 화면
-decks/        오버레이 덱 템플릿
-DESIGN.md     화면 설계 계약과 결정 기록
-```
-
-`static/`에 없는 파일은 원본으로 넘어가므로, 이 저장소는 **실제로 바꾼 것만** 들고
-있습니다.
+---
 
 ## 만든 사람들 · 기반이 된 작업
 
@@ -145,20 +198,21 @@ DESIGN.md     화면 설계 계약과 결정 기록
 
 | 무엇 | 만든 사람 | 라이선스 | 관계 |
 |---|---|---|---|
-| **ppt-master 파이프라인** — 문서를 SVG로 만들고 네이티브 PPTX로 내보내는 엔진 전체. `.claude/skills/` 아래 그대로 들어 있습니다 | **Hugo He** (LICENSE 표기) · 한국어 적응과 커밋 이력은 **byungjunjang** ([slide-master](https://github.com/byungjunjang/slide-master)) | MIT | 이 저장소가 **품고 있습니다**. 소스→SVG→PPTX 경로, 구조화 템플릿 계약, 3단계 확인 흐름은 전부 원저작자의 설계입니다 |
-| **Paperlogy (페이퍼로지체)** | 배포 [fonts-archive](https://github.com/fonts-archive/Paperlogy) · [freesentation.blog](https://freesentation.blog/paperlogyfont) | SIL OFL 1.1 | `static/fonts/`에 woff2 5종 번들. 상세는 [`static/fonts/NOTICE.md`](static/fonts/NOTICE.md) |
-| **HeroUI v3** · React · Tailwind CSS · React Aria | 각 프로젝트 | 각 프로젝트 라이선스 (`ui/package.json`) | UI 구성 요소 |
-| **withby-green 덱 템플릿** | 원본 `PPT 탬플릿 예시.pptx` 19장을 해부해 이식 | MIT (이 저장소) | ⚠️ **확인 필요** — 원본 PPTX를 만든 분의 성함이 확인되면 여기에 적습니다 |
-| **확인 화면 오버레이 (이 저장소)** | WeDraw (위드비) | MIT | |
+| **ppt-master 파이프라인** — 문서를 SVG 로 만들고 PPTX 로 내보내는 엔진 전체. `.claude/skills/` 아래 들어 있습니다 | **Hugo He** (LICENSE 표기) · 한국어 적응은 **byungjunjang** ([slide-master](https://github.com/byungjunjang/slide-master)) | MIT | 이 저장소가 **품고 있습니다.** 소스 → SVG → PPTX 경로, 구조화 템플릿 규약, 3단계 확인 흐름은 전부 원저작자의 설계입니다 |
+| **Pretendard** | [orioncactus](https://github.com/orioncactus/pretendard) | SIL OFL 1.1 | 발표자료 기본 서체. `.claude/skills/ppt-master/assets/fonts/Pretendard/` |
+| **Paperlogy (페이퍼로지체)** | [fonts-archive](https://github.com/fonts-archive/Paperlogy) · [freesentation.blog](https://freesentation.blog/paperlogyfont) | SIL OFL 1.1 | 확인 화면용. 상세는 [`static/fonts/NOTICE.md`](static/fonts/NOTICE.md) |
+| **HeroUI v3** · React · Tailwind CSS · React Aria | 각 프로젝트 | 각 프로젝트 라이선스 (`ui/package.json`) | 화면 구성 요소 |
+| **withby-green 덱 템플릿** | 원본 19장짜리 PPTX 를 해부해 이식 | MIT (이 저장소) | ⚠️ **확인 필요** — 원본 PPTX 를 만든 분의 성함이 확인되면 여기 적습니다 |
+| **기획 단계 · 확인 화면** | WeDraw (위드비) | MIT | 인터뷰 · 기획서 · 뼈대 편집과 화면 전부 |
 
-> 원본 파이프라인의 설계 — 3단계 확인 흐름, `recommendations.json` → `result.json`
-> 계약, 구조화 PPTX 내보내기 — 는 전부 위 원저작자의 작업입니다. 이 저장소가 바꾼
-> 것은 **그 계약을 그대로 둔 채 화면만** 다시 그린 것입니다.
+기획·보고서 작성 규칙은 **위드로우비즈니스 유민균 대표**의 보고서 작성법 강의에서
+가져왔습니다. 강의 자료 원본은 저장소에 올리지 않고, 규칙만 `references/` 의 계약
+파일로 옮겨 두었습니다.
 
 ## 라이선스
 
 MIT — [`LICENSE`](LICENSE) 참고. 자유롭게 고쳐 쓰고 본인 프로젝트에 가져가셔도 됩니다.
 
-번들된 **Paperlogy** 웹폰트는 SIL Open Font License 1.1을 따릅니다
-(`static/fonts/OFL.txt`). 폰트 파일에는 MIT가 아니라 OFL이 적용됩니다.
-`decks/withby-green/`의 레이아웃 시안과 규격 문서도 MIT로 공개합니다.
+번들된 **Pretendard** 와 **Paperlogy** 는 SIL Open Font License 1.1 을 따릅니다.
+글꼴 파일에는 MIT 가 아니라 OFL 이 적용됩니다.
+`decks/withby-green/` 의 레이아웃 시안과 규격 문서도 MIT 로 공개합니다.
