@@ -26,6 +26,10 @@ Role definition for the **planning path**: read the intake answers plus the sour
 
 **Hard rule**: Numeric values from the source or from research are transcribed, never generated. A figure absent from the source is absent from `plan_spec.md`.
 
+**Hard rule**: Every section carries a `heading:` line — the 소제목 the document shows, written per [`report-format.md`](./report-format.md) §2.2: 명사형, 20자 내외, 형용사 금지. The `## N. {절 이름}` heading is the frame's own vocabulary and is never what a reader sees.
+
+**Hard rule**: The body carries the argument. Supporting tables, 원자료 and research go to `## 별첨 N. …` blocks at the end of `plan_spec.md`; they sit outside the frame chain and are rendered after the argument at 별첨 size.
+
 **Hard rule**: Section bodies are written with the markers [`report-format.md`](./report-format.md) §4 defines — `▢` for the 두괄식 핵심, `◦` for 세부, `*` for 각주, Markdown table rows for 통계표, `{+…}` / `{-…}` where a figure is 개선 or 악화, `[확인 필요: …]` where a value is missing. These are typesetting instructions the Word renderer reads; the Markdown draft strips them.
 
 **Hard rule**: Section bodies are written in the 보고형 register defined by [`report-format.md`](./report-format.md) §2 — 최상위 수식어 removed, the 수치 or 결론 in the first third of the sentence, 개조식 lines carrying no full stop. The Word renderer typesets that register; it cannot produce it, so a body written outside it reaches the reader outside it.

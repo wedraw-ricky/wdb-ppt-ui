@@ -146,6 +146,8 @@ set its own:
 | 본문 — `▢` 핵심 · `◦` 세부 | 15 |
 | 통계표 | 14 |
 | `*` 각주 | 12 |
+| 별첨 제목 | 14 |
+| 별첨 본문 · 표 | 12 |
 | 머리말 · 꼬리말 | 10 |
 
 **Line spacing**: 1.3 throughout; marker lines (`▢` `◦` `*`) run at 1.5 so the list
@@ -155,7 +157,7 @@ breathes against the surrounding text.
 with `**`, that markup wins and the rest stays at normal weight — an option line
 (`**1안** …`) is a sentence, not a heading, and reads wrong fully bold.
 
-**Hard rule**: Page is A4 portrait in every form.
+**Hard rule**: Page is A4 portrait, 여백 좌우 20mm · 상하 25mm.
 
 > Note: these are documents, not decks — the CLAUDE.md Pretendard lock covers
 > SVG-authored decks and does not reach them.
@@ -167,8 +169,9 @@ with `**`, that markup wins and the rest stays at normal weight — an option li
 | `plan_spec.md` | Rendered as |
 |---|---|
 | `# {제목}` | 제목, form title font, accent, ruled |
-| frontmatter + intake | 통계표 (구분 · 내용) |
-| `## N. {절 이름}` | `Ⅰ`–`Ⅻ` 대제목, chain order |
+| `heading:` | `Ⅰ`–`Ⅻ` 대제목 — the 소제목 §2.2 defines |
+| `## N. {절 이름}` | Nothing. The frame name is how the chain is checked, never how a reader is addressed |
+| `## 별첨 N. …` | `< 별첨 >` block after the argument, set at 별첨 size |
 | `status` other than `확정` | `(확인 필요)` / `(초안)` on the 대제목, in the worsen colour |
 | Section body | Parsed per §4 |
 | `source:` | `*` 각주 |
@@ -176,6 +179,14 @@ with `**`, that markup wins and the rest stays at normal weight — an option li
 | Sections not yet `확정` | `< 아직 닫히지 않은 항목 >` block at the end |
 
 **Hard rule**: An empty section is rendered with its reason, never omitted.
+
+**Hard rule**: A section carries `heading:` — the 소제목 a reader sees. Falling back to
+the frame name puts pipeline vocabulary on the page: a 보고서 never says 하기로 한 것,
+it says 캠페인 추진 배경 및 목표 수준.
+
+**Hard rule**: The 제목 is centred. Body carries the argument; supporting tables,
+원자료 and research go to `## 별첨 N. …`, which sits outside the frame chain and is
+therefore invisible to `plan_spec.py --check`.
 
 ---
 

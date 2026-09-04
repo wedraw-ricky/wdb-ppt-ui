@@ -240,11 +240,12 @@ class ReportWriter:
 
     # -- content --
 
-    def write_line(self, level: str, text: str) -> None:
+    def write_line(self, level: str, text: str, size: Optional[float] = None) -> None:
         f, sizes, colors = self.form, self.form["sizes"], self.form["colors"]
         marker = f["markers"].get(level, "")
-        size = sizes["core"] if level == "core" else \
-            sizes["note"] if level == "note" else sizes["detail"]
+        if size is None:
+            size = sizes["core"] if level == "core" else \
+                sizes["note"] if level == "note" else sizes["detail"]
         indent = {"core": 0.0, "detail": 4.0, "note": 8.0}[level]
 
         para = self.doc.add_paragraph()
@@ -273,10 +274,11 @@ class ReportWriter:
             if role == "badge":
                 self.shade(run._element.get_or_add_rPr(), colors["badge_bg"])
 
-    def write_table(self, rows: list[list[str]]) -> None:
+    def write_table(self, rows: list[list[str]], size: Optional[float] = None) -> None:
         f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
         if not rows:
             return
+        cell_size = size or sizes["table"]
         width = max(len(r) for r in rows)
         table = self.doc.add_table(rows=0, cols=width)
         table.alignment = self.TABLE_ALIGN.CENTER
@@ -294,7 +296,7 @@ class ReportWriter:
                 if i == 0:
                     self.shade(cell._tc.get_or_add_tcPr(), colors["table_header_bg"])
                     self.font(para.add_run(text), name=f["fonts"]["body"],
-                              size=sizes["table"], bold=True,
+                              size=cell_size, bold=True,
                               color=colors["table_header_fg"])
                     para.alignment = self.ALIGN.CENTER
                     continue
@@ -303,7 +305,7 @@ class ReportWriter:
                 for chunk, role in _runs(text):
                     self.font(
                         para.add_run(chunk), name=f["fonts"]["body"],
-                        size=sizes["table"],
+                        size=cell_size,
                         bold=j == 0 or role in ("bold", "improve", "worsen"),
                         color=colors["improve"] if role == "improve"
                         else colors["worsen"] if role == "worsen"
@@ -335,7 +337,8 @@ class ReportWriter:
     def write_title(self, title: str) -> None:
         f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
         para = self.doc.add_paragraph()
-        para.paragraph_format.space_after = self.Pt(14)
+        para.alignment = self.ALIGN.CENTER
+        para.paragraph_format.space_after = self.Pt(16)
         self.font(para.add_run(title), name=f["fonts"]["title"],
                   size=sizes["title"], bold=True, color=colors["accent"])
         if f["rules"].get("title_rule"):
@@ -363,6 +366,21 @@ class ReportWriter:
         para.paragraph_format.space_after = self.Pt(5)
         self.font(para.add_run(f"< {label} >"), name=f["fonts"]["title"],
                   size=sizes["section"], bold=True, color=colors["accent"])
+
+    def write_appendix(self, title: str, blocks: list) -> None:
+        """Supporting material, after the argument and set smaller."""
+        f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
+        head = self.doc.add_paragraph()
+        head.paragraph_format.space_before = self.Pt(14)
+        head.paragraph_format.space_after = self.Pt(4)
+        head.paragraph_format.line_spacing = f["line_spacing"]["base"]
+        self.font(head.add_run(title), name=f["fonts"]["title"],
+                  size=sizes["appendix_title"], bold=True, color=colors["accent"])
+        for level, payload in blocks:
+            if level == "table":
+                self.write_table(payload, size=sizes["appendix"])
+            else:
+                self.write_line(level, payload, size=sizes["appendix"])
 
     def write_chrome(self, dept: str, doc_name: str) -> None:
         f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]

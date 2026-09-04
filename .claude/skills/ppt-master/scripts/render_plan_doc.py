@@ -45,7 +45,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from console_encoding import configure_utf8_stdio  # noqa: E402
-from plan_spec import FRAMES, Frame, Section, parse  # noqa: E402
+from plan_spec import FRAMES, Frame, Section, parse, split_appendix  # noqa: E402
 from report_form import strip_markup  # noqa: E402
 
 
@@ -67,6 +67,7 @@ class Plan:
     sections: list[Section]
     frame: Optional[Frame]
     intake: dict
+    appendix: list[tuple[str, str]]
 
 
 def load_intake(project: Path) -> dict:
@@ -87,6 +88,7 @@ def build_plan(project: Path) -> Plan:
     """Parse `plan_spec.md` into the shape both renderers consume."""
     text = (project / "plan_spec.md").read_text(encoding="utf-8")
     meta, sections = parse(text)
+    _, appendix = split_appendix(text)
     heading = re.search(r"^#\s+(.+)$", text, re.M)
     frame = FRAMES.get(str(meta.get("frame", "")).strip())
     if frame is None and meta.get("frame"):
@@ -98,6 +100,7 @@ def build_plan(project: Path) -> Plan:
         sections=sections,
         frame=frame,
         intake=load_intake(project),
+        appendix=appendix,
     )
 
 
@@ -149,7 +152,7 @@ def render_markdown(plan: Plan) -> str:
         out.append("")
 
     for i, sec in enumerate(plan.sections, 1):
-        out += [f"## {i}. {sec.name}", ""]
+        out += [f"## {i}. {sec.heading or sec.name}", ""]
         if sec.status != "확정":
             out += [f"> **{sec.status}**", ""]
         if sec.body:
@@ -188,10 +191,12 @@ def render_docx(plan: Plan, out_path: Path, form_name: str) -> None:
 
     writer.write_chrome(plan.intake.get("department") or "기획", plan.title)
     writer.write_title(plan.title)
-    _meta_table(writer, plan)
 
     for i, sec in enumerate(plan.sections):
-        writer.write_section(i, sec.name, sec.status)
+        # The frame's section name is pipeline vocabulary — '하기로 한 것' is how
+        # the chain is checked, never how a reader is addressed. The document
+        # heading is the 소제목 the author wrote.
+        writer.write_section(i, sec.heading or sec.name, sec.status)
         blocks = report_form.parse_body(sec.body) if sec.body else []
         if not blocks:
             writer.write_line("detail", _empty_note(plan, sec))
@@ -207,16 +212,14 @@ def render_docx(plan: Plan, out_path: Path, form_name: str) -> None:
     if pending:
         writer.write_block("아직 닫히지 않은 항목")
         for sec in pending:
-            writer.write_line("detail", f"{sec.name} — [{sec.status}]")
+            writer.write_line("detail", f"{sec.heading or sec.name} — [{sec.status}]")
+
+    if plan.appendix:
+        writer.write_block("별첨")
+        for title, body in plan.appendix:
+            writer.write_appendix(title, report_form.parse_body(body))
 
     writer.save(out_path)
-
-
-def _meta_table(writer, plan: Plan) -> None:
-    """The identifying block, as the form's 통계표."""
-    rows = header_rows(plan)
-    if rows:
-        writer.write_table([["구분", "내용"]] + [[k, v] for k, v in rows])
 
 
 # ---- CLI --------------------------------------------------------------------

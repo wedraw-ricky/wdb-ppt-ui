@@ -4,9 +4,9 @@
   "page": {
     "width_mm": 210,
     "height_mm": 297,
-    "margin_top_mm": 24,
-    "margin_bottom_mm": 24,
-    "margin_side_mm": 22
+    "margin_top_mm": 25,
+    "margin_bottom_mm": 25,
+    "margin_side_mm": 20
   },
   "fonts": {
     "title": "맑은 고딕",
@@ -19,7 +19,9 @@
     "detail": 15,
     "note": 12,
     "table": 14,
-    "chrome": 10
+    "chrome": 10,
+    "appendix_title": 14,
+    "appendix": 12
   },
   "line_spacing": {
     "base": 1.3,
