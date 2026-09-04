@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Point this overlay at a ppt-master install, and (optionally) at the global skill stub.
 
-  python3 install.py --ppt-master ~/dev/workspaces/pptskill/.claude/skills/ppt-master
+  python3 install.py --ppt-master ~/dev/slide-master/.claude/skills/ppt-master
   python3 install.py --ppt-master <path> --wire-stub ~/.claude/skills/ppt-master/SKILL.md
 """
 from __future__ import annotations
