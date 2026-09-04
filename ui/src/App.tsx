@@ -13,6 +13,7 @@ import {
 import { Deriving, DoneArt } from "./states";
 import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
 import { Hero, stageSteps } from "./hero";
+import { Intake } from "./intake";
 
 /* ---------- small building blocks ------------------------------------- */
 
@@ -79,6 +80,7 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [waitTarget, setWaitTarget] = useState(2);
   const [mismatchAck, setMismatchAck] = useState(false);
+  const [intakeDraft, setIntakeDraft] = useState<any | null>(null);
   const [rec, setRec] = useState<Recommendations>({});
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
@@ -97,7 +99,13 @@ export default function App() {
         api.getJson("/api/recommendations"),
         api.getJson("/api/catalogs"),
       ]);
-      setRec(r); setCat(c); setState(api.initialState(r, c)); setPhase("form");
+      setRec(r); setCat(c); setState(api.initialState(r, c));
+      // The planning artifacts live outside the three-stage machine; a missing
+      // intake.json means the run has not been through Step 3.5 yet.
+      let intake: any = null;
+      try { intake = await api.readPlanning("intake"); } catch { /* server may predate the route */ }
+      if (intake === null) { setIntakeDraft({}); setPhase("intake"); return; }
+      setPhase("form");
     } catch {
       setPhase("error");
     }
@@ -105,6 +113,18 @@ export default function App() {
   useEffect(() => { load(); }, []);
   // 템플릿이나 크기를 다시 고르면 불일치 확인과 그때 띄운 오류 문구를 함께 무효화한다
   useEffect(() => { setMismatchAck(false); setMsg(""); }, [state?.template, state?.canvas]);
+
+  /** After intake, wait for the agent to produce the outline the user edits. */
+  async function pollOutline() {
+    for (let i = 0; i < 3600; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      try {
+        const all = await api.getJson("/api/planning");
+        if (all?.outline?.exists) { await load(); return; }
+      } catch { /* server may be restarting; keep polling */ }
+    }
+    setMsg(T.errRetry);
+  }
 
   /** After a stage submit, wait for the agent to write the next stage. */
   async function pollNext(target: number) {
@@ -143,6 +163,22 @@ export default function App() {
     }
   }
 
+  if (phase === "intake")
+    return (
+      <Intake
+        draft={intakeDraft || {}}
+        onDone={async (v) => {
+          try {
+            await api.savePlanning("intake", { data: v });
+            setWaitTarget(0);
+            setPhase("deriving");
+            pollOutline();
+          } catch {
+            setMsg(T.errRetry);
+          }
+        }}
+      />
+    );
   if (phase === "loading") return <Centered>{T.loading}</Centered>;
   if (phase === "error") return <Centered>{T.loadError}</Centered>;
   if (phase === "deriving")

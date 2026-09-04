@@ -181,3 +181,53 @@ export async function shutdown(): Promise<void> {
     /* the server closing the socket mid-response is the expected path */
   }
 }
+
+/* ---------- planning artifacts ----------------------------------------
+   These ride their own routes, not the three-stage machine. The confirm
+   server owns intake.json / plan_spec.md / outline.md as separate files. */
+
+export interface IntakeData {
+  purpose: string;
+  assignment: string;
+  emphasis: string;
+  conclusion: string;
+  audience: string;
+  interests: string[];
+  doc_kind: string;
+}
+
+export const EMPTY_INTAKE: IntakeData = {
+  purpose: "", assignment: "", emphasis: "", conclusion: "",
+  audience: "", interests: [], doc_kind: "발표자료",
+};
+
+/** Purposes that additionally need the assigned-vs-proposed question. */
+export const NEEDS_ASSIGNMENT = new Set([
+  "사내 예산 · 의사결정 승인",
+  "전략 제안",
+]);
+
+export async function readPlanning(name: string): Promise<any | null> {
+  const res = await fetch(`/api/planning/${name}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GET /api/planning/${name} → ${res.status}`);
+  return res.json();
+}
+
+export async function savePlanning(name: string, payload: Dict): Promise<void> {
+  const res = await fetch(`/api/planning/${name}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`POST /api/planning/${name} → ${res.status}`);
+}
+
+/** Reject an intake that the planner cannot resolve a frame from. */
+export function validateIntake(v: IntakeData): string | null {
+  if (!v.purpose) return "무엇을 위한 자료인지 골라 주세요.";
+  if (NEEDS_ASSIGNMENT.has(v.purpose) && !v.assignment)
+    return "과제를 받으신 건지, 직접 제안하시는 건지 골라 주세요.";
+  if (!v.conclusion.trim()) return "결론적으로 무엇을 말하고 싶으신지 적어 주세요.";
+  return null;
+}

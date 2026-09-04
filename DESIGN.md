@@ -81,6 +81,7 @@ This screen decides visual outcomes, so every picker renders evidence:
 | Generated-image style | rendering × palette reference frames | `/ai-image-comparison/<kind>/<id>.jpg` |
 | Narrative mode | abstract diagram of the argument's shape | inline SVG |
 | Delivery purpose | diagram of where it is read | inline SVG |
+| Deck purpose | the section chain that purpose produces | inline SVG from `planner.md` frames |
 | Audience, fidelity | preset chips that seed an editable sentence | `selectors.tsx` |
 
 **Corollaries**
@@ -167,6 +168,7 @@ defect, not a wording problem.
 | 2026-09-03 | Type plan shown as the real size ladder | One sample line proves the family but not the hierarchy, which is what the numbers actually control |
 | 2026-09-03 | Image sources drawn, generated-image styles use the reference gallery | Same rule as stage 1 — a source is a kind of picture, so show one |
 | 2026-09-04 | Canvas/template mismatch blocks stage 1 until resolved | The old copy promised a re-layout that the structured route cannot perform; a soft warning let a user reach a dead end only discoverable after the deck was authored |
+| 2026-09-04 | Purpose cards draw the section chain they produce | A purpose is abstract; the chain is the thing actually being chosen, and its length is visible before anything is written |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |

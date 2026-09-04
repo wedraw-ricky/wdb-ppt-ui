@@ -116,7 +116,8 @@ export function WaitingArt({ animate = true }: { animate?: boolean }) {
 /** The waiting screen: art, an honest bar, what is being prepared, elapsed. */
 export function Deriving({ target }: { target: number }) {
   const reduced = useReducedMotion();
-  const what = target === 2 ? "색과 글꼴 후보를 고르는 중"
+  const what = target === 0 ? "자료를 읽고 기획 뼈대를 짜는 중"
+             : target === 2 ? "색과 글꼴 후보를 고르는 중"
              : target === 3 ? "이미지 방향을 정리하는 중"
              : "다음 단계를 준비하는 중";
   return (
@@ -124,7 +125,7 @@ export function Deriving({ target }: { target: number }) {
       <WaitingArt animate={!reduced} />
       <div className="flex flex-col items-center gap-2.5">
         <div className="text-[15px] font-bold" style={{ color: "var(--foreground)" }}>
-          {target}단계 · {what}
+          {target === 0 ? "기획" : `${target}단계`} · {what}
         </div>
         <Sweep animate={!reduced} />
         <Elapsed />
