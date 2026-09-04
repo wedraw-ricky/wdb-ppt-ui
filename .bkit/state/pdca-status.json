@@ -7,7 +7,7 @@
   "primaryFeature": null,
   "features": {
     "ppt-service-rebuild": {
-      "phase": "check",
+      "phase": "report",
       "startedAt": "2026-09-04T12:02:19",
       "prd": "docs/00-pm/ppt-service-rebuild.prd.md",
       "decisions": {
@@ -87,13 +87,16 @@
         "대표 우선순위 13번 완료 (실습생 체크리스트) — README 에 '끝내기 전에 볼 것'. 기계가 이미 보는 것 6가지를 먼저 적어 중복 확인을 없애고, 사람만 할 수 있는 판단 5줄만 남김. 마지막 줄은 '틀렸다면 어느 규칙이 비어서 틀렸나' — 사전 부검 6번(계약 공백이 '모델 탓'으로 흡수되는 것)을 막는 자리",
         "README 첫 표를 12절·두 갈래·문서 6항목까지 반영 — 학생이 보는 화면이 8항목에서 멈춰 있었다",
         "대표 우선순위 12번 축소판 완료 (확정 값 조회) — /api/confirmed 신설. 확정한 값을 단계별로 되읽는다. SKILL.md 에 '한 필드만 바뀌었을 때 처음부터 다시 하지 말고 되읽어라' 배선. 어느 필드가 어느 단계 것인지가 서버와 화면 양쪽에 손으로 적혀 있어(E-10 과 같은 모양) 둘을 대조하는 테스트를 붙였고, 한쪽만 고쳐서 실제로 잡히는 것 확인",
-        "대표 우선순위 12번 v2 완료 (무엇을 다시 뽑을지 계산) — stage_cache.py --stale. strategist.md §d 의 지배 관계(시각 스타일이 색·아이콘·서체를, 전달 목적이 본문 크기·쪽수를, 덱 카드가 방향값을)를 옮겨 전이적으로 답한다. 사람이 직접 고른 값은 다시 뽑지 않고 그 아래로도 안 번진다. 테스트를 쓰다 내 가정이 틀린 것도 잡았다 — 계약은 이미지를 그림체(시각 방향)와 팔레트(색)로 나눠 두었다"
+        "대표 우선순위 12번 v2 완료 (무엇을 다시 뽑을지 계산) — stage_cache.py --stale. strategist.md §d 의 지배 관계(시각 스타일이 색·아이콘·서체를, 전달 목적이 본문 크기·쪽수를, 덱 카드가 방향값을)를 옮겨 전이적으로 답한다. 사람이 직접 고른 값은 다시 뽑지 않고 그 아래로도 안 번진다. 테스트를 쓰다 내 가정이 틀린 것도 잡았다 — 계약은 이미지를 그림체(시각 방향)와 팔레트(색)로 나눠 두었다",
+        "SC-2 를 보고서 쓰다 발견해 채움 — 캔버스 게이트(멈추는 것)는 있었지만 금지 발언(잘못된 약속을 막는 것)이 어디에도 없었다. 게이트는 설치 직전에 멈추지만 그 전에 이미 '다른 비율로 재배치해 드립니다' 가 나갈 수 있고, E-2 사고가 정확히 그 순서였다. strategist.md §a 에 금지 목록 + 대신 할 말 + 읽어야 할 계약을 적고 테스트 3건으로 잠금",
+        "전 구간 연결 확인 — 기획서 검사 → 문서 산출 → 미리 뽑기 → 흐름 후보 → 뼈대 → 가정 유효성 → 뼈대 검사까지 한 번에 돌려 맞물리는 것 확인. 결론을 일부러 어긋나게 하면 E-END 가 잡고, 색만 바꾸면 그림만 다시 뽑는 것도 확인",
+        "완료 보고서 작성 (docs/04-report/ppt-service-rebuild.report.md)"
       ],
       "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
-      "updatedAt": "2026-09-05T05:40:00+09:00",
+      "updatedAt": "2026-09-05T06:20:00+09:00",
       "design": "docs/02-design/features/ppt-service-rebuild.design.md",
-      "scope": "대표 우선순위 1~14번 전부 완료 · 테스트 248건 · 설계 v1.7",
-      "next": "① 우선순위 7번 실측 — 미리 뽑기가 실제로 얼마나 줄이는지는 실자료로 돌려봐야 안다  ② PDCA report 단계",
+      "scope": "대표 우선순위 14건 전부 완료 · 테스트 251건 · 검사 28개 · 설계 v1.7 · 보고서 작성",
+      "next": "① 우선순위 7번 실측 — 진짜 자료로 한 번 돌려야 숫자가 나온다  ② SC-3 재현 (한수원 조건)  ③ 지시사항 검사 — 인터뷰에 한 줄 더할지 대표 판단",
       "repo": "wedraw-ricky/wdb-ppt-ui — 파이프라인과 화면이 한 저장소로 합쳐짐 (2026-09-04)",
       "workdir": "/Users/rickys/dev/workspaces/wdb-ppt-ui",
       "fixed_in_passing": [
@@ -121,7 +124,9 @@
           "note": "PDCA 상태 갱신 + 대표에게 보고하는 방식 규칙"
         }
       ],
-      "blocked_on_user": [],
+      "blocked_on_user": [
+        "PR #3 을 '검토 요청' 으로 바꿔주셔야 합쳐집니다"
+      ],
       "handoff": {
         "branch": "claude/module-6-skeleton-edit-screen-vwz66u",
         "pr": "wedraw-ricky/wdb-ppt-ui#3 — 아직 검토 요청 안 한 상태(초안). 지금 합쳐도 충돌 없음",
@@ -135,14 +140,19 @@
         "새 세션에 알려줄 것": "이 파일의 next 와 completed 를 먼저 읽을 것. 강의 자료는 docs/자료 에 있고 깃에 안 올린다. 기획 규칙은 references/planner.md(§0 3단 구조·§0.1 두 갈래·§6.2 문서 항목)와 report-format.md 에 있고 plan_spec.py --check 가 강제한다. 홈 디렉터리에 있던 CRM 껍데기는 ~/dev/_홈에-잘못-생긴-것/ 으로 격리했다 — 지워도 되는 것"
       },
       "requirements": [],
-      "documents": {},
+      "documents": {
+        "prd": "docs/00-pm/ppt-service-rebuild.prd.md",
+        "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
+        "design": "docs/02-design/features/ppt-service-rebuild.design.md",
+        "report": "docs/04-report/ppt-service-rebuild.report.md"
+      },
       "timestamps": {
         "started": "2026-09-04T12:02:19",
         "lastUpdated": "2026-09-05T01:20:00+09:00"
       },
       "stateMachine": {
-        "currentState": "check",
-        "previousState": "do",
+        "currentState": "report",
+        "previousState": "check",
         "stateHistory": [
           {
             "state": "do",
@@ -158,6 +168,11 @@
             "state": "check",
             "at": "2026-09-05T03:00:00+09:00",
             "note": "gap-detector 대조 — 일치율 77%, 결함 4건 수정"
+          },
+          {
+            "state": "report",
+            "at": "2026-09-05T06:20:00+09:00",
+            "note": "대표 우선순위 14건 완료 · 테스트 251건 · 보고서 작성"
           }
         ],
         "retryCount": 0,
@@ -173,10 +188,12 @@
       },
       "phaseTimestamps": {
         "do": "2026-09-04T12:02:19",
-        "check": "2026-09-05T03:00:00+09:00"
+        "check": "2026-09-05T03:00:00+09:00",
+        "report": "2026-09-05T06:20:00+09:00"
       },
       "automationLevel": 2,
-      "matchRate": 77
+      "matchRate": 77,
+      "qaStatus": "PASS"
     }
   },
   "pipeline": {

@@ -35,6 +35,40 @@ from _conversion_profile import (  # noqa: E402
 )
 
 
+class ForbiddenClaims(unittest.TestCase):
+    """게이트는 잘못된 결과를 막고, 금지 발언은 잘못된 약속을 막는다 (R-T2 · SC-2).
+
+    E-2 는 순서가 문제였다. 설치 게이트가 멈추기 전에 이미 "다른 비율로
+    재배치해 드립니다" 라는 약속이 나갔고, 사람은 그걸 믿고 여덟 쪽을 계획했다.
+    게이트를 만들어도 그 앞의 한마디는 못 막는다.
+
+    계획서 SC-2 가 정한 확인 방법이 '문서 grep' 이라 여기서 그대로 한다."""
+
+    REFS = Path(__file__).resolve().parent.parent / ".claude/skills/ppt-master/references"
+
+    def strategist(self) -> str:
+        return (self.REFS / "strategist.md").read_text(encoding="utf-8")
+
+    def test_금지_발언이_계약에_적혀_있다(self):
+        text = self.strategist()
+        self.assertIn("R-T2", text)
+        for phrase in ("다른 비율로 재배치", "same structure, different size",
+                       "adapts automatically"):
+            self.assertIn(phrase, text, f"금지 목록에 '{phrase}' 가 없다")
+
+    def test_대신_할_말도_함께_적혀_있다(self):
+        # 하지 말라고만 하면 그 자리에서 무엇을 말해야 할지 모른다.
+        text = self.strategist()
+        self.assertIn("Say instead", text)
+        self.assertIn("캔버스를 템플릿 크기에 맞추면", text)
+
+    def test_읽어야_할_계약을_가리킨다(self):
+        # R-T2 의 본체는 "말하기 전에 계약을 확인하라" 다.
+        text = self.strategist()
+        self.assertIn("canvas-formats.md", text)
+        self.assertIn("structured-templates.md", text)
+
+
 class CanvasGate(unittest.TestCase):
     """A deck's Master geometry is fixed to its canvas — installing it onto
     another one promises a re-layout that never happens."""

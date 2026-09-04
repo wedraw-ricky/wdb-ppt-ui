@@ -66,6 +66,29 @@ The design-system items are anchored by the direction layer — `visual_style` g
 
 Recommend format based on scenario (see [`canvas-formats.md`](canvas-formats.md)).
 
+> **🚫 Never claim a template will be re-laid out to a different canvas (R-T2).**
+> A template's page structure is fixed to the canvas it was drawn on. On any other
+> canvas the deck inherits its colour, type and rules only, and every page is laid
+> out fresh — the result is a flat document with no slide master. There is no
+> reflow, no automatic re-fit, no "structure kept, size changed".
+>
+> This ban is separate from the install gate, and needed because it bites earlier.
+> `template_install_preflight.py` stops before anything is written, but by then the
+> promise has already been made and the user has planned around it. E-2 is exactly
+> that sequence: a re-layout was promised, eight pages were built on it, and all
+> eight were discarded.
+>
+> **Forbidden — say none of these, in any language:**
+> - "다른 비율로 재배치해 드립니다" / "will re-layout to the new ratio"
+> - "크기만 바꾸고 구조는 그대로 씁니다" / "same structure, different size"
+> - "자동으로 맞춰집니다" / "it adapts automatically"
+>
+> **Say instead**: state the mismatch and offer the two options the gate offers —
+> ① 캔버스를 템플릿 크기에 맞추면 구조까지 쓴다, ② 구조 없이 색·서체만 가져온다.
+> Check the canvas before describing what a template can do; the contract to read
+> is [`canvas-formats.md`](canvas-formats.md) and
+> [`structured-templates.md`](structured-templates.md), not memory.
+
 ### b. Page Count Confirmation
 
 **Derived.** Page count is not an anchor — recommend it against the recommended delivery purpose, since the same source yields a different count by purpose (if the user confirms a different purpose, re-derive the count per the SKILL.md Step 4 reconciliation rule unless the user set their own). Provide a specific page count recommendation based on source document content volume **and the delivery purpose** (`text` packs denser → the same source fits in fewer pages; `presentation` is one-idea-per-page → the same source may need more) — see §6.1 Content Planning Strategy. The user's confirmed count still wins; delivery purpose governs density and per-page treatment within it.
