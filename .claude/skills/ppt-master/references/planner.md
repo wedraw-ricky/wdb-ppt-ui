@@ -232,6 +232,11 @@ status: 확인 필요
 | `source` | Path and line range in `sources/`. Mandatory on fact-required sections |
 | `1안` / `2안` | Present only where §5 applies |
 
+`plan_spec.md` is rendered into the 기획서 a person reads by
+[`render_plan_doc.py`](../scripts/render_plan_doc.py) — Markdown always, Word on request.
+The renderer formats this contract and never authors it; a section still at `초안` or
+`확인 필요` is rendered carrying that state.
+
 **Validation**: Section count and order match the selected frame's chain exactly. A missing or reordered section is an error.
 
 ---

@@ -209,7 +209,9 @@ def parse(text: str) -> tuple[dict, list[Section]]:
     parts = re.split(r"^## \d+\.\s*", body, flags=re.M)[1:]
     for part in parts:
         head, _, rest = part.partition("\n")
-        status_match = re.search(r"^status:\s*(\S+)", rest, re.M)
+        # `\S+` would stop at the space and read "확인 필요" as "확인", which
+        # then matches no comparison anywhere downstream.
+        status_match = re.search(r"^status:\s*(.+?)\s*$", rest, re.M)
         source_match = re.search(r"^source:\s*(.+)$", rest, re.M)
         opts = re.findall(r"^\*\*([12]안)\*\*", rest, re.M)
         clean = re.sub(r"^(status|source):.*$", "", rest, flags=re.M)

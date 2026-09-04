@@ -16,7 +16,8 @@
         "1안·2안 범위": "발표 흐름과 결론에만",
         "2안 성격": "같은 목표를 다른 방법으로",
         "산출물": "기획서 + 발표자료 둘 다",
-        "설계 수정": "intake/outline 을 3단계 상태기계에 넣지 않고 별도 파일 라우트로 (회귀 위험 회피)"
+        "설계 수정": "intake/outline 을 3단계 상태기계에 넣지 않고 별도 파일 라우트로 (회귀 위험 회피)",
+        "docx 산출": "Markdown 항상 + docx 선택 의존성 — auto 는 intake.doc_kind 를 따름 (2026-09-04 · module-7)"
       },
       "completed": [
         "설치 문서 수정 (wdb-ppt-ui@8b9ba49)",
@@ -25,21 +26,19 @@
         "module-3: outline.py (골든서클 배치 + §IX 생성 + 동기화 검사)",
         "module-4: SKILL.md Step 3.5~3.7 + confirm server 계획 산출물 라우트·대기",
         "module-5: 인터뷰 화면 (wdb-ppt-ui@99efbb1)",
-        "module-6: 뼈대 편집 화면 — ui/src/outline/ (목록·순서·병합·펼침 편집·레이아웃 그림 선택)"
+        "module-6: 뼈대 편집 화면 — ui/src/outline/ (목록·순서·병합·펼침 편집·레이아웃 그림 선택)",
+        "module-7: render_plan_doc.py 기획서 산출 — Markdown 항상 + docx 선택 의존성 (설계 §2.3 `확인 필요` 해소) · SKILL.md Step 3.6 에 배선"
       ],
       "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
-      "updatedAt": "2026-09-04T14:20:00",
+      "updatedAt": "2026-09-04T15:10:00",
       "design": "docs/02-design/features/ppt-service-rebuild.design.md",
-      "scope": "module-1~6 완료 · module-7 은 새 세션",
-      "next": "module-7 render_plan_doc.py 기획서 산출 (설계 §11.3 · `확인 필요:` docx 여부)",
+      "scope": "module-1~7 전부 완료 — 설계 §11.3 모듈 소진",
+      "next": "남은 것은 검증과 병합: 설계 §8.4 L3-1(캠페인 PDF → 인터뷰 → 기획 → 뼈대 편집 → PPTX) 실자료 E2E, 그리고 열려 있는 PR 병합",
       "repo": "wedraw-ricky/wdb-ppt-ui — 파이프라인과 화면이 한 저장소로 합쳐짐 (2026-09-04)",
       "workdir": "/Users/rickys/dev/workspaces/wdb-ppt-ui",
-      "module_7_brief": {
-        "무엇": "plan_spec.md 를 기획서 문서로 렌더",
-        "어디": ".claude/skills/ppt-master/scripts/render_plan_doc.py (신규)",
-        "미결": "docx 로 낼지 Markdown 만 낼지 — 설계 §2.3 · §11.3 에서 아직 `확인 필요`",
-        "선행": "module-2 (plan_spec.py) 완료됨"
-      }
+      "fixed_in_passing": [
+        "plan_spec.py parse(): status 를 `\\S+` 로 읽어 '확인 필요' 가 '확인' 으로 잘리던 것 — outline.py:144 의 `!= '확인 필요'` 비교가 영영 참이 되던 잠복 결함 (module-7 에서 발견)"
+      ]
     }
   }
 }

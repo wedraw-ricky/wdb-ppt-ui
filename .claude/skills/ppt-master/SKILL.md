@@ -454,6 +454,17 @@ python3 ${SKILL_DIR}/scripts/plan_spec.py <project_path> --check
 
 **Hard rule**: Fix every reported error before advancing. Where a section is thin, draft `**1안**` / `**2안**` and ask the user to pick; do not ask the user to write the section.
 
+**기획서 산출** — the plan is a deliverable in its own right, not only the deck's input:
+
+```bash
+python3 ${SKILL_DIR}/scripts/render_plan_doc.py <project_path>
+```
+
+Writes `exports/<project>_기획서.md`. The default `--format auto` follows
+`intake.doc_kind` — 보고서 or 둘 다 also writes `.docx` (needs `python-docx`;
+without it the Markdown still lands and the run says what is missing). Pass
+`--format docx` or `--format both` to require the Word file.
+
 **✅ Checkpoint — `plan_spec.py --check` passes and every non-optional section is `확정`.**
 
 ---
