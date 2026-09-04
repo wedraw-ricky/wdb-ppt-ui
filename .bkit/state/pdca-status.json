@@ -27,10 +27,20 @@
         "module-5: 인터뷰 화면 (wdb-ppt-ui@99efbb1)"
       ],
       "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
-      "updatedAt": "2026-09-04T13:21:46",
+      "updatedAt": "2026-09-04T13:47:16",
       "design": "docs/02-design/features/ppt-service-rebuild.design.md",
       "scope": "module-1~5 완료 · module-6 은 새 세션",
-      "next": "module-6 뼈대 편집 화면 (단독 세션 권장) → module-7 기획서 렌더"
+      "next": "module-6 뼈대 편집 화면 — 설계 §5.1 에 화면 스케치 있음",
+      "repo": "wedraw-ricky/wdb-ppt-ui — 파이프라인과 화면이 한 저장소로 합쳐짐 (2026-09-04)",
+      "workdir": "/Users/rickys/dev/workspaces/wdb-ppt-ui",
+      "module_6_brief": {
+        "무엇": "outline.md 를 사람이 고치는 전용 화면",
+        "어디": "ui/src/outline/ (신규) · api.ts 는 readPlanning/savePlanning 이미 있음",
+        "계약": ".claude/skills/ppt-master/references/storyline.md §7 (outline.md 형식) · §8 (편집 규칙)",
+        "서버": "GET/POST /api/planning/outline 이미 동작함. 추가 작업 불필요",
+        "핵심규칙": "사람이 고친 행은 재생성이 덮어쓰지 않는다 (edited: true 로 표시)",
+        "검증": "python3 .claude/skills/ppt-master/scripts/outline.py <project> --check"
+      }
     }
   }
 }
