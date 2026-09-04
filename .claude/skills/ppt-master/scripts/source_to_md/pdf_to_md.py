@@ -1328,6 +1328,53 @@ def should_merge_lines(current: dict, next_line: dict) -> bool:
     return True
 
 
+# Units that follow a figure in Korean business writing. Deliberately a list and
+# not "any Hangul": joining a digit to whatever word follows would turn
+# "표 3 참조" into "표3 참조". Longest first, so 개월 wins over 개 and the
+# rest of the word is left alone.
+_KO_UNITS = "|".join(sorted(
+    ("명", "건", "개", "개월", "개소", "개국", "개년", "곳", "회", "차", "번",
+     "쪽", "장", "권", "부", "팀", "본부", "년", "년생", "월", "일", "시간",
+     "분", "초", "주", "주간", "주년", "원", "만원", "억원", "천원", "조원",
+     "억", "만", "천", "점", "배", "위", "등급", "종", "가지", "여명", "여건",
+     "퍼센트", "세", "대", "권역", "단계", "차례"),
+    key=len, reverse=True))
+
+# `1,340 명` — the writer typed `1,340명`. Word and LibreOffice draw a gap
+# between a Latin digit and an East Asian character, and text extraction reads
+# that drawn gap back as a real space. Every figure in the document arrives
+# split from its unit, and the split survives all the way onto the slides.
+# A one-syllable unit is also the first syllable of ordinary words — 배 starts
+# 배경, 장 starts 장기, 부 starts 부서 — so the unit only counts when the word
+# ends there: the next character is not Hangul, or it is a particle continuing
+# the sentence ("53명은", "6개월간"). Without this, `1. 배경` became `1.배경`.
+_KO_PARTICLES = (
+    "이며|이고|이나|으로|부터|까지|은|는|이|가|을|를|의|에|와|과|도|만|씩|로|간|째|당|여|중|및"
+)
+
+_NUM_UNIT_RE = re.compile(
+    r"(?<![A-Za-z])(\d[\d,.]*)[ \u00a0]"
+    r"(?=(?:" + _KO_UNITS + r")(?:(?![가-힣])|(?:" + _KO_PARTICLES + r")))")
+
+# `## Ⅰ. 배경` comes back as `## Ⅰ배경 .` — the period is drawn at the
+# numeral's baseline and sorts to the end of the line, which costs the document
+# its section numbering.
+_ROMAN_HEAD_RE = re.compile(
+    r"^(#{1,6}\s*)([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ])\s*(.+?)\s*\.\s*$", re.M)
+
+
+def normalize_extracted_text(markdown: str) -> str:
+    """Undo the two artifacts text extraction adds to Korean documents.
+
+    Both are the extractor's, not the author's: the source file has no space
+    inside `1,340명` and no trailing period on `Ⅰ. 배경`. Left alone they reach
+    the slides, so they are repaired here, once, at the point of conversion.
+    """
+    markdown = _NUM_UNIT_RE.sub(r"\1", markdown)
+    markdown = _ROMAN_HEAD_RE.sub(r"\1\2. \3", markdown)
+    return markdown
+
+
 def _profile_warnings(profile_path) -> list[str]:
     """Read back the warnings the profile writer recorded, if any."""
     try:
@@ -1755,6 +1802,7 @@ def extract_pdf_to_markdown(
     doc.close()
 
     markdown_content = merge_markdown_continuation_tables(markdown_content)
+    markdown_content = normalize_extracted_text(markdown_content)
     markdown_content = CONTROL_CHARS_RE.sub('', markdown_content)
     markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
     markdown_content = markdown_content.strip() + "\n"
