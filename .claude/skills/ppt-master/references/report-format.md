@@ -132,8 +132,28 @@ form, selected with `--form`. `forms_index.json` names the default.
 | `bok` | 한국은행 보도자료형 — 흑백, `□`/`─`, 맑은 고딕 제목 위 한컴바탕 본문, ruled 통계표 with vertical rules |
 | `khnp` | 한수원 개조식형 — accent `#224C9D` 대제목·표 머리, `▢`/`◦`, 머리말·꼬리말, 세로선 없는 표, 개선 파랑 / 악화 빨강 |
 
-Each form carries `page`, `fonts`, `sizes`, `markers`, `colors`, `rules`, `chrome`.
-A new house style is a new JSON file — never a change to the renderer.
+Each form carries `page`, `fonts`, `sizes`, `line_spacing`, `markers`, `colors`,
+`rules`, `chrome`. A new house style is a new JSON file — never a change to the
+renderer.
+
+**Type scale (Word points)** — both shipped forms use the same one; a new form may
+set its own:
+
+| Element | Size |
+|---|---|
+| 제목 | 22 |
+| `Ⅰ` 대제목 | 16 |
+| 본문 — `▢` 핵심 · `◦` 세부 | 15 |
+| 통계표 | 14 |
+| `*` 각주 | 12 |
+| 머리말 · 꼬리말 | 10 |
+
+**Line spacing**: 1.3 throughout; marker lines (`▢` `◦` `*`) run at 1.5 so the list
+breathes against the surrounding text.
+
+**Hard rule**: A `▢` 핵심 line is bold as a whole. Where the author marked part of it
+with `**`, that markup wins and the rest stays at normal weight — an option line
+(`**1안** …`) is a sentence, not a heading, and reads wrong fully bold.
 
 **Hard rule**: Page is A4 portrait in every form.
 

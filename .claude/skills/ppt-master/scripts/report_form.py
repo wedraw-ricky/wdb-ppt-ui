@@ -39,7 +39,7 @@ ROMAN = "ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩⅪⅫ"
 # what is drawn, the author should not have to know which.
 _CORE_RE = re.compile(r"^\s*[▢□■]\s*(.*)$")
 _DETAIL_RE = re.compile(r"^\s*[◦○─―∙•\-\*]\s+(.*)$")
-_NOTE_RE = re.compile(r"^\s*[\*※]\s*(.*)$")
+_NOTE_RE = re.compile(r"^\s*(?:\*(?!\*)|※)\s*(.*)$")
 _TABLE_RE = re.compile(r"^\s*\|(.+)\|\s*$")
 _TABLE_SEP_RE = re.compile(r"^\s*\|[\s:\-|]+\|\s*$")
 
@@ -109,15 +109,17 @@ def parse_body(body: str) -> list[tuple[str, Any]]:
         if (m := _CORE_RE.match(line)):
             flush_text()
             blocks.append(("core", m.group(1).strip()))
-        elif (m := _NOTE_RE.match(line)) and stripped.startswith(("*", "※")):
+        elif stripped.startswith("**"):
+            # An option label (`**1안** …`) leads its own 핵심. Tested before the
+            # 각주 rule, which would otherwise claim the first `*` of the pair.
+            flush_text()
+            blocks.append(("core", stripped))
+        elif (m := _NOTE_RE.match(line)):
             flush_text()
             blocks.append(("note", m.group(1).strip()))
         elif (m := _DETAIL_RE.match(line)):
             flush_text()
             blocks.append(("detail", m.group(1).strip()))
-        elif stripped.startswith("**"):
-            flush_text()
-            blocks.append(("core", stripped))
         else:
             buffered.append(stripped)
 
@@ -234,6 +236,7 @@ class ReportWriter:
         style.element.get_or_add_rPr().get_or_add_rFonts().set(
             self.qn("w:eastAsia"), self.form["fonts"]["body"])
         style.paragraph_format.space_after = self.Pt(1)
+        style.paragraph_format.line_spacing = self.form["line_spacing"]["base"]
 
     # -- content --
 
@@ -248,16 +251,20 @@ class ReportWriter:
         pf = para.paragraph_format
         pf.left_indent = self.Mm(indent + 4)
         pf.first_line_indent = self.Mm(-4)
-        pf.space_after = self.Pt(1.5)
+        pf.line_spacing = self.form["line_spacing"]["list"]
+        pf.space_after = self.Pt(0)
         pf.space_before = self.Pt(4 if level == "core" else 0)
 
         body_color = colors["text"] if level != "core" else "1F2937"
+        # A 핵심 line is bold as a whole — unless the author already said which
+        # part carries the weight, in which case the markup wins.
+        blanket_bold = level == "core" and "**" not in text
         self.font(para.add_run(f"{marker} "), name=f["fonts"]["body"], size=size,
                   bold=level == "core", color=body_color)
         for chunk, role in _runs(text):
             run = self.font(
                 para.add_run(chunk), name=f["fonts"]["body"], size=size,
-                bold=level == "core" or role in ("bold", "improve", "worsen", "badge"),
+                bold=blanket_bold or role in ("bold", "improve", "worsen", "badge"),
                 color=colors["improve"] if role == "improve"
                 else colors["worsen"] if role == "worsen"
                 else colors["badge_fg"] if role == "badge"
@@ -282,6 +289,7 @@ class ReportWriter:
                 cell = cells[j]
                 para = cell.paragraphs[0]
                 para.paragraph_format.space_after = self.Pt(0)
+                para.paragraph_format.line_spacing = self.form["line_spacing"]["base"]
                 para.alignment = self.ALIGN.LEFT if j == 0 else self.ALIGN.CENTER
                 if i == 0:
                     self.shade(cell._tc.get_or_add_tcPr(), colors["table_header_bg"])
