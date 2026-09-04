@@ -118,7 +118,11 @@ def load_shapes() -> set[str]:
 
 def pick_shape(body: str) -> str:
     """Choose a layout from the content's shape. See storyline.md §5."""
-    figures = re.findall(r"\d[\d,.]*\s*(?:%|%p|점|건|명|원|일|배)", body)
+    # Longest unit first: `%p` before `%`, `만원` before `원`. Korean reports
+    # state money in compounds, and 3200만원 counted as no figure at all left a
+    # 수치 나열 slide reading as plain prose.
+    figures = re.findall(
+        r"\d[\d,.]*\s*(?:%p|%|만원|억원|천원|억|점|건|명|원|일|배)", body)
     if len(figures) >= 3:
         return "kpi_cards"
     for pattern, shape in SHAPE_SIGNALS:
