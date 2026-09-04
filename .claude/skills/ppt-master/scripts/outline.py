@@ -148,7 +148,10 @@ def build_slides(frame: Frame, sections: list, flow: str) -> list[Slide]:
                 n=len(slides) + 1,
                 layer=layer_of.get(sec.name, "how"),
                 role="body",
-                title=sec.name,
+                # The 소제목 the author wrote, not the frame's own chain name —
+                # a slide titled "하기로 한 것" shows the audience our plumbing.
+                # `source` keeps the chain name: coverage is checked against it.
+                title=sec.heading or sec.name,
                 screen="",
                 script="",
                 shape=pick_shape(sec.body),

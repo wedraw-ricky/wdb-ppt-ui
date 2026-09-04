@@ -260,9 +260,16 @@ def classify_license(
 
 ## 11. Testing
 
-**Hard rule**: this repository does **not** ship automated tests.
+**Hard rule**: the **vendored pipeline** ships no automated tests, and stays that
+way — this section describes the code that is actually there, and a suite for it
+would mean migrating hundreds of files.
 
-**Forbidden**:
+**Scope**: WeDraw-authored code — the planning stage (`plan_spec.py`, `outline.py`,
+`render_plan_doc.py`, `report_form.py`) and the confirm UI — is exempt and may carry
+lightweight tests where a contract is machine-checkable. See CLAUDE.md
+*What is whose* for the boundary.
+
+**Forbidden — in the vendored pipeline**:
 
 - `tests/` directories
 - `test_*.py` files
