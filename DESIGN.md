@@ -117,6 +117,13 @@ plus the narrative-shape diagram), the skin in stage 2, and the image direction
 in stage 3. A preview that only ever reads colour and typography looks
 hardcoded while someone is picking a template, because nothing moves.
 
+**Which field belongs to which stage is `PREVIEW_FIELDS` in
+[`ui/src/api.ts`](ui/src/api.ts), not this paragraph.** Prose could not stop the
+defect from happening, and it could not stop stage 1 being redesigned a day
+before stages 2 and 3 either. The map is checked: every field a stage payload
+sends must be claimed by exactly one stage, so adding a field to one screen and
+forgetting the others fails `tests/preview-contract.test.mts` by name.
+
 ### The rail names what is still needed
 
 The left panel lists this stage's steps with 필수 / 선택 and a check once
@@ -226,6 +233,7 @@ defect, not a wording problem.
 | 2026-09-04 | One question per screen, the rail as the map | A 4088px scroll made every answer depend on remembering what was off-screen; paging costs one click per question and the rail's rows become jumps, so going back is cheaper than it was by scrolling |
 | 2026-09-04 | The waiting screen lists the agent's own notes, ticked as they finish | A fixed stage label reads as frozen within half a minute — the counter proves the page is alive but not that the work is. Notes are a record of the past, so they add movement without implying a total the pipeline never measured |
 | 2026-09-04 | The page pings the server while it is open, and says so when it stops answering | Filling in the form makes no requests, so the server's idle watchdog could not tell a reading user from a closed tab and shut down under one twice; the ping restarts its clock, and closing the tab stops the ping so the timeout still works. The banner waits for two missed pings — one blip must not flash an alarm mid-decision |
+| 2026-09-05 | Which fields each stage's preview tracks lives in `api.ts`, not in this file | Two defects came from stage rules being prose — a preview reading the next stage's fields, and stage 1 redesigned a day ahead of stages 2 and 3. Both were fixed by hand and neither had a guard. A map every payload is checked against fails by field name instead |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |

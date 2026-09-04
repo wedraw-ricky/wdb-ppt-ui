@@ -105,6 +105,34 @@ function normalizeTypography(payload: Dict, catalogs: Dict) {
   t.body_size_unit = "px";
 }
 
+/** Which decision each stage's preview must react to.
+ *
+ * DESIGN.md says the preview shows what is being chosen *right now*, and E-12
+ * happened because that lived only in prose: the stage-1 screen read stage-2
+ * fields, so nothing moved while someone picked a template.
+ *
+ * Keeping it here as data buys the guard for E-10 as well. Every field a stage
+ * payload carries has to be claimed by exactly one stage below, and the model
+ * tests fail when it is not — so a field added to one stage cannot quietly skip
+ * the others' previews.
+ */
+export const PREVIEW_FIELDS: Record<number, readonly string[]> = {
+  1: ["template", "template_adherence", "canvas", "audience",
+      "content_divergence", "mode", "visual_style", "delivery_purpose"],
+  2: ["page_count", "color", "icons", "typography", "formula_policy"],
+  3: ["image_source", "image_usage", "generation_mode", "refine_spec"],
+};
+
+/** The fields a given stage's preview is responsible for. */
+export function previewFieldsFor(stage: number): readonly string[] {
+  return PREVIEW_FIELDS[stage] ?? [];
+}
+
+/** Every field any stage claims — the union the payloads are checked against. */
+export function allPreviewFields(): Set<string> {
+  return new Set(Object.values(PREVIEW_FIELDS).flat());
+}
+
 /** Stage 1 = direction anchors only (confirm_ui.md round-trip contract). */
 export function stage1Payload(s: Dict, catalogs: Dict): Dict {
   const p: Dict = {
