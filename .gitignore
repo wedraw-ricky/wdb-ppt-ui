@@ -41,3 +41,4 @@ docs/자료/
 .bkit/audit/
 .bkit/runtime/
 .bkit/state/session-history.json
+.bkit/snapshots/

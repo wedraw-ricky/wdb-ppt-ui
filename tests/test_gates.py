@@ -228,6 +228,119 @@ class LectureCorrections(unittest.TestCase):
             [])
 
 
+class ShapeReach(unittest.TestCase):
+    """자동 배정이 카탈로그의 몇 가지까지 닿는가.
+
+    카탈로그에 76가지가 있는데 오래 일곱만 배정됐고, 그래서 만들어진 덱이 다
+    비슷해 보였다. 신호를 넓히되 확실한 낱말만 쓴다 — 애매한 신호로 엉뚱한
+    모양을 고르는 것은 아무 모양도 안 고른 것보다 나쁘다."""
+
+    def test_목차는_차례_모양으로(self):
+        self.assertEqual(
+            outline.pick_shape("▢ 오늘 다룰 것\n◦ 현황\n◦ 원인\n◦ 대책"), "agenda_list")
+
+    def test_장단점은_장단점_모양으로(self):
+        self.assertEqual(
+            outline.pick_shape("▢ 장점은 비용 절감이고 단점은 초기 부담"),
+            "pros_cons_chart")
+
+    def test_계층은_층_구조로(self):
+        self.assertEqual(
+            outline.pick_shape("▢ 세 계층으로 나눠 본다\n◦ 표현 · 서비스 · 자료"),
+            "layered_architecture")
+
+    def test_수치가_든_표는_막대까지_그린다(self):
+        body = ("| 부서 | 건수 | 비율 |\n|---|---|---|\n"
+                "| 회계 | 50건 | 32% |\n| 총무 | 40건 | 26% |")
+        self.assertEqual(outline.pick_shape(body), "consulting_table")
+
+    def test_수치_없는_표는_그냥_표(self):
+        body = ("| 구분 | 담당 |\n|---|---|\n| 개발 | 행정실 |\n| 검수 | 회계팀 |")
+        self.assertEqual(outline.pick_shape(body), "basic_table")
+
+    def test_달성률이_여럿이면_막대로(self):
+        self.assertEqual(
+            outline.pick_shape("▢ 달성률\n◦ 회계 72%\n◦ 총무 45%\n◦ 인사 88%"),
+            "progress_bar_chart")
+
+    def test_아무_신호도_없으면_글_위주(self):
+        self.assertEqual(outline.pick_shape("▢ 그냥 설명하는 문장입니다"), "body")
+
+    def test_배정이_닿는_모양이_열_가지는_넘는다(self):
+        # 일곱으로 돌아가지 않게. 이 수가 줄면 덱이 다시 비슷해진다.
+        bodies = [
+            "▢ 오늘 다룰 것", "▢ 장점과 단점", "▢ 계층으로 나눠",
+            "▢ 핵심을 중심으로 둘러싼", "▢ 겹치는 부분이 핵심",
+            "| a | b |\n|---|---|\n| 1건 | 2건 |\n| 3건 | 4건 |",
+            "▢ 72% · 45% · 88%",
+            "▢ ① 먼저 하고 ② 다음에",
+            "▢ 12건에서 4건으로 줄임",
+            "▢ 2024년 대비 2025년",
+            "▢ 50건 · 3200만원 · 12명",
+            "◦ 하나\n◦ 둘\n◦ 셋\n◦ 넷",
+            "▢ 그냥 문장",
+        ]
+        reached = {outline.pick_shape(b) for b in bodies}
+        self.assertGreaterEqual(len(reached), 10, sorted(reached))
+
+
+class ImageUseMap(unittest.TestCase):
+    """그림 배치 어휘가 파이썬과 화면 양쪽에 있다.
+
+    오늘만 네 번째로 만나는 모양이라(수치 규칙 · 프리뷰 필드 · 단계 분류 ·
+    여기), 손으로 맞춰 두지 않고 대조한다. 한쪽만 고치면 화면이 없는 값을
+    쓰거나 E-IMAGE 에 걸린다."""
+
+    MODEL_TS = Path(__file__).resolve().parent.parent / "ui/src/outline/model.ts"
+
+    def screen_ids(self):
+        import re
+        text = self.MODEL_TS.read_text(encoding="utf-8")
+        block = re.search(r"IMAGE_USES[^=]*=\s*\[(.*?)\n\];", text, re.S)
+        self.assertIsNotNone(block, "model.ts 에서 IMAGE_USES 를 못 찾았다")
+        return re.findall(r'id:\s*"([^"]+)"', block.group(1))
+
+    def test_화면_쪽_목록을_읽을_수_있다(self):
+        # 정규식이 조용히 빈 목록을 주면 아래 검사가 통과해버린다.
+        self.assertIn("full", self.screen_ids())
+
+    def test_두_언어의_배치_이름이_같다(self):
+        self.assertEqual(list(outline.IMAGE_USES), self.screen_ids())
+
+    def test_안_씀이_기본이고_맨_앞이다(self):
+        # 기본값이 목록 맨 앞이 아니면 화면에서 고르는 순서가 어색해진다.
+        self.assertEqual(next(iter(outline.IMAGE_USES)), "none")
+
+    def test_없는_배치는_검사에_걸린다(self):
+        slides = [outline.Slide(n=1, layer="why", role="cover", title=""),
+                  outline.Slide(n=2, layer="why", role="body", title="현상",
+                                image="배경으로")]
+        errs = outline.run_check(self.project(slides))
+        self.assertTrue(any("E-IMAGE" in e for e in errs))
+
+    def test_제대로_된_배치는_안_걸린다(self):
+        slides = [outline.Slide(n=1, layer="why", role="cover", title=""),
+                  outline.Slide(n=2, layer="why", role="body", title="현상",
+                                image="full")]
+        errs = outline.run_check(self.project(slides))
+        self.assertFalse(any("E-IMAGE" in e for e in errs))
+
+    def project(self, slides):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name)
+        (path / "outline.md").write_text(
+            outline.dump(plan_spec.FRAMES["problem"], "problem-first", slides),
+            encoding="utf-8")
+        return path
+
+    def test_파일에_적히고_다시_읽힌다(self):
+        path = self.project([outline.Slide(n=1, layer="why", role="cover",
+                                           title="표지", image="overlap")])
+        _, back = outline.load(path / "outline.md")
+        self.assertEqual(back[0].image, "overlap")
+
+
 class ShapeChoice(unittest.TestCase):
     """전후 비교는 항목 수가 모양을 가른다 (설계 §5.3)."""
 

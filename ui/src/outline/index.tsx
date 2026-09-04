@@ -17,7 +17,8 @@ import { cardStyle } from "../selectors";
 import { SlideArt } from "./art";
 import {
   addRow, checkOutline, deleteRow, deleteWarning, FLOW_LABELS, LAYERS,
-  mergeRows, mergeWarning, metaGet, moveRow, patchRow, ROLE_LABELS, SHAPES,
+  IMAGE_USES, mergeRows, mergeWarning, metaGet, moveRow, patchRow, ROLE_LABELS,
+  SHAPE_GROUPS, SHAPES,
   type Doc, type Layer, type Row,
 } from "./model";
 
@@ -68,7 +69,7 @@ function Detail({ row }: { row: Row | undefined }) {
       </div>
       <div className="overflow-hidden rounded-lg border"
            style={{ borderColor: "var(--border)" }}>
-        <SlideArt shape={row.shape} />
+        <SlideArt shape={row.shape} image={row.image} />
       </div>
       <div className="text-[15px] font-bold leading-snug">
         {row.title.trim() || "제목 미정"}
@@ -113,6 +114,9 @@ function Why({ row }: { row: Row }) {
   if (layer) lines.push({ k: "이야기의 자리", v: `${layer.label} — ${layer.note}` });
   if (shape) lines.push({ k: "이 모양인 이유", v: `${shape.label} · ${shape.note}` });
   if (role) lines.push({ k: "역할", v: role });
+  const use = IMAGE_USES.find((u) => u.id === row.image);
+  if (use && use.id !== "none")
+    lines.push({ k: "사진 쓰는 법", v: `${use.label} · ${use.note}` });
   if (!lines.length) return null;
 
   return (
@@ -187,7 +191,7 @@ function ChapterCard({
               className="overflow-hidden rounded-md text-left"
               style={{ border: "1px solid var(--border-strong)" }}
               aria-label={`${row.n}번째 장 ${row.title.trim() || "제목 미정"} 고르기`}>
-        <SlideArt shape={row.shape} />
+        <SlideArt shape={row.shape} image={row.image} />
       </button>
 
       <span aria-hidden="true"
@@ -296,10 +300,42 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
       </div>
 
       <div>
-        <div className="text-[13px] font-semibold">이 장은 어떤 모양으로 만들까요?</div>
-        <div className="mt-2 grid gap-2.5"
+        <div className="text-[13px] font-semibold">이 장에 사진을 쓸까요?</div>
+        <div className="mt-2 grid gap-2"
+             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}>
+          {IMAGE_USES.map((u) => (
+            <button key={u.id} type="button" aria-pressed={row.image === u.id}
+                    onClick={() => onPatch({ image: u.id })}
+                    className="rounded-lg p-2 text-left transition"
+                    style={{
+                      border: row.image === u.id
+                        ? "2px solid var(--wdb-primary)"
+                        : "1px solid var(--border-strong)",
+                      padding: row.image === u.id ? 7 : 8,
+                    }}>
+              <span className="block overflow-hidden rounded"
+                    style={{ border: "1px solid var(--border-strong)" }}>
+                <SlideArt shape="body" image={u.id} />
+              </span>
+              <span className="mt-1.5 block text-[12px] font-semibold">{u.label}</span>
+              <span className="block text-[11px] leading-snug"
+                    style={{ color: "var(--muted)" }}>{u.note}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+          빗금 친 자리에 사진이 들어갑니다. 어떤 사진일지는 다음 단계에서 고릅니다.
+        </p>
+
+        <div className="mt-5 text-[13px] font-semibold">이 장은 어떤 모양으로 만들까요?</div>
+        {SHAPE_GROUPS.map((g) => (
+        <div key={g.id}>
+        <div className="mt-3 text-[11px] font-semibold" style={{ color: "var(--muted)" }}>
+          {g.label}
+        </div>
+        <div className="mt-1.5 grid gap-2.5"
              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}>
-          {SHAPES.map((s) => (
+          {SHAPES.filter((s) => s.group === g.id).map((s) => (
             <button key={s.id} type="button" aria-pressed={row.shape === s.id}
                     onClick={() => onPatch({ shape: s.id })}
                     className="overflow-hidden rounded-lg border p-0 text-left transition"
@@ -317,6 +353,8 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
             </button>
           ))}
         </div>
+        </div>
+        ))}
         {!SHAPES.some((s) => s.id === row.shape) ? (
           <div className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
             지금은 <b>{row.shape}</b> 로 되어 있습니다. 위에서 고르면 바뀝니다.

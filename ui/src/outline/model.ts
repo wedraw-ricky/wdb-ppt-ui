@@ -19,6 +19,11 @@ export interface Row {
   script: string;
   shape: string;
   source: string;
+  /** 그림을 어떻게 쓰는 장인가. `shape`(차트 모양)와는 다른 축이다 — 모양은
+      자료를 어떤 그림으로 보여줄지이고, 이쪽은 사진이 지면을 어떻게 차지하는지.
+      `outline.py` 의 `IMAGE_USES` 와 같은 값이어야 하고, 두 파일이 어긋나면
+      `tests/test_gates.py` 가 잡는다. */
+  image: string;
   /** Set on every row a person touches. storyline.md §8: a regeneration must
       never overwrite an edited row, so the mark has to survive the file. */
   edited: boolean;
@@ -98,6 +103,7 @@ export function parseOutline(text: string): Doc {
       script: decode(get("script")),
       shape: get("shape", "body"),
       source: decode(get("source")),
+      image: get("image", "none"),
       edited: get("edited", "false") === "true",
     });
   }
@@ -120,6 +126,7 @@ export function serializeOutline(doc: Doc): string {
     `  script: "${encode(s.script)}"`,
     `  shape: ${s.shape}`,
     `  source: "${encode(s.source)}"`,
+    `  image: ${s.image || "none"}`,
     `  edited: ${s.edited ? "true" : "false"}`,
   ].join("\n"));
   return head + rows.join("\n\n") + "\n";
@@ -208,7 +215,8 @@ export function addRow(rows: Row[], after: number): Row[] {
   const neighbour = rows[after] || rows[rows.length - 1];
   const blank: Row = {
     n: 0, layer: neighbour?.layer || "how", role: "body",
-    title: "", screen: "", script: "", shape: "body", source: "", edited: true,
+    title: "", screen: "", script: "", shape: "body", source: "",
+    image: "none", edited: true,
   };
   const next = rows.slice();
   next.splice(after + 1, 0, blank);
@@ -300,19 +308,71 @@ export const FLOW_LABELS: Record<string, string> = {
   "why-what-how": "Why → What → How → 결과",
 };
 
-/** The layouts storyline.md §5 assigns. Every id is present in
-    templates/charts/charts_index.json, so picking one can never raise E-SHAPE. */
-export const SHAPES: { id: string; label: string; note: string }[] = [
-  { id: "body", label: "글 위주", note: "설명 문장으로 가는 기본 장" },
-  { id: "kpi_cards", label: "수치 카드", note: "숫자 서너 개를 나란히" },
-  { id: "numbered_steps", label: "번호 단계", note: "순서가 있는 이야기" },
-  { id: "comparison_columns", label: "두 갈래 비교", note: "전후 · A와 B" },
-  { id: "vertical_list", label: "항목 나열", note: "서너 개 항목과 설명" },
-  { id: "grouped_bar_chart", label: "막대 그래프", note: "기간별 값 비교" },
-  { id: "dumbbell_chart", label: "변화 막대", note: "두 시점 사이의 이동" },
-  { id: "pie_chart", label: "비중 원", note: "전체 안의 몫" },
-  { id: "basic_table", label: "표", note: "칸으로 나뉜 자료" },
-  { id: "timeline", label: "타임라인", note: "시간 순 흐름" },
+/** 고를 수 있는 장 모양. 모든 id 가 `templates/charts/charts_index.json` 에
+    있으므로 E-SHAPE 에 걸리지 않는다.
+
+    카탈로그에는 76개가 있는데 오랫동안 10개만 꺼내 썼다. 그래서 만들어진 덱이
+    다 비슷해 보였다 — 자동 배정이 쓰는 것은 그중 일곱뿐이었다. 무리로 묶어
+    늘린다: 같은 2열이라도 글만 나란히 놓는 것과 장단점을 가르는 것은 다른
+    장이고, 표 안에 막대가 박힌 것은 표도 그래프도 아닌 제3의 것이다. */
+export const SHAPE_GROUPS: { id: string; label: string }[] = [
+  { id: "text", label: "글 · 목록" },
+  { id: "columns", label: "나란히" },
+  { id: "quadrant", label: "사분면" },
+  { id: "metric", label: "수치" },
+  { id: "chart", label: "그래프" },
+  { id: "table", label: "표" },
+  { id: "flow", label: "흐름" },
+  { id: "structure", label: "구조" },
+];
+
+export const SHAPES: { id: string; label: string; note: string; group: string }[] = [
+  { id: "body", label: "글 위주", note: "설명 문장으로 가는 기본 장", group: "text" },
+  { id: "vertical_list", label: "항목 나열", note: "서너 개 항목과 설명", group: "text" },
+  { id: "agenda_list", label: "차례", note: "목차 · 오늘 다룰 것", group: "text" },
+  { id: "labeled_card", label: "이름표 카드", note: "한 주제의 서너 측면", group: "text" },
+
+  { id: "comparison_columns", label: "두 갈래 비교", note: "전후 · A와 B", group: "columns" },
+  { id: "pros_cons_chart", label: "장단점", note: "좋은 점과 걸리는 점", group: "columns" },
+  { id: "vertical_pillars", label: "세 기둥", note: "3~5개를 세로 기둥으로", group: "columns" },
+  { id: "icon_grid", label: "아이콘 격자", note: "4~9개 기능·서비스", group: "columns" },
+
+  { id: "matrix_2x2", label: "2×2 자리잡기", note: "두 축에 항목을 놓는다", group: "quadrant" },
+  { id: "quadrant_text_bullets", label: "사분면 + 글", note: "SWOT 같은 네 칸", group: "quadrant" },
+
+  { id: "kpi_cards", label: "수치 카드", note: "숫자 서너 개를 나란히", group: "metric" },
+  { id: "progress_bar_chart", label: "달성률 막대", note: "항목마다 몇 % 왔는지", group: "metric" },
+  { id: "gauge_chart", label: "게이지", note: "하나의 지표가 목표 대비 얼마", group: "metric" },
+
+  { id: "grouped_bar_chart", label: "막대 그래프", note: "기간별 값 비교", group: "chart" },
+  { id: "line_chart", label: "선 그래프", note: "시간에 따른 방향", group: "chart" },
+  { id: "donut_chart", label: "도넛", note: "전체 안의 몫 + 가운데 숫자", group: "chart" },
+  { id: "waterfall_chart", label: "증감 폭포", note: "무엇이 더하고 무엇이 뺐나", group: "chart" },
+  { id: "dumbbell_chart", label: "변화 막대", note: "두 시점 사이의 이동", group: "chart" },
+
+  { id: "basic_table", label: "표", note: "칸으로 나뉜 자료", group: "table" },
+  { id: "consulting_table", label: "표 + 막대", note: "표 칸 안에 작은 막대까지", group: "table" },
+  { id: "comparison_table", label: "비교 표", note: "여러 안을 여러 기준으로", group: "table" },
+
+  { id: "numbered_steps", label: "번호 단계", note: "순서가 있는 이야기", group: "flow" },
+  { id: "chevron_process", label: "화살표 단계", note: "단계마다 산출물이 있을 때", group: "flow" },
+  { id: "timeline", label: "타임라인", note: "시간 순 흐름", group: "flow" },
+  { id: "journey_map", label: "여정 지도", note: "단계별로 하는 일과 감정", group: "flow" },
+
+  { id: "hub_spoke", label: "중심 · 가지", note: "핵심 하나와 둘러싼 것들", group: "structure" },
+  { id: "layered_architecture", label: "층 구조", note: "위아래로 쌓인 계층", group: "structure" },
+  { id: "pyramid_chart", label: "피라미드", note: "아래가 넓은 층", group: "structure" },
+  { id: "venn_diagram", label: "벤 다이어그램", note: "겹치는 데가 하고 싶은 말", group: "structure" },
+];
+
+/** 그림을 어떻게 쓰는 장인가. `outline.py` 의 `IMAGE_USES` 를 그대로 옮긴 것이고,
+    이름은 `design_spec_reference.md` 의 Layout Pattern Library 에서 왔다.
+    두 파일이 어긋나면 `tests/test_gates.py` 가 값 이름을 대며 실패한다. */
+export const IMAGE_USES: { id: string; label: string; note: string }[] = [
+  { id: "none", label: "안 씀", note: "글과 도형으로만 가는 장" },
+  { id: "full", label: "전면", note: "사진이 지면을 꽉 채우고 그 위에 글 — 강조·전환 장" },
+  { id: "side", label: "옆에", note: "사진과 설명을 나란히" },
+  { id: "overlap", label: "겹침", note: "제목이나 큰 숫자가 사진 가장자리에 걸침" },
 ];
 
 /** Local wall-clock stamp in the same shape `outline.py` writes `generated_at`. */

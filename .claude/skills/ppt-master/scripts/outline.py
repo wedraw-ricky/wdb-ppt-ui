@@ -21,6 +21,7 @@ Checks (see references/storyline.md):
     - E-ALT    frame needs proposal_alt and has none, or forbids it and has one
     - E-IR     `ir` deck has no financial-scenario slide
     - E-SHAPE  a `shape` value is absent from charts_index.json
+    - E-IMAGE  an `image` value is not one of IMAGE_USES
     - W-SAME   (warning) three or more slides in a row share one layout
     - E-COVER  a `확정` plan_spec section reaches no slide
     - E-END    the deck misses the conclusion, or concludes with a figure
@@ -95,7 +96,37 @@ LAYERS: dict[str, dict[str, str]] = {
            "재무": "what", "요청": "what"},
 }
 
+# 그림을 어떻게 쓰는 장인가. 차트 모양(`shape`)과는 다른 축이다 — 모양은 자료를
+# 어떤 그림으로 보여줄지이고, 이쪽은 사진이 지면을 어떻게 차지하는지다. 그래서
+# `charts_index.json` 과 대조하는 E-SHAPE 에 걸리지 않게 따로 둔다.
+#
+# 이름은 design_spec_reference.md 의 Layout Pattern Library 에서 가져왔다.
+IMAGE_USES: dict[str, str] = {
+    "none": "안 씀",
+    # Full-bleed + floating text. 사진이 지면을 꽉 채우고 글이 그 위에 뜬다.
+    # 글이 읽히도록 사진 위에 어두운 막(scrim)을 깐다 — strategist.md §h.
+    # 강조·전환 장이 이 모양이다.
+    "full": "전면 — 사진을 꽉 채우고 글을 위에",
+    # Asymmetric split (3:7 / 2:8). 사진과 설명이 나란히.
+    "side": "옆에 — 사진과 설명을 나란히",
+    # Figure-text overlap. 제목이나 큰 숫자가 사진 가장자리에 걸친다.
+    "overlap": "겹침 — 제목이 사진 가장자리에 걸침",
+}
+
+
+# 본문에서 읽어낼 수 있는 신호 → 그 신호가 가리키는 장 모양.
+#
+# 오래 이 목록이 세 줄이었고, 그래서 자동 배정이 쓰는 모양이 일곱뿐이었다.
+# 카탈로그에 일흔여섯이 있는데 일곱만 쓰니 만들어진 덱이 다 비슷해 보였다.
+# 넓히되, 확실한 낱말만 쓴다 — 애매한 신호로 배정하면 엉뚱한 모양이 나오고,
+# 그건 아무 모양도 안 고른 것보다 나쁘다.
 SHAPE_SIGNALS: tuple[tuple[str, str], ...] = (
+    (r"목차|차례|오늘 다룰|순서는 이렇|들어갈 내용", "agenda_list"),
+    (r"장점.{0,30}단점|단점.{0,30}장점|찬성.{0,20}반대|좋은 점.{0,30}걸리는",
+     "pros_cons_chart"),
+    (r"계층|레이어|층으로 나눠|상위\s*·?\s*하위|아키텍처", "layered_architecture"),
+    (r"핵심.{0,10}중심으로|둘러싼|생태계|플랫폼 구조", "hub_spoke"),
+    (r"겹치는|공통.{0,10}부분|교집합", "venn_diagram"),
     (r"(?:①|1단계|먼저|첫째).*(?:②|2단계|다음|둘째)", "numbered_steps"),
     (r"(?:→|vs\.?|대비|전후|전 ?→ ?후|보다|에서\s*\S+\s*(?:으로|로)\s*(?:올|내|늘|줄|상승|하락))",
      "comparison_columns"),
@@ -122,6 +153,7 @@ class Slide:
     script: str = ""
     shape: str = "body"
     source: str = ""
+    image: str = "none"
     edited: bool = False
 
 
@@ -165,6 +197,17 @@ def pick_shape(body: str) -> str:
     not a metrics board — reading the count first sent five straight slides of
     one report to the same KPI grid.
     """
+    # 표는 줄을 세어야 안다. 칸 안에 수치가 있으면 표만 그리는 것보다
+    # 칸 옆에 작은 막대를 함께 그리는 쪽이 읽힌다 (consulting_table).
+    table_rows = [l for l in body.splitlines()
+                  if l.count("|") >= 2 and not re.fullmatch(r"[\s|:-]+", l)]
+    if len(table_rows) >= 3:
+        return "consulting_table" if len(figure_units(body)) >= 3 else "basic_table"
+
+    # 달성률이 여럿이면 목록보다 막대가 낫다.
+    if len(re.findall(r"\d{1,3}\s*%", body)) >= 3:
+        return "progress_bar_chart"
+
     for pattern, shape in SHAPE_SIGNALS:
         if not re.search(pattern, body, re.S):
             continue
@@ -246,6 +289,7 @@ def dump(frame: Frame, flow: str, slides: list[Slide]) -> str:
             f'  script: "{s.script}"\n'
             f"  shape: {s.shape}\n"
             f'  source: "{s.source}"\n'
+            f"  image: {s.image}\n"
             f"  edited: {str(s.edited).lower()}"
         )
     return head + "\n\n".join(rows) + "\n"
@@ -274,6 +318,7 @@ def load(path: Path) -> tuple[dict, list[Slide]]:
                 layer=get("layer", "how"), role=get("role", "body"),
                 title=get("title"), screen=get("screen"), script=get("script"),
                 shape=get("shape", "body"), source=get("source"),
+                image=get("image", "none"),
                 edited=get("edited", "false") == "true",
             )
         )
@@ -298,6 +343,8 @@ def render_ix(slides: list[Slide]) -> str:
             out.append(f"- **Script**: {s.script}")
         if s.source:
             out.append(f"- **Source**: {s.source}")
+        if s.image != "none":
+            out.append(f"- **Image use**: {s.image} — {IMAGE_USES[s.image]}")
         out.append("")
     return "\n".join(out)
 
@@ -352,6 +399,11 @@ def run_check(project: Path) -> list[str]:
         "시나리오" in s.title for s in slides
     ):
         errs.append("E-IR ir deck needs a financial-scenario slide")
+
+    for s in slides:
+        if s.image not in IMAGE_USES:
+            errs.append(f"E-IMAGE slide {s.n} uses image placement "
+                        f"'{s.image}' — one of {', '.join(IMAGE_USES)}")
 
     known = load_shapes()
     for s in slides:
