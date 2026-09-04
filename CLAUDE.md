@@ -11,6 +11,32 @@ cross-repo path configuration.
 > https://github.com/byungjunjang/slide-master directly when you want to see
 > what changed there.
 
+## 대표에게 보고하는 방식 (필수)
+
+**Hard rule**: 개발 용어로 보고하지 않는다. 대표는 기획자다. 무슨 일이 있었고
+무엇을 해야 하는지가 한 번에 읽혀야 한다.
+
+| 쓰지 말 것 | 이렇게 |
+|---|---|
+| draft / ready | 아직 검토 요청 안 한 상태 / 검토 요청함 |
+| mergeable_state: clean | 지금 합쳐도 충돌 안 남 |
+| CI · 체크런 · 워크플로 | 자동 검사 |
+| fast-forward · rebase · squash | 이력이 어떻게 붙는지 굳이 말하지 말 것 |
+| E2E · L1/L2/L3 | 처음부터 끝까지 한 번 돌려보기 |
+| gitignore | 깃에 안 올리는 폴더 |
+| OOXML · autoSpaceDE/DN · strip-types | 워드 파일 내부 설정 — 이름 대신 무엇이 달라지는지 |
+| phase · blocked_on_user | 지금 단계 / 대표님이 해주셔야 하는 것 |
+
+**괜찮은 말**: PR, 병합, 커밋, 브랜치, 테스트, 파일 이름. 대표가 직접 쓰는 말이다.
+
+**보고 순서**: ① 결론 한 줄 ② 대표가 할 일 ③ 나머지. 길면 표로.
+
+**Hard rule**: 이유를 설명할 때도 코드 얘기가 아니라 **결과 얘기**로 한다.
+"regex 가 `\S+` 라서 잘렸다" 가 아니라 "'확인 필요' 가 '확인' 으로 잘려서
+표시가 틀렸다".
+
+---
+
 ## What is whose
 
 Nothing here merges back upstream, so every file in this repository may be
