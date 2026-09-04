@@ -80,6 +80,8 @@ This screen decides visual outcomes, so every picker renders evidence:
 | Image source | drawn sample of the kind of picture | inline SVG |
 | Generated-image style | rendering × palette reference frames | `/ai-image-comparison/<kind>/<id>.jpg` |
 | Narrative mode | abstract diagram of the argument's shape | inline SVG |
+| Deck skeleton, per chapter | a mini slide drawn in that chapter's layout | inline SVG from `shape` |
+| Chapter layout | the ten layouts storyline.md §5 assigns, each drawn | inline SVG |
 | Delivery purpose | diagram of where it is read | inline SVG |
 | Deck purpose | the section chain that purpose produces | inline SVG from `planner.md` frames |
 | Audience, fidelity | preset chips that seed an editable sentence | `selectors.tsx` |
@@ -120,6 +122,22 @@ and imply the template reflows on its own.
 The left panel names all three stages and what each one owns, with the current stage marked.
 A rail that lists only the current stage cannot answer "will it ask me about colour?" — the
 user has to guess whether a missing control arrives later or does not exist.
+
+### The skeleton screen obeys the design stages' rules
+
+`outline.md` decides what the deck *says*, and CLAUDE.md's hard rule carries every
+stage rule onto it. So the skeleton screen is built like the others and not like a
+document editor: one gradient surface on the left carrying the golden-circle rail and
+a preview that tracks the chapter in hand, and every chapter drawing its own slide
+rather than naming a layout. `kpi_cards` as a word asks the reader to imagine the
+page; the drawing is the page, and it costs a kilobyte because the geometry is
+computable.
+
+The screen shows and edits. It does not decide: the flow, the layer each section
+belongs to, and the chain of sections were settled upstream by
+`references/storyline.md`, and the deck's own checks stay with `outline.py`. What
+the screen owes the person is that nothing they choose here is refused later
+without warning.
 
 ### A wait must prove it is alive without inventing progress
 
@@ -169,6 +187,11 @@ defect, not a wording problem.
 | 2026-09-03 | Image sources drawn, generated-image styles use the reference gallery | Same rule as stage 1 — a source is a kind of picture, so show one |
 | 2026-09-04 | Canvas/template mismatch blocks stage 1 until resolved | The old copy promised a re-layout that the structured route cannot perform; a soft warning let a user reach a dead end only discoverable after the deck was authored |
 | 2026-09-04 | Purpose cards draw the section chain they produce | A purpose is abstract; the chain is the thing actually being chosen, and its length is visible before anything is written |
+| 2026-09-04 | Every skeleton chapter draws its own slide | Same rule as the design stages — a layout name asks the reader to imagine the page, and the layouts are geometry, so they cost nothing to draw |
+| 2026-09-04 | The skeleton screen blocks on the faults `outline.py --check` blocks on | Canvas-mismatch precedent: a fault we can compute here and the pipeline will refuse later must be refused here, where it can still be fixed in one click |
+| 2026-09-04 | Confirming stamps `confirmed_at` into the outline | It records that a person approved the spine, and the agent waits on this file *changing* — so an outline nobody edited still has to differ from the one the agent wrote, or the run hangs |
+| 2026-09-04 | The chosen flow is shown, never re-picked here | Re-selecting a flow is a regeneration only `outline.py --scaffold` performs, and no route exposes it at this point; the button in the sketch would have promised what the pipeline cannot do |
+| 2026-09-04 | Merging names the section that loses its own chapter | `--check` credits one section per chapter, so a merge can cost the later section its slide; saying so beats a check failing after the window closes |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |

@@ -118,7 +118,11 @@ def load_shapes() -> set[str]:
 
 def pick_shape(body: str) -> str:
     """Choose a layout from the content's shape. See storyline.md §5."""
-    figures = re.findall(r"\d[\d,.]*\s*(?:%|%p|점|건|명|원|일|배)", body)
+    # Longest unit first: `%p` before `%`, `만원` before `원`. Korean reports
+    # state money in compounds, and 3200만원 counted as no figure at all left a
+    # 수치 나열 slide reading as plain prose.
+    figures = re.findall(
+        r"\d[\d,.]*\s*(?:%p|%|만원|억원|천원|억|점|건|명|원|일|배)", body)
     if len(figures) >= 3:
         return "kpi_cards"
     for pattern, shape in SHAPE_SIGNALS:
@@ -148,7 +152,10 @@ def build_slides(frame: Frame, sections: list, flow: str) -> list[Slide]:
                 n=len(slides) + 1,
                 layer=layer_of.get(sec.name, "how"),
                 role="body",
-                title=sec.name,
+                # The 소제목 the author wrote, not the frame's own chain name —
+                # a slide titled "하기로 한 것" shows the audience our plumbing.
+                # `source` keeps the chain name: coverage is checked against it.
+                title=sec.heading or sec.name,
                 screen="",
                 script="",
                 shape=pick_shape(sec.body),

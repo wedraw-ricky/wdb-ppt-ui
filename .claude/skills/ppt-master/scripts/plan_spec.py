@@ -147,6 +147,7 @@ class Section:
     name: str
     status: str
     body: str
+    heading: str = ""   # 소제목 as it appears in the document; falls back to name
     source: str = ""
     options: list[str] = field(default_factory=list)
 
@@ -194,6 +195,26 @@ def scaffold(frame: Frame, intake: dict) -> str:
     return head + "\n".join(blocks)
 
 
+APPENDIX_RE = re.compile(r"^##\s*(별첨[^\n]*)$", re.M)
+
+
+def split_appendix(text: str) -> tuple[str, list[tuple[str, str]]]:
+    """Cut `## 별첨 …` blocks off the end.
+
+    Appendices carry the supporting material a report attaches rather than
+    argues from. They are not frame sections, so the chain check must not see
+    them and the reader meets them after the argument, not inside it.
+    """
+    marks = list(APPENDIX_RE.finditer(text))
+    if not marks:
+        return text, []
+    blocks = []
+    for i, m in enumerate(marks):
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(text)
+        blocks.append((m.group(1).strip(), text[m.end():end].strip()))
+    return text[:marks[0].start()], blocks
+
+
 def parse(text: str) -> tuple[dict, list[Section]]:
     """Split `plan_spec.md` into frontmatter and sections."""
     meta: dict = {}
@@ -205,20 +226,25 @@ def parse(text: str) -> tuple[dict, list[Section]]:
                 k, _, v = line.partition(":")
                 meta[k.strip()] = v.strip()
 
+    body, _appendix = split_appendix(body)
     sections: list[Section] = []
     parts = re.split(r"^## \d+\.\s*", body, flags=re.M)[1:]
     for part in parts:
         head, _, rest = part.partition("\n")
-        status_match = re.search(r"^status:\s*(\S+)", rest, re.M)
+        # `\S+` would stop at the space and read "확인 필요" as "확인", which
+        # then matches no comparison anywhere downstream.
+        status_match = re.search(r"^status:\s*(.+?)\s*$", rest, re.M)
+        heading_match = re.search(r"^heading:\s*(.+?)\s*$", rest, re.M)
         source_match = re.search(r"^source:\s*(.+)$", rest, re.M)
         opts = re.findall(r"^\*\*([12]안)\*\*", rest, re.M)
-        clean = re.sub(r"^(status|source):.*$", "", rest, flags=re.M)
+        clean = re.sub(r"^(status|source|heading):.*$", "", rest, flags=re.M)
         clean = re.sub(r"<!--.*?-->", "", clean, flags=re.S).strip()
         sections.append(
             Section(
                 name=head.strip(),
                 status=status_match.group(1) if status_match else "확인 필요",
                 body=clean,
+                heading=heading_match.group(1) if heading_match else "",
                 source=source_match.group(1).strip() if source_match else "",
                 options=opts,
             )
