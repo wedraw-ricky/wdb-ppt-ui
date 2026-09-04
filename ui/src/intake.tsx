@@ -13,26 +13,36 @@ import { cardStyle, PresetField } from "./selectors";
 type Dict = Record<string, any>;
 
 /** Purpose → the frame it resolves to, and that frame's section chain.
-    Mirrors references/planner.md §2 and §3; keep the two in step. */
+ *
+ *  Mirrors `plan_spec.py`'s FRAMES. The card draws what the purpose actually
+ *  produces, so a chain that falls behind makes the screen promise a shorter
+ *  document than the person will get — it did exactly that when the planning
+ *  chain grew from 8 sections to 12 and this list stayed put.
+ *
+ *  `tests/intake-chain.test.mts` compares the two: same length, and every label
+ *  here has to be the real section name or a shortening of it. */
 const PURPOSES: {
   id: string; short: string; note: string; chain: string[]; split?: boolean;
 }[] = [
   {
     id: "사내 예산 · 의사결정 승인", short: "승인 받기",
     note: "예산이나 결정을 받아내야 하는 자리",
-    chain: ["현상", "영향", "원인", "배경", "목표", "검증", "기대효과", "과제"],
+    chain: ["현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과",
+            "과제", "컨셉", "해결책", "실행 계획", "리스크 대책"],
     split: true,
   },
   {
     id: "전략 제안", short: "전략 제안",
     note: "방향을 새로 제시하는 자리",
-    chain: ["현상", "영향", "원인", "배경", "목표", "검증", "기대효과", "과제"],
+    chain: ["현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과",
+            "과제", "컨셉", "해결책", "실행 계획", "리스크 대책"],
     split: true,
   },
   {
     id: "성과 보고", short: "성과 보고",
     note: "이미 한 일의 결과를 전달",
-    chain: ["하기로 한 것", "한 것", "결과", "해석", "한계", "다음"],
+    chain: ["하기로 한 것", "한 것", "결과", "결과 해석", "한계", "다음",
+            "실행 계획", "리스크 대책"],
   },
   {
     id: "회사 · 서비스 · 프로그램 소개 / 제안서", short: "소개 · 제안서",

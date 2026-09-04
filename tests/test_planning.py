@@ -280,6 +280,65 @@ class DocumentShape(unittest.TestCase):
                          ["개요", "추진 내용", "결과", "한계", "향후 계획"])
 
 
+class IntakeChain(unittest.TestCase):
+    """인터뷰 화면의 목적 카드가 그리는 사슬 = 실제로 나오는 사슬.
+
+    결정 기록(DESIGN.md, 2026-09-04)이 "목적 카드는 그 목적이 만들어내는 절
+    사슬을 그린다" 고 정했다. 그래서 사슬이 화면과 코드 양쪽에 있고, 골격을
+    8절에서 12절로 늘렸을 때 화면만 그대로 남아 더 짧은 문서를 약속했다.
+
+    오늘만 네 번째로 만난 모양이라 — 같은 것이 두 곳에 손으로 적혀 있는 것 —
+    여기서도 대조한다."""
+
+    INTAKE = Path(__file__).resolve().parent.parent / "ui/src/intake.tsx"
+
+    # 카드 id → 그 카드가 그리는 골격. `split` 카드는 지시수명 기본값인
+    # problem 사슬을 그린다 (plan_spec.ASSIGNMENT_TO_FRAME).
+    CARD_FRAME = {
+        "사내 예산 · 의사결정 승인": "problem",
+        "전략 제안": "problem",
+        "성과 보고": "report",
+        "회사 · 서비스 · 프로그램 소개 / 제안서": "intro",
+        "교육 · 강의": "teach",
+        "IR 투자 유치": "ir",
+    }
+
+    def cards(self):
+        """intake.tsx 의 목적 카드에서 id 와 사슬을 그대로 읽는다."""
+        import re
+        text = self.INTAKE.read_text(encoding="utf-8")
+        block = re.search(r"const PURPOSES:.*?\n\];", text, re.S)
+        self.assertIsNotNone(block, "intake.tsx 에서 PURPOSES 를 못 찾았다")
+        out = {}
+        for card in re.findall(r"\{\s*\n?\s*id:.*?\n  \}", block.group(0), re.S):
+            cid = re.search(r'id:\s*"([^"]+)"', card)
+            chain = re.search(r"chain:\s*\[(.*?)\]", card, re.S)
+            if cid and chain:
+                out[cid.group(1)] = re.findall(r'"([^"]+)"', chain.group(1))
+        return out
+
+    def test_카드를_읽을_수_있다(self):
+        # 정규식이 조용히 빈 사전을 주면 아래 검사가 통과해버린다.
+        self.assertEqual(sorted(self.cards()), sorted(self.CARD_FRAME))
+
+    def test_카드가_그리는_절_수가_실제와_같다(self):
+        for cid, chain in self.cards().items():
+            frame = plan_spec.FRAMES[self.CARD_FRAME[cid]]
+            self.assertEqual(
+                len(chain), len(frame.sections),
+                f"'{cid}' 카드는 {len(chain)}절을 그리는데 실제는 "
+                f"{len(frame.sections)}절이다")
+
+    def test_카드의_절_이름이_실제_이름이거나_그_줄임말이다(self):
+        # 화면은 좁으니 줄여 쓸 수 있다. 다만 없는 이름을 부르면 안 된다.
+        for cid, chain in self.cards().items():
+            real = plan_spec.FRAMES[self.CARD_FRAME[cid]].sections
+            for shown, actual in zip(chain, real):
+                self.assertTrue(
+                    actual.startswith(shown),
+                    f"'{cid}' 카드가 '{shown}' 이라고 쓰는데 실제 절은 '{actual}'")
+
+
 class Route(unittest.TestCase):
     """어느 골격이 기획부터 하는 일이고 어느 골격이 아닌지 (대표 2026-09-04)."""
 
