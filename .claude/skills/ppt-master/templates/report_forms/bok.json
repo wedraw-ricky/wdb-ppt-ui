@@ -1,0 +1,16 @@
+{
+  "id": "bok",
+  "label": "한국은행 보도자료형",
+  "page": {"width_mm": 210, "height_mm": 297, "margin_top_mm": 20, "margin_bottom_mm": 20, "margin_side_mm": 22},
+  "fonts": {"title": "맑은 고딕", "body": "한컴바탕"},
+  "sizes": {"title": 17, "section": 12, "core": 11, "detail": 10.5, "note": 9, "table": 9, "chrome": 8},
+  "markers": {"core": "□", "detail": "─", "note": "*"},
+  "colors": {
+    "accent": "000000", "text": "000000", "rule": "808080",
+    "improve": "1F4E79", "worsen": "C00000", "embargo": "0996D9",
+    "table_header_bg": "FFFFFF", "table_header_fg": "000000", "table_label_bg": "F2F2F2",
+    "badge_bg": "F2F2F2", "badge_fg": "000000"
+  },
+  "rules": {"title_rule": true, "section_rule": false, "table_vertical_rules": true},
+  "chrome": {"header": false, "footer": true}
+}

@@ -460,9 +460,11 @@ python3 ${SKILL_DIR}/scripts/plan_spec.py <project_path> --check
 python3 ${SKILL_DIR}/scripts/render_plan_doc.py <project_path>
 ```
 
-Writes `exports/<project>_기획서.md`. The Word file is typeset in the report
-form — 번호박스 `Ⅰ` 대제목 · `□` 핵심 · `─` 세부 · `*` 각주, 맑은 고딕 제목 /
-한컴바탕 본문, A4 세로 (see [`references/report-format.md`](references/report-format.md)).
+Writes `exports/<project>_기획서.md`. The Word file is typeset in one of the
+forms under `templates/report_forms/` — `Ⅰ` 대제목 · `▢` 핵심 · `◦` 세부 · `*` 각주,
+통계표, 개선/악화 색, A4 세로. Pick one with `--form bok` (한국은행 보도자료형) or
+`--form khnp` (한수원 개조식형); the section bodies carry the markers, so write them
+per [`references/report-format.md`](references/report-format.md) §4.
 The default `--format auto` follows
 `intake.doc_kind` — 보고서 or 둘 다 also writes `.docx` (needs `python-docx`;
 without it the Markdown still lands and the run says what is missing). Pass

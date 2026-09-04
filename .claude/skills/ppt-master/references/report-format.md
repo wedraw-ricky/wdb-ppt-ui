@@ -72,85 +72,99 @@ Never substitute one for another.
 
 ## 3. Marker Hierarchy
 
-Top to bottom. A level is used only when the level above it exists.
+Top to bottom. The **form** decides which glyph is drawn; the author writes the level.
 
-| Marker | Level | Use |
-|---|---|---|
-| `Ⅰ` `Ⅱ` `Ⅲ` … | 대제목 (번호박스) | One per `plan_spec.md` section, in chain order |
-| `1.` `2.` | 중분류 | Numbered subdivisions inside a 대제목 |
-| `[ ]` | 소분류 | A labelled group inside 중분류 |
-| `< >` | 블록 | A named block outside the chain (평가, 후속, 참고) |
-| `□` | 핵심 | The 두괄식 opening line of a section — the conclusion first |
-| `─` | 세부 | Supporting lines under a `□` |
-| `*` | 각주 | Provenance and qualifications |
-| `※` | 참고 | Auxiliary note |
-| `▣` | 요약 두괄식 | Summary block only (보도자료 form) |
+| Level | Written as | `bok` draws | `khnp` draws |
+|---|---|---|---|
+| 대제목 | section chain position | `Ⅰ.` | `Ⅰ.` (ruled, accent) |
+| 핵심 (두괄식) | `▢` or `□` at line start | `□` | `▢` |
+| 세부 | `◦` `○` `─` `-` at line start | `─` | `◦` |
+| 각주 | `*` or `※` at line start | `*` | `*` |
+| 블록 | emitted by the renderer | `< >` | `< >` |
 
----
-
-## 4. Typography
-
-| Element | Face | Size |
-|---|---|---|
-| 제목 · 기관명 | 맑은 고딕 | 17pt |
-| 요약 `▣` | 한컴바탕 | 13pt |
-| 본문 · 각주 | 한컴바탕 | 11pt / 9pt |
-| 통계표 | 한컴바탕 | 9pt, 실선 |
-
-**Hard rule**: Page is A4 portrait.
-
-> Note: this form is a document, not a deck — the CLAUDE.md Pretendard lock covers
-> SVG-authored decks and does not reach it.
+**Hard rule**: Both marker vocabularies are accepted on input. An author writing `▢`
+gets `□` under `bok` and `▢` under `khnp` — the register is portable, the form is not.
 
 ---
 
-## 5. Colour
+## 4. Body Markup
 
-**Default — 흑백 (may override only for the two cases below)**: The form is black and
-white. Emphasis comes from weight, not hue.
+What a `plan_spec.md` section body may carry. Everything here is typesetting
+instruction, not prose: the Markdown draft strips it, the Word file renders it.
 
-| Case | Colour |
+| Markup | Meaning |
 |---|---|
-| 숫자 | No hue — **bold** |
-| 개선 (지표가 좋아진 방향) | 파랑 `#1F4E79` |
-| 악화 (지표가 나빠진 방향) | 빨강 `#C00000` |
-| 엠바고 | 파랑 `#0996D9` |
+| `▢ 제목` | 핵심 line — the 두괄식 conclusion of the block |
+| `◦ 내용` | 세부 line under the 핵심 |
+| `* 내용` | 각주 — provenance, caveats, source figures |
+| `\| a \| b \|` rows | 통계표. First row is the header; a `\|---\|` separator row is ignored |
+| `**강조**` | Bold |
+| `{+텍스트}` | 개선 — rendered in the form's improve colour |
+| `{-텍스트}` | 악화 — rendered in the form's worsen colour |
+| `[확인 필요: …]` / `[추정: …]` | Badge — shaded inline chip |
 
-Direction depends on the indicator: for a higher-is-better metric a rise is 개선, for a
-lower-is-better metric a fall is 개선.
+**Hard rule**: A body with no markers still renders. The opening paragraph becomes the
+핵심 and the rest 세부, so material written before this contract is not lost.
 
-**Hard rule**: Where the direction is not stated in the source, drop the colour and keep
-the bold. The renderer therefore ships 숫자 bold only — inferring 개선/악화 from a figure
-would be authoring, and a miscoloured figure reverses the reading.
+**Hard rule**: Figures are bolded automatically. Never hand-bold a number with `**`.
 
 ---
 
-## 6. 기획서 Mapping
+## 5. Direction — why `{+}` and `{-}` are written, not inferred
 
-How `plan_spec.md` lands in the form.
+**Forbidden — inferring 개선/악화 from a figure**: Direction is a property of the
+indicator, not of the number. 재해 `▼5건` is 개선; 공기 압박 `▲6.14%p` is 악화. Both
+are falls and rises of the same shape, and a renderer that guesses reverses half of
+them.
+
+**Hard rule**: The author marks direction, or there is no colour. `{+▼5건}` is 개선
+in blue; `{-▲6.14%p}` is 악화 in red; an unmarked figure is bold and black.
+
+---
+
+## 6. Forms
+
+Presets live in [`templates/report_forms/`](../templates/report_forms/), one JSON per
+form, selected with `--form`. `forms_index.json` names the default.
+
+| Form | Look |
+|---|---|
+| `bok` | 한국은행 보도자료형 — 흑백, `□`/`─`, 맑은 고딕 제목 위 한컴바탕 본문, ruled 통계표 with vertical rules |
+| `khnp` | 한수원 개조식형 — accent `#224C9D` 대제목·표 머리, `▢`/`◦`, 머리말·꼬리말, 세로선 없는 표, 개선 파랑 / 악화 빨강 |
+
+Each form carries `page`, `fonts`, `sizes`, `markers`, `colors`, `rules`, `chrome`.
+A new house style is a new JSON file — never a change to the renderer.
+
+**Hard rule**: Page is A4 portrait in every form.
+
+> Note: these are documents, not decks — the CLAUDE.md Pretendard lock covers
+> SVG-authored decks and does not reach them.
+
+---
+
+## 7. 기획서 Mapping
 
 | `plan_spec.md` | Rendered as |
 |---|---|
-| `# {제목}` | 제목, 맑은 고딕 17pt, centred |
-| frontmatter + intake | 통계표 (구성 · 목적 · 출발 · 대상 · 작성) |
-| `## N. {절 이름}` | `Ⅰ`–`Ⅹ` 번호박스 대제목, chain order |
-| `status` other than `확정` | `(확인 필요)` / `(초안)` on the 대제목 line |
-| Section body, first block | `□` 핵심 |
-| Section body, remaining blocks and bullets | `─` 세부 |
-| `**1안**` / `**2안**` | `□` with the label in bold |
+| `# {제목}` | 제목, form title font, accent, ruled |
+| frontmatter + intake | 통계표 (구분 · 내용) |
+| `## N. {절 이름}` | `Ⅰ`–`Ⅻ` 대제목, chain order |
+| `status` other than `확정` | `(확인 필요)` / `(초안)` on the 대제목, in the worsen colour |
+| Section body | Parsed per §4 |
 | `source:` | `*` 각주 |
+| `intake.department` | 머리말·꼬리말의 발신 부서 |
 | Sections not yet `확정` | `< 아직 닫히지 않은 항목 >` block at the end |
 
-**Hard rule**: An empty section is rendered with its reason, never omitted. A form that
-silently drops an unfilled section reads as complete when it is not.
+**Hard rule**: An empty section is rendered with its reason, never omitted.
 
 ---
 
-## 7. Forbidden
+## 8. Forbidden
 
 **Forbidden — renderer behavior**:
 - Rewriting, shortening, or reordering a section body
 - Inferring 개선/악화 to colour a figure
 - Generating a figure, a date, or a section that is not in `plan_spec.md`
 - Dropping a section because it is empty
-- Applying this form to the Markdown output — that surface stays plain
+- Hardcoding a form's fonts, colours or glyphs in the script
+- Applying the form to the Markdown output — that surface stays plain

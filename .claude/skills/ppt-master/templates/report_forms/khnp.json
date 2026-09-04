@@ -1,0 +1,16 @@
+{
+  "id": "khnp",
+  "label": "한수원 개조식 보고서형",
+  "page": {"width_mm": 210, "height_mm": 297, "margin_top_mm": 24, "margin_bottom_mm": 24, "margin_side_mm": 22},
+  "fonts": {"title": "맑은 고딕", "body": "맑은 고딕"},
+  "sizes": {"title": 20, "section": 14, "core": 11.5, "detail": 10, "note": 9.5, "table": 8.5, "chrome": 8},
+  "markers": {"core": "▢", "detail": "◦", "note": "*"},
+  "colors": {
+    "accent": "224C9D", "text": "6D6E71", "rule": "E5E6E6",
+    "improve": "224C9D", "worsen": "D9534F", "embargo": "0996D9",
+    "table_header_bg": "224C9D", "table_header_fg": "FFFFFF", "table_label_bg": "ECEEF2",
+    "badge_bg": "FEF3C7", "badge_fg": "92400E"
+  },
+  "rules": {"title_rule": true, "section_rule": true, "table_vertical_rules": false},
+  "chrome": {"header": true, "footer": true}
+}
