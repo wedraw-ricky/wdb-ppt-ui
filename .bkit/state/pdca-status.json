@@ -85,7 +85,7 @@
         "대조 지적 2건 처리 — dumbbell_chart 배정 경로 신설(항목 5개 이상 전후 비교가 가격제 카드 레이아웃에 눌리고 있었다) · 흐름 다시 고르기 버튼은 설계에서 제외(다시 고르면 편집한 장이 전부 버려진다). tests/README.md 의 테스트 수 106→211 정정"
       ],
       "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
-      "updatedAt": "2026-09-05T03:30:00+09:00",
+      "updatedAt": "2026-09-05T03:45:00+09:00",
       "design": "docs/02-design/features/ppt-service-rebuild.design.md",
       "scope": "Check 완료 · 일치율 77% · 지적 전부 처리 · 테스트 228건(문서 211 · 화면 17) · 설계 v1.5",
       "next": "① 커밋·PR  ② 우선순위 12(단계 되돌아가기) · 13(실습생 체크리스트) · 14(회귀 방지)",
@@ -119,14 +119,15 @@
       "blocked_on_user": [],
       "handoff": {
         "branch": "claude/module-6-skeleton-edit-screen-vwz66u",
-        "pr": "wedraw-ricky/wdb-ppt-ui#3",
+        "pr": "wedraw-ricky/wdb-ppt-ui#3 — 아직 검토 요청 안 한 상태(초안). 지금 합쳐도 충돌 없음",
+        "마지막 커밋": "a0dceb1 feat: 기획을 계획까지 끌고 가고, 문서와 발표자료의 결론을 하나로",
         "로컬에서 이어받는 법": [
           "git checkout claude/module-6-skeleton-edit-screen-vwz66u",
           "git pull",
-          "python3 -m unittest discover -s tests   # 152건 통과해야 정상",
+          "python3 -m unittest discover -s tests   # 211건",
           "node --test --experimental-strip-types tests/*.test.mts   # 17건"
         ],
-        "새 세션에 알려줄 것": "이 파일의 next 와 completed 를 먼저 읽을 것. 기획 강의 자료는 docs/자료 에 있고 깃에 안 올린다. 제목·문체 규칙은 references/planner.md §2.5 와 references/report-format.md §2 에 있고 plan_spec.py --check 가 강제한다"
+        "새 세션에 알려줄 것": "이 파일의 next 와 completed 를 먼저 읽을 것. 강의 자료는 docs/자료 에 있고 깃에 안 올린다. 기획 규칙은 references/planner.md(§0 3단 구조·§0.1 두 갈래·§6.2 문서 항목)와 report-format.md 에 있고 plan_spec.py --check 가 강제한다. 홈 디렉터리에 있던 CRM 껍데기는 ~/dev/_홈에-잘못-생긴-것/ 으로 격리했다 — 지워도 되는 것"
       },
       "requirements": [],
       "documents": {},
