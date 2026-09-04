@@ -1,8 +1,10 @@
-/* Left panel: the step rail and a preview that tracks what is being chosen.
+/* 고른 것이 어떻게 보이는지 — 크기 · 색과 글꼴 · 이미지 방향.
 
-   The preview used to read only colour and typography, which are stage-2
-   fields — so while picking a template or a canvas in stage 1 nothing moved and
-   the panel looked hardcoded. It now shows the decision in front of the user. */
+   예전에는 이 셋이 왼쪽 파란 패널 안에 있었다. 패널을 없애면서 셋을 각자
+   자기 질문 바로 아래로 옮겼다. 고른 것이 어떻게 되는지는 화면 옆이 아니라
+   고르는 자리에서 보여주는 편이 낫다 — 눈을 옮기지 않아도 되니까.
+
+   `stageSteps` 는 어떤 질문을 몇 개 물을지 정하는 곳이라 여기 남는다. */
 
 import type { Dict } from "./api";
 import { T } from "./i18n";
@@ -58,37 +60,6 @@ const JOURNEY = [
   { n: 3, title: "이미지", covers: "사진과 그림을 어떻게 채울지" },
 ];
 
-function Journey({ stageNum }: { stageNum: number }) {
-  if (stageNum < 1) return null;   // single-pass form asks everything at once
-  return (
-    <div>
-      <div className="mb-2.5 text-sm font-bold">전체 3단계</div>
-      <ol className="flex flex-col gap-2">
-        {JOURNEY.map((s) => {
-          const done = s.n < stageNum, now = s.n === stageNum;
-          // 동그라미가 이미 ✓ · 지금 · 아직 을 말한다. 여기에 흐리기까지
-          // 얹으면 파란 바탕에서 글자가 안 읽힌다 — 상태는 한 번만.
-          return (
-            <li key={s.n} className="flex items-start gap-2.5 text-[13px]">
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
-                    style={{
-                      background: done ? "var(--wdb-cyan)"
-                        : now ? "#ffffff" : "rgba(0,0,0,0.32)",
-                      color: done || now ? "var(--wdb-charcoal)" : "#ffffff",
-                    }}>
-                {done ? "✓" : s.n}
-              </span>
-              <span className="leading-snug">
-                <b className={now ? "" : "font-normal"}>{s.title}</b>
-                <span className="block text-[11px] font-normal">{s.covers}</span>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
 
 /** The rail is now also the way back.
 
@@ -96,58 +67,6 @@ function Journey({ stageNum }: { stageNum: number }) {
     becomes the map of where you are: it marks the question in hand and every row
     is a jump, so revisiting the second answer costs one click instead of paging
     back through the ones between. */
-function Rail({ steps, current, onGo }: {
-  steps: Step[]; current: string; onGo: (key: string) => void;
-}) {
-  const left = steps.filter((s) => s.required && !s.filled).length;
-  return (
-    <div>
-      <div className="mb-3 flex items-baseline gap-2">
-        <span className="text-sm font-bold">이 단계에서 정할 것</span>
-        <span className="text-xs font-normal">
-          {left ? `아직 ${left}개 남았습니다` : "다 정하셨습니다"}
-        </span>
-      </div>
-      <ol className="flex flex-col gap-0.5">
-        {steps.map((s, i) => {
-          const here = s.key === current;
-          return (
-            <li key={s.key}>
-              <button
-                type="button"
-                onClick={() => onGo(s.key)}
-                aria-current={here ? "step" : undefined}
-                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition"
-                style={{
-                  background: here ? "rgba(0,0,0,0.30)" : "transparent",
-                  fontWeight: here ? 700 : 400,
-                }}
-              >
-                <span
-                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
-                  style={{
-                    background: s.filled ? "var(--wdb-cyan)"
-                              : here ? "#ffffff" : "rgba(0,0,0,0.32)",
-                    color: s.filled || here ? "var(--wdb-charcoal)" : "#ffffff",
-                  }}
-                >
-                  {s.filled ? "✓" : i + 1}
-                </span>
-                <span className={s.filled && !here ? "font-normal" : ""}>{s.title}</span>
-                {s.required ? (
-                  <span className="ml-auto rounded px-1.5 py-0.5 text-[11px] font-semibold"
-                        style={{ color: "var(--wdb-cyan)", background: "rgba(0,0,0,0.32)" }}>필수</span>
-                ) : (
-                  <span className="ml-auto text-[11px] font-normal">선택</span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
 
 /** Stage 1 — show the deck being picked, in the shape being picked.
 
@@ -155,7 +74,7 @@ function Rail({ steps, current, onGo }: {
     with object-contain. Cropping to fill would hide part of the slide and imply
     the template reflows to the new shape, which it does not — a deck declares
     one canvas_format, so a mismatch is called out instead. */
-function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
+export function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
   state: Dict; cat: Dict; ack: boolean;
   onFixCanvas: (canvasId: string) => void; onAck: () => void;
 }) {
@@ -235,7 +154,7 @@ function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
 }
 
 /** Stage 2 (and single pass) — the colour and type actually chosen. */
-function SkinPreview({ state }: { state: Dict }) {
+export function SkinPreview({ state }: { state: Dict }) {
   const pal = state.color?.palette || {};
   const headCss = state.typography?.heading?.css || "Paperlogy, sans-serif";
   const bodyCss = state.typography?.body?.css || "Paperlogy, sans-serif";
@@ -259,7 +178,7 @@ function SkinPreview({ state }: { state: Dict }) {
 }
 
 /** Stage 3 — the image direction being chosen. */
-function ImagePreview({ state }: { state: Dict }) {
+export function ImagePreview({ state }: { state: Dict }) {
   const s = state.image_strategy;
   if (!s) return <SkinPreview state={state} />;
   return (
@@ -277,38 +196,3 @@ function ImagePreview({ state }: { state: Dict }) {
   );
 }
 
-export function Hero({
-  state, cat, stageNum, steps, ack, current, onGo, onFixCanvas, onAck,
-}: {
-  state: Dict; cat: Dict; stageNum: number; steps: Step[];
-  ack: boolean; current: string; onGo: (key: string) => void;
-  onFixCanvas: (canvasId: string) => void; onAck: () => void;
-}) {
-  return (
-    <aside className="wdb-hero hidden w-[38%] max-w-[560px] min-w-[380px] flex-col gap-6 overflow-y-auto p-7 lg:flex">
-      <div className="flex items-center gap-3 border-b border-white/20 pb-4">
-        <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/40 bg-black/25 text-sm font-bold">
-          PM
-        </div>
-        <div>
-          <div className="text-[11px] font-semibold tracking-widest">PPT MASTER</div>
-          <div className="text-sm font-bold">{T.title}</div>
-        </div>
-      </div>
-
-      <Journey stageNum={stageNum} />
-
-      <Rail steps={steps} current={current} onGo={onGo} />
-
-      <div className="flex flex-col gap-2">
-        <div className="text-xs font-normal">
-          {stageNum === 1 ? "고르신 템플릿과 크기" : stageNum === 3 ? "고르신 이미지 방향" : "전체 인상 미리보기"}
-        </div>
-        {stageNum === 1 ? <AnchorPreview state={state} cat={cat} ack={ack}
-                                 onFixCanvas={onFixCanvas} onAck={onAck} />
-          : stageNum === 3 ? <ImagePreview state={state} />
-          : <SkinPreview state={state} />}
-      </div>
-    </aside>
-  );
-}

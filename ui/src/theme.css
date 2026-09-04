@@ -18,32 +18,46 @@
   --wdb-grad-from: #19007f;
   --wdb-grad-to: #3667ff;
 
+  /* 화면은 흰 바탕이 기본이고, 구역은 테두리가 아니라 옅은 면과 옅은 그림자로
+     나눈다. 예전에는 왼쪽에 남색→파랑 그러데이션 패널이 있었는데, 그 위에서
+     흰 글씨가 4.62:1 밖에 안 나와 위계를 주려고 흐리게 한 것이 전부 못 읽는
+     글씨가 됐다. 흰 바탕으로 오면 그 제약이 통째로 사라진다. */
+  --sunken: #f4f6f8;        /* 옅은 면. 입력칸·구역 나누기 */
+  --shadow-card: 0 1px 2px rgba(20, 25, 35, .05), 0 8px 24px -12px rgba(20, 25, 35, .10);
+  --shadow-lift: 0 2px 4px rgba(20, 25, 35, .06), 0 16px 32px -16px rgba(20, 25, 35, .16);
+
   /* HeroUI semantic mapping */
   --accent: var(--wdb-primary);
   --accent-foreground: #ffffff;
-  --background: var(--wdb-card-bg);
-  --foreground: var(--wdb-charcoal);
+  --accent-soft: #eef3ff;
+  --background: #ffffff;
+  --foreground: #17191c;
   --surface: #ffffff;
-  --surface-foreground: var(--wdb-charcoal);
-  --default: var(--wdb-card-bg);
-  --default-foreground: var(--wdb-charcoal);
-  --muted: var(--wdb-gray);
-  --border: #e1e6ed;
+  --surface-foreground: #17191c;
+  --default: var(--sunken);
+  --default-foreground: #17191c;
+  --muted: #5b6472;         /* 흰 바탕 6.4:1 */
+  /* 덜 중요한 글. 흰 바탕 4.94:1 · 옅은 면 위 4.56:1 — 크기와 상관없이
+     통과한다. 토스가 쓰는 #8B95A1 은 보기엔 예쁘지만 3.14:1 이라
+     "+ 장 추가" 같은 글이 실제로 안 읽혔다. */
+  --faint: #68717e;
+  --border: #eceff3;
   /* 물건의 경계를 그리는 선. `--border` 는 흰 바탕에서 명암비 1.25:1 이라
      WCAG 1.4.11(3:1)에 못 미치고, 저시력 사용자에게 카드 경계가 보이지
      않는다. 색상은 그대로 두고 명도만 낮춰 흰 바탕 3.37:1 · 카드 바탕
      3.14:1 로 맞춘 값. 나뉘는 것이 보여야 하는 곳에만 쓴다 — 장식 선은
      계속 `--border` 다. */
   --border-strong: #828d9b;
-  --separator: #e1e6ed;
+  --separator: #eceff3;
   --focus: var(--wdb-primary);
   --link: var(--wdb-primary);
   --success: #059669;
   --warning: #b45309;  /* 흰 바탕 5.02:1 — #d97706 은 3.19:1 이라 12px 에서 안 읽혔다 */
   --danger: #e11d48;
-  --field-background: #ffffff;
-  --field-border: #e1e6ed;
-  --radius: 12px;
+  --field-background: var(--sunken);
+  --field-border: transparent;
+  --radius: 14px;
+  --radius-card: 20px;
 }
 
 @font-face {

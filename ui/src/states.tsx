@@ -177,7 +177,8 @@ export function Deriving({ target }: { target: number }) {
              : target === 3 ? "이미지 방향을 정리하는 중"
              : "다음 단계를 준비하는 중";
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="grid h-full place-items-center px-8">
+      <div className="flex flex-col items-center gap-5">
       <WaitingArt animate={!reduced} />
       <div className="flex flex-col items-center gap-2.5">
         <div className="text-[15px] font-bold" style={{ color: "var(--foreground)" }}>
@@ -194,6 +195,7 @@ export function Deriving({ target }: { target: number }) {
         {notes.length > 0
           ? "창을 닫지 마세요."
           : "고르신 내용을 읽고 다음 단계 후보를 만들고 있습니다. 창을 닫지 마세요."}
+      </div>
       </div>
     </div>
   );

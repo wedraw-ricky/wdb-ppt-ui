@@ -7,12 +7,18 @@ import * as api from "./api";
 import type { Dict, Recommendations } from "./api";
 import { T, label, desc, candName, candNote } from "./i18n";
 import {
-  AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice, IMAGE_PRESETS,
+  ArtChoice, AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
+  IMAGE_PRESETS,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
 import { Deriving, Disconnected, DoneArt, ErrorArt, LoadingArt } from "./states";
+import { Ask, Mid, Shell, Steps } from "./shell";
+import modeContinuous from "./art/mode-continuous.png";
+import modePlanNo from "./art/mode-plan-no.png";
+import modePlanYes from "./art/mode-plan-yes.png";
+import modeSplit from "./art/mode-split.png";
 import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
-import { Hero, stageSteps } from "./hero";
+import { AnchorPreview, ImagePreview, SkinPreview, stageSteps } from "./previews";
 import { Intake } from "./intake";
 import { OutlineEditor } from "./outline";
 import {
@@ -36,25 +42,18 @@ const useStep = () => useContext(StepCtx);
     now waits its turn, in the order the rail already lists — the rail and the
     form read the same `stageSteps`, so they can never disagree about what is
     left. */
+/* 한 번에 한 가지만 묻는다. 예전에는 질문이 카드 안 번호 동그라미 옆에
+   들어가 있어서, 화면의 주인공이 질문이 아니라 카드였다. 이제 질문이 곧
+   제목이다. 안내 문구는 첫 질문에서만 — 매 질문마다 같은 말을 반복하면
+   정작 질문이 밀려난다. */
 function Section({ k, title, children }: { k: string; title: string; children: React.ReactNode }) {
   const { current, index } = useStep();
   if (k !== current) return null;
-  const n = index(k) + 1;
   return (
-    <Card className="mb-8">
-      <Card.Header className="pb-1">
-        <Card.Title className="flex items-center gap-3 text-xl font-bold">
-          <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-            style={{ background: "var(--wdb-secondary)" }}
-          >
-            {n}
-          </span>
-          {title}
-        </Card.Title>
-      </Card.Header>
-      <Card.Content className="flex flex-col gap-7 pt-2">{children}</Card.Content>
-    </Card>
+    <>
+      <Ask title={title} sub={index(k) === 0 ? T.hint : undefined} />
+      <div className="flex flex-col gap-9">{children}</div>
+    </>
   );
 }
 
@@ -128,6 +127,24 @@ function useServerAlive(): boolean {
   }, []);
   return alive;
 }
+
+/* 맨 위 막대가 몇 %인지. 없는 진행률을 지어내지 않고, 전체 흐름을 여덟 걸음으로
+   보고 지금 몇 번째인지만 적는다 — 인터뷰 · 기획서 · 뼈대 · 1·2·3단계 · 끝. */
+/* 세 단계 안에서 몇 번째 질문인지까지 막대에 반영한다. 단계만 세면 질문
+   여덟 개를 지나는 동안 막대가 한 번도 안 움직여서, 가고 있는지 알 수 없다. */
+const stageProgress = (stageNum: number, at: number, len: number) => {
+  const within = len > 0 ? (at + 1) / len : 1;
+  if (!stageNum) return Math.round(40 + within * 56);
+  return Math.round([54, 68, 82][stageNum - 1] + within * 12);
+};
+
+const derivingProgress = (target: number) =>
+  target === 0 ? 16 : target === 1 ? 48 : target === 2 ? 68 : 82;
+
+const derivingWhere = (target: number) =>
+  target === 0 ? "기획서 만드는 중"
+    : target === 1 ? "디자인 준비 중"
+    : `${target}단계 준비 중`;
 
 export default function App() {
   const alive = useServerAlive();
@@ -275,44 +292,31 @@ function Confirm() {
         }}
       />
     );
+  // 고를 것이 없는 화면 넷. 셋 다 같은 틀 안에서 가운데만 바뀐다 — 예전에는
+  // 여기만 머리띠도 없는 맨 화면이라 다른 물건처럼 보였다.
   if (phase === "loading")
     return (
-      <Centered>
-        <div className="flex flex-col items-center gap-4 text-center">
-          <LoadingArt />
-          <div className="text-lg font-bold" style={{ color: "var(--foreground)" }}>{T.loading}</div>
-        </div>
-      </Centered>
+      <Shell where="여는 중" progress={4} wide>
+        <Mid art={<LoadingArt />} title={T.loading} />
+      </Shell>
     );
   if (phase === "error")
     return (
-      <Centered>
-        <div className="flex max-w-[42ch] flex-col items-center gap-4 text-center">
-          <ErrorArt />
-          <div className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
-            {T.loadErrorTitle}
-          </div>
-          <div className="text-sm" style={{ color: "var(--muted)" }}>{T.loadError}</div>
-        </div>
-      </Centered>
+      <Shell where="자료를 읽지 못함" progress={0} wide>
+        <Mid art={<ErrorArt />} title={T.loadErrorTitle}>{T.loadError}</Mid>
+      </Shell>
     );
   if (phase === "deriving")
     return (
-      <Centered>
+      <Shell where={derivingWhere(waitTarget)} progress={derivingProgress(waitTarget)} wide>
         <Deriving target={waitTarget} />
-      </Centered>
+      </Shell>
     );
   if (phase === "done")
     return (
-      <Centered>
-        <div className="flex flex-col items-center gap-4 text-center">
-          <DoneArt />
-          <div className="text-2xl font-extrabold" style={{ color: "var(--foreground)" }}>
-            {T.confirmedTitle}
-          </div>
-          <div className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{T.confirmedHint}</div>
-        </div>
-      </Centered>
+      <Shell where="다 정했습니다" progress={100} wide>
+        <Mid art={<DoneArt />} title={T.confirmedTitle}>{T.confirmedHint}</Mid>
+      </Shell>
     );
 
   const R = rec.recommend || {};
@@ -345,19 +349,25 @@ function Confirm() {
   const isLast = at >= steps.length - 1;
 
   return (
-    <div className="flex h-full">
-      <Hero state={state} cat={cat} stageNum={stageNum} steps={steps}
-              ack={mismatchAck} current={current} onGo={setStepKey}
-              onFixCanvas={(id) => set("canvas", id)}
-              onAck={() => setMismatchAck((v) => !v)} />
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b px-8 py-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <h1 className="text-xl font-bold">{stageNum ? T.stages[stageNum - 1] : T.title}</h1>
-          <p className="mt-1 max-w-[52ch] text-sm" style={{ color: "var(--muted)" }}>{T.hint}</p>
-        </header>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
-          <StepCtx.Provider value={stepCtx}>
+    <Shell
+      where={stageNum ? `디자인 정하기 · 3단계 중 ${stageNum}` : T.title}
+      progress={stageProgress(stageNum, at, steps.length)}
+      footNote={`${at + 1} / ${steps.length}${isLast ? " · 마지막입니다" : ""}`}
+      footActions={
+        <>
+          {msg ? <span className="text-sm" style={{ color: "var(--danger)" }}>{msg}</span> : null}
+          <Button variant="secondary" isDisabled={at === 0} onPress={() => goTo(at - 1)}>
+            ← {T.prev}
+          </Button>
+          {isLast
+            ? <Button variant="primary" onPress={onPrimary}>
+                {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
+              </Button>
+            : <Button variant="primary" onPress={() => goTo(at + 1)}>{T.next} →</Button>}
+        </>
+      }>
+      <Steps items={steps.map((s) => s.title)} at={at} />
+      <StepCtx.Provider value={stepCtx}>
           {showAnchors && (
             <>
               {cat.templates?.length > 1 && (
@@ -374,6 +384,12 @@ function Confirm() {
               <Section k="canvas" title={T.secCanvas}>
                 <RatioChoice items={cat.canvas || []} value={state.canvas}
                              onChange={(v) => set("canvas", v)} recommended={R.canvas} />
+                {/* 고른 크기가 실제로 어떤 비율인지, 그리고 템플릿과 안 맞으면
+                    여기서 막는다. 예전에는 이 경고가 화면 왼쪽 패널에 있어
+                    질문에서 눈을 떼야 보였다. */}
+                <AnchorPreview state={state} cat={cat} ack={mismatchAck}
+                               onFixCanvas={(id) => set("canvas", id)}
+                               onAck={() => setMismatchAck((v) => !v)} />
               </Section>
               <Section k="audience" title={T.secAudience}>
                 <PresetField
@@ -463,6 +479,10 @@ function Confirm() {
                   onRole={(role, v) => setState((s) => ({ ...s,
                     typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
                 />
+                <div>
+                  <div className="mb-3 text-base font-semibold">합쳐 놓으면 이렇게 보입니다</div>
+                  <SkinPreview state={state} />
+                </div>
               </Section>
               <Section k="formula" title={T.secFormula}>
                 <Choice items={cat.formula_policy || []} value={state.formula_policy}
@@ -501,51 +521,40 @@ function Confirm() {
                     </div>
                   </>
                 )}
+                {/* 고른 이미지 방향이 실제로 어떤 그림인지. 옆 패널에 있을 때는
+                    고르는 곳과 보는 곳이 떨어져 있어 대조가 안 됐다. */}
+                <ImagePreview state={state} />
               </Section>
               <Section k="genmode" title={T.secMode}>
-                <Choice items={cat.generation_mode || []} value={state.generation_mode}
-                        onChange={(v) => set("generation_mode", v)} recommended={R.generation_mode} />
+                <ArtChoice
+                  items={(cat.generation_mode || []).map((m: Dict) => ({
+                    id: String(m.id), label: String(m.label_ko || m.id),
+                    note: String(m.desc_ko || m.note_ko || ""),
+                  }))}
+                  value={state.generation_mode}
+                  onChange={(v) => set("generation_mode", v)}
+                  recommended={R.generation_mode}
+                  art={{ continuous: modeContinuous, split: modeSplit }} />
               </Section>
               <Section k="refine" title={T.secRefine}>
-                <Switch isSelected={state.refine_spec}
-                        onChange={(b: boolean) => set("refine_spec", b)}>
-                  <Switch.Control><Switch.Thumb /></Switch.Control>
-                  <Switch.Content>
-                    <Label>{state.refine_spec ? T.refineOn : T.refineOff}</Label>
-                  </Switch.Content>
-                </Switch>
+                {/* 켬/끔 스위치였다. 두 갈래가 어떻게 다른지는 스위치가 말해주지
+                    못해서, 켠 상태의 글을 읽어야만 알 수 있었다. 카드 둘로
+                    바꾸니 고르기 전에 차이가 보인다. */}
+                <ArtChoice
+                  items={[
+                    { id: "yes", label: T.refineOn,
+                      note: "기획서를 먼저 확인하고, 고칠 것을 고친 뒤에 슬라이드를 만듭니다" },
+                    { id: "no", label: T.refineOff,
+                      note: "기획서를 건너뛰고 바로 슬라이드까지 만듭니다" },
+                  ]}
+                  value={state.refine_spec ? "yes" : "no"}
+                  onChange={(v) => set("refine_spec", v === "yes")}
+                  art={{ yes: modePlanYes, no: modePlanNo }} />
               </Section>
             </>
           )}
-          </StepCtx.Provider>
-        </div>
-
-        <footer className="flex items-center gap-3 border-t px-6 py-3"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <Button variant="secondary" isDisabled={at === 0} onPress={() => goTo(at - 1)}>
-            ← {T.prev}
-          </Button>
-          <span className="text-sm tabular-nums" style={{ color: "var(--muted)" }}>
-            {at + 1} / {steps.length}
-          </span>
-          <div className="ml-auto flex items-center gap-3">
-            {msg ? <span className="text-sm" style={{ color: "var(--danger)" }}>{msg}</span> : null}
-            {isLast
-              ? <Button variant="primary" onPress={onPrimary}>
-                  {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
-                </Button>
-              : <Button variant="primary" onPress={() => goTo(at + 1)}>{T.next} →</Button>}
-          </div>
-        </footer>
-      </main>
-    </div>
+      </StepCtx.Provider>
+    </Shell>
   );
 }
 
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid h-full place-items-center p-8 text-sm" style={{ color: "var(--muted)" }}>
-      {children}
-    </div>
-  );
-}

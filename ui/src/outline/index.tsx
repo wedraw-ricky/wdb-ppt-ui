@@ -13,6 +13,7 @@
    section chain were decided by the contract upstream (references/storyline.md). */
 
 import { useMemo, useState } from "react";
+import { Shell } from "../shell";
 import { cardStyle } from "../selectors";
 import { SlideArt } from "./art";
 import {
@@ -469,56 +470,44 @@ export function OutlineEditor({ doc, onConfirm }: {
   }
 
   return (
-    <div className="flex h-full">
-      {/* 왼쪽은 "지금 손대는 장" 하나만 맡는다. 장 목록은 오른쪽에 있고,
-          그라데이션은 브랜드를 알리는 얇은 띠로만 남긴다 — 판 전체를 덮는
-          장식 그라데이션은 정보를 나르지 않으면서 그 위 글자를 읽기 어렵게 한다. */}
-      <aside className="hidden w-[420px] shrink-0 flex-col overflow-y-auto border-r lg:flex"
-             style={{ borderColor: "var(--border)", background: "var(--background)" }}>
-        <div className="wdb-hero flex items-center gap-3 px-6 py-4">
-          <div className="grid h-8 w-8 place-items-center rounded-lg border border-white/30
-                          bg-white/15 text-[12px] font-bold">PM</div>
-          <div className="min-w-0">
-            <div className="text-[10px] font-semibold tracking-widest">PPT MASTER</div>
-            <div className="truncate text-[13px] font-bold">뼈대 정하기</div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-b px-6 py-4"
-             style={{ borderColor: "var(--border)" }}>
-          <Journey here="outline" />
-          <div className="flex flex-wrap items-baseline gap-x-2 text-[12px]"
-               style={{ color: "var(--muted)" }}>
-            <span>이야기 흐름</span>
-            <span className="font-semibold" style={{ color: "var(--foreground)" }}>
-              {FLOW_LABELS[flow] || flow || "—"}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>모두 {rows.length}장</span>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-5 px-6 py-5">
-          <Detail row={rows[current]} />
-          {rows[current] ? (
-            <div className="border-t pt-5" style={{ borderColor: "var(--border)" }}>
-              <Why row={rows[current]} />
-            </div>
-          ) : null}
-          {rows[current] ? (
-            <div className="border-t pt-5" style={{ borderColor: "var(--border)" }}>
-              <Editor row={rows[current]}
-                      onPatch={(p) => setRows(patchRow(rows, current, p))} />
-            </div>
-          ) : null}
-        </div>
-      </aside>
-
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b px-8 py-5"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="mr-auto text-xl font-bold">이 순서로 이야기할까요?</h1>
+    <Shell
+      where={`뼈대 정하기 · ${rows.length}장`}
+      progress={40}
+      wide
+      footNote={
+        <span style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
+          {msg || (picked.length >= 2
+            ? mergeWarning(rows, picked) || "고른 장을 한 장으로 합칩니다"
+            : lookCount
+              ? `모두 ${rows.length}장 · 확인할 곳 ${lookCount}군데 — 그냥 만드셔도 됩니다`
+              : `모두 ${rows.length}장 · 이대로 만드셔도 됩니다`)}
+        </span>
+      }
+      footActions={
+        <>
+          <button type="button" onClick={doMerge} disabled={picked.length < 2}
+                  className="h-[50px] rounded-[14px] px-5 text-[14px] font-semibold transition
+                             disabled:opacity-40"
+                  style={{ background: "var(--sunken)", color: "var(--muted)" }}>
+            선택한 {picked.length || ""}장 합치기
+          </button>
+          <button type="button" onClick={confirm} disabled={busy || blocked.length > 0}
+                  className="h-[50px] rounded-[14px] px-6 text-[15px] font-bold tracking-tight
+                             text-white transition disabled:opacity-40"
+                  style={{ background: "var(--accent)",
+                           boxShadow: "0 6px 16px -8px rgba(54,103,255,.9)" }}>
+            {busy ? "저장하는 중…" : "이 뼈대로 만들기 →"}
+          </button>
+        </>
+      }>
+      <div className="flex h-full">
+        {/* 장 목록이 화면의 주인이다. 예전에는 왼쪽 420px 를 편집 칸이 늘
+            차지하고 있어서, 고를 것을 보여주는 자리가 그만큼 좁았다. */}
+        <div className="min-w-0 flex-1 overflow-y-auto px-9 pt-8 pb-6">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <h1 className="mr-auto text-[24px] font-extrabold tracking-[-0.03em]">
+              이 순서로 이야기할까요?
+            </h1>
             <button type="button" onClick={() => setOnlyLook((v) => !v)}
                     aria-pressed={onlyLook} disabled={lookCount === 0}
                     className="rounded-lg px-3 py-1.5 text-[13px] font-semibold transition
@@ -544,12 +533,10 @@ export function OutlineEditor({ doc, onConfirm }: {
               ))}
             </div>
           </div>
-          <p className="mt-1 max-w-[52ch] text-sm" style={{ color: "var(--muted)" }}>
+          <p className="mb-6 max-w-[52ch] text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
             장을 끌어 순서를 바꾸고, 눌러서 안을 고치세요. 여기서 확정한 뼈대가 그대로 슬라이드가 됩니다.
           </p>
-        </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
           {issues.length ? (
             <div className="mb-5 flex flex-col gap-2">
               {issues.map((it) => (
@@ -652,35 +639,35 @@ export function OutlineEditor({ doc, onConfirm }: {
           </div>
 
           <button type="button" onClick={() => apply(addRow(rows, rows.length - 1), rows.length)}
-                  className="mt-4 w-full rounded-xl border border-dashed py-3 text-[14px] transition"
-                  style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                  className="mt-4 w-full rounded-2xl border border-dashed py-3.5 text-[14px]
+                             font-semibold transition"
+                  style={{ borderColor: "var(--border)", color: "var(--faint)" }}>
             + 장 추가
           </button>
         </div>
 
-        <footer className="flex items-center gap-3 border-t px-8 py-4"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <button type="button" onClick={doMerge} disabled={picked.length < 2}
-                  className="rounded-lg border px-4 py-2 text-[14px] transition disabled:opacity-40"
-                  style={{ borderColor: "var(--border)" }}>
-            선택한 {picked.length || ""}장 합치기
-          </button>
-          <span className="min-w-0 flex-1 truncate text-[13px]"
-                style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
-            {msg || (picked.length >= 2
-              ? mergeWarning(rows, picked) || "고른 장을 한 장으로 합칩니다"
-              : lookCount
-                ? `모두 ${rows.length}장 · 확인할 곳 ${lookCount}군데 — 그냥 만드셔도 됩니다`
-                : `모두 ${rows.length}장 · 이대로 만드셔도 됩니다`)}
-          </span>
-          <button type="button" onClick={confirm} disabled={busy || blocked.length > 0}
-                  className="rounded-lg px-5 py-2.5 text-[15px] font-semibold text-white
-                             transition disabled:opacity-40"
-                  style={{ background: "var(--wdb-primary)" }}>
-            {busy ? "저장하는 중…" : "이 뼈대로 만들기 →"}
-          </button>
-        </footer>
-      </main>
-    </div>
+        {/* 고른 장 하나만 여기서 손본다. 늘 붙어 있는 편집 칸이 아니라 고른
+            것을 여는 서랍이라, 목록을 보는 동안은 화면이 목록에 집중한다. */}
+        <aside className="hidden w-[400px] shrink-0 overflow-y-auto border-l px-8 pt-8 pb-6 lg:block"
+               style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+          {rows[current] ? (
+            <>
+              <Detail row={rows[current]} />
+              <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+                <Why row={rows[current]} />
+              </div>
+              <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+                <Editor row={rows[current]}
+                        onPatch={(p) => setRows(patchRow(rows, current, p))} />
+              </div>
+            </>
+          ) : (
+            <div className="pt-10 text-center text-[13px]" style={{ color: "var(--faint)" }}>
+              왼쪽에서 장을 하나 고르면 여기서 고칠 수 있습니다
+            </div>
+          )}
+        </aside>
+      </div>
+    </Shell>
   );
 }

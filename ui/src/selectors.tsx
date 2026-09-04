@@ -6,6 +6,7 @@
    Only where no asset exists (canvas proportions, narrative shape) do we draw. */
 
 import { useEffect, useState } from "react";
+import { pickStyle } from "./shell";
 import { Description, Label, Radio, RadioGroup, TextArea, TextField } from "@heroui/react";
 import type { Dict } from "./api";
 import { T, label, desc } from "./i18n";
@@ -196,7 +197,9 @@ export function PresetField({
         {hint ? <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div> : null}
       </div>
       <Chips presets={presets} active={active} onPick={(p) => onChange(p.text)} />
-      <TextField value={value} onChange={onChange}>
+      {/* 한 줄이 길어지면 눈이 다음 줄 첫 글자를 놓친다. 한글은 45자쯤이 끝이라
+          입력칸도 본문 폭을 그대로 쓰지 않고 읽기 좋은 폭에서 멈춘다. */}
+      <TextField className="max-w-[58ch]" value={value} onChange={onChange}>
         <TextArea rows={rows} placeholder={placeholder} aria-label={ariaLabel || legend || undefined} />
       </TextField>
     </div>
@@ -334,6 +337,52 @@ export function IconChoice({
             {desc(it) ? (
               <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
             ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---- 6b. 그림 붙은 한 개 고르기 ---------------------------------------
+   글만 있는 라디오 목록으로 물으면 "고르는 것은 그려서 보여준다" 는 이 화면의
+   약속을 어긴다. 실제로 두 질문(한 번에/나눠서 · 계획서 먼저)이 글만 있어서
+   화면 점수가 88 에서 멈춰 있었고, 무엇보다 고르는 사람이 두 갈래가 어떻게
+   다른지 읽어서 알아내야 했다. */
+
+export function ArtChoice({
+  items, value, onChange, art, recommended,
+}: {
+  items: { id: string; label: string; note?: string }[];
+  value: string; onChange: (v: string) => void;
+  art: Record<string, string>; recommended?: string;
+}) {
+  return (
+    <div role="radiogroup" className="grid gap-4 sm:grid-cols-2">
+      {items.map((it) => {
+        const on = value === it.id;
+        return (
+          <button key={it.id} type="button" role="radio" aria-checked={on}
+                  onClick={() => onChange(it.id)}
+                  className="overflow-hidden p-0 text-left transition"
+                  style={pickStyle(on)}>
+            {/* 갈래가 둘뿐인 질문이라 한 칸이 500px 넘게 넓다. 그림을 84px 로
+                넣으면 카드가 대부분 빈 채로 남아 화면이 휑해진다. */}
+            <div className="grid h-[184px] place-items-center"
+                 style={{ background: "var(--sunken)" }}>
+              <img src={art[it.id]} alt="" draggable={false}
+                   className="h-[140px] w-auto object-contain" />
+            </div>
+            <div className="px-[18px] pt-4 pb-[18px]">
+              <div className="flex items-center text-[15px] font-bold tracking-tight">
+                <span className="truncate">{it.label}</span>
+                {recommended === it.id ? <Star /> : null}
+              </div>
+              {it.note ? (
+                <div className="mt-1.5 text-[13px] leading-relaxed"
+                     style={{ color: "var(--muted)" }}>{it.note}</div>
+              ) : null}
+            </div>
           </button>
         );
       })}

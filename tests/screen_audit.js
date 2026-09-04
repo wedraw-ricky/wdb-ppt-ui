@@ -203,22 +203,25 @@
   const view = Math.max(1, innerWidth * innerHeight);
   const drawShare = drawn / view;
 
-  let lowest = 0, highest = innerHeight;
+  // 무게중심으로 판단한다. "위쪽 여백" 을 보던 예전 방식은 화면마다 맨 위에
+  // 띠가 생기자 죽어버렸다 — 띠도 내용이라 위쪽 여백이 늘 0 이 된다.
+  // 내용이 차지한 넓이를 세로 위치로 가중해 평균 낸 값이 무게중심이고,
+  // 그게 가운데(0.35~0.65) 근처면 균형 잡힌 화면이다.
+  let lowest = 0, mass = 0, moment = 0;
   for (const el of document.querySelectorAll("body *")) {
     if (!shown(el) || el.children.length) continue;
     const r = el.getBoundingClientRect();
-    if (r.top < innerHeight && r.bottom > 0) {
-      lowest = Math.max(lowest, Math.min(r.bottom, innerHeight));
-      highest = Math.min(highest, Math.max(r.top, 0));
-    }
+    if (r.top >= innerHeight || r.bottom <= 0) continue;
+    lowest = Math.max(lowest, Math.min(r.bottom, innerHeight));
+    const a = area(el);
+    mass += a;
+    moment += a * ((Math.max(r.top, 0) + Math.min(r.bottom, innerHeight)) / 2);
   }
   const scrolls = document.documentElement.scrollHeight > innerHeight + 8;
   const below = Math.max(0, (innerHeight - lowest) / innerHeight);
-  const above = Math.max(0, highest / innerHeight);
-  // 위아래가 비슷하게 비었으면 그건 노는 게 아니라 가운데 정렬이다. 아래만
-  // 남을 때가 문제다 — 내용이 위에 붙고 밑이 통째로 죽는 화면.
-  const centred = below > 0.05 && above / below > 0.6;
-  const emptyBelow = scrolls || centred ? 0 : below;
+  const centre = mass > 0 ? moment / mass / innerHeight : 0.5;
+  const balanced = centre >= 0.35 && centre <= 0.65;
+  const emptyBelow = scrolls || balanced ? 0 : below;
   if (emptyBelow > 0.18) {
     miss("비주얼라이징", "화면 아래가 논다",
       `아래 ${Math.round(emptyBelow * 100)}% 가 빈 채로 남는다`);
@@ -251,7 +254,8 @@
       got: clamp(Math.round(Math.min(1, drawShare / drawTarget) * 12)
                  + Math.round(Math.max(0, 1 - emptyBelow / 0.35) * 8), 20),
       note: `그림 ${(drawShare * 100).toFixed(1)}% (${(drawTarget * 100).toFixed(0)}%면 만점)`
-        + ` · 아래 빈 곳 ${(emptyBelow * 100).toFixed(0)}%${centred ? " (가운데 정렬)" : ""}` },
+        + ` · 아래 빈 곳 ${(emptyBelow * 100).toFixed(0)}%`
+        + ` · 무게중심 ${(centre * 100).toFixed(0)}%${balanced ? " (균형)" : ""}` },
     { name: "AI 슬롭", max: 20, got: clamp(20 - slop.length * 7, 20),
       note: slop.length ? slop.join(", ") : "없음" },
   ];

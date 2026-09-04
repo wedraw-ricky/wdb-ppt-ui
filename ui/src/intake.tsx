@@ -6,6 +6,7 @@
    before any of it is written. */
 
 import { useId, useState } from "react";
+import { Ask, Shell, Steps } from "./shell";
 import * as api from "./api";
 import type { IntakeData } from "./api";
 import { cardStyle, PresetField } from "./selectors";
@@ -159,17 +160,28 @@ export function Intake({ draft, onDone }: {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[860px] flex-col">
-      <header className="border-b px-8 py-6"
-              style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-        <h1 className="text-xl font-bold">먼저, 이 자료가 무엇인지만 알려주세요</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          나머지는 자료를 읽고 제가 채운 다음, 고르실 수 있게 보여드립니다.
-        </p>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
-        <div className="flex flex-col gap-9">
+    <Shell
+      where="시작하기"
+      progress={8}
+      footNote={
+        <span style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
+          {msg || (picked
+            ? `${picked.short} · ${picked.chain.length}단 구성으로 짭니다`
+            : "무엇을 위한 자료인지부터 골라 주세요")}
+        </span>
+      }
+      footActions={
+        <button type="button" onClick={submit}
+                className="h-[50px] rounded-[14px] px-6 text-[15px] font-bold tracking-tight text-white"
+                style={{ background: "var(--accent)",
+                         boxShadow: "0 6px 16px -8px rgba(54,103,255,.9)" }}>
+          자료 읽고 기획 시작 →
+        </button>
+      }>
+      <Steps items={["시작", "기획서", "뼈대", "디자인"]} at={0} />
+      <Ask title="먼저, 이 자료가 무엇인지만 알려주세요"
+           sub="나머지는 자료를 읽고 제가 채운 다음, 고르실 수 있게 보여드립니다. 채운 게 마음에 안 드시면 그 자리에서 바꾸시면 됩니다." />
+      <div className="flex flex-col gap-9">
 
           <Field label="이 자료는 무엇을 위한 건가요?"
                  hint="고르시면 어떤 뼈대로 짜이는지 아래 막대로 보여드립니다">
@@ -264,22 +276,7 @@ export function Intake({ draft, onDone }: {
             </div>
           </Field>
 
-        </div>
       </div>
-
-      <footer className="flex items-center justify-between gap-4 border-t px-8 py-4"
-              style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-        <span className="text-[13px]" style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
-          {msg || (picked
-            ? `${picked.short} · ${picked.chain.length}단 구성으로 짭니다`
-            : "무엇을 위한 자료인지부터 골라 주세요")}
-        </span>
-        <button type="button" onClick={submit}
-                className="rounded-lg px-5 py-2.5 text-[15px] font-semibold text-white"
-                style={{ background: "var(--wdb-primary)" }}>
-          자료 읽고 기획 시작 →
-        </button>
-      </footer>
-    </div>
+    </Shell>
   );
 }
