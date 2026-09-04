@@ -10,7 +10,7 @@ import {
   AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice, IMAGE_PRESETS,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
-import { Deriving, DoneArt } from "./states";
+import { Deriving, Disconnected, DoneArt } from "./states";
 import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
 import { Hero, stageSteps } from "./hero";
 import { Intake } from "./intake";
@@ -80,7 +80,48 @@ function Candidates({
 
 type Phase = "loading" | "intake" | "outline" | "form" | "deriving" | "done" | "error";
 
+// Well inside the server's own idle budget (900s by default), and rare
+// enough that a page left open all afternoon costs nothing worth counting.
+const HEARTBEAT_MS = 30_000;
+
+/** Keep the confirm server alive while this page is open, and say so when it
+    is not. Filling in the form makes no requests — a person reads and types for
+    minutes — and the server's idle watchdog cannot tell that from a closed tab,
+    so it used to shut down under a waiting user. The ping restarts its clock;
+    closing the tab stops the ping and the idle timeout goes back to working.
+
+    One missed ping is a hiccup, not a death: the banner waits for two in a row
+    so a momentary blip does not flash an alarm at someone mid-decision. Pings
+    continue after that — a restarted server reconnects on its own. */
+function useServerAlive(): boolean {
+  const [alive, setAlive] = useState(true);
+  useEffect(() => {
+    let stopped = false;
+    let misses = 0;
+    async function ping() {
+      const ok = await api.heartbeat();
+      if (stopped) return;
+      misses = ok ? 0 : misses + 1;
+      setAlive(ok || misses < 2);
+    }
+    ping();
+    const id = setInterval(ping, HEARTBEAT_MS);
+    return () => { stopped = true; clearInterval(id); };
+  }, []);
+  return alive;
+}
+
 export default function App() {
+  const alive = useServerAlive();
+  return (
+    <>
+      {alive ? null : <Disconnected />}
+      <Confirm />
+    </>
+  );
+}
+
+function Confirm() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [waitTarget, setWaitTarget] = useState(2);
   const [mismatchAck, setMismatchAck] = useState(false);

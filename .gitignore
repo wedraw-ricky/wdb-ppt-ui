@@ -26,3 +26,6 @@ docs/handoff/
 docs/superpowers/
 # OS
 Thumbs.db
+
+# Vite writes this next to the bundle, but the page served is static/index.html.
+static/app/index.html

@@ -11,6 +11,7 @@
    running), and the name of the stage being prepared. */
 
 import { useEffect, useState } from "react";
+import { T } from "./i18n";
 
 const PANEL = "var(--wdb-card-bg)";
 const LINE = "var(--border)";
@@ -152,5 +153,21 @@ export function DoneArt() {
       <path d="M114 74 L126 86 L148 56" fill="none" stroke={CYAN} strokeWidth="9"
             strokeLinecap="square" strokeLinejoin="miter" />
     </svg>
+  );
+}
+
+/** Says the server went away — the one thing this screen cannot recover from
+    on its own. It stays a banner rather than a blocking overlay because the
+    choices already made are still on screen and still readable; the person
+    reopens the page from chat and finds the same questions waiting. */
+export function Disconnected() {
+  return (
+    <div role="status"
+         className="fixed inset-x-0 top-0 z-50 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center"
+         style={{ background: "var(--wdb-charcoal, #21252B)", color: "#FFFFFF" }}>
+      <span className="text-[13px] font-bold">{T.offlineTitle}</span>
+      <span className="text-[13px]" style={{ opacity: 0.82 }}>{T.offlineHint}</span>
+      <span className="text-[12px]" style={{ opacity: 0.6 }}>{T.offlineRetry}</span>
+    </div>
   );
 }

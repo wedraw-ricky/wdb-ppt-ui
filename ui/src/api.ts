@@ -182,6 +182,16 @@ export async function shutdown(): Promise<void> {
   }
 }
 
+/** Tell the server the page is still open. Resolves false when it is gone. */
+export async function heartbeat(): Promise<boolean> {
+  try {
+    const r = await fetch("/api/heartbeat", { method: "POST", cache: "no-store" });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 /* ---------- planning artifacts ----------------------------------------
    These ride their own routes, not the three-stage machine. The confirm
    server owns intake.json / plan_spec.md / outline.md as separate files. */

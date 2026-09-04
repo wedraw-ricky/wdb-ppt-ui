@@ -1015,6 +1015,24 @@ def create_app(
         resp.headers['Cache-Control'] = 'no-store'
         return resp
 
+    @app.route('/api/heartbeat', methods=['POST'])
+    def heartbeat():
+        """Say the page is still open, so the idle watchdog holds off.
+
+        Filling in the form produces no traffic — the user reads, thinks and
+        types for minutes on end — and the watchdog cannot tell that apart
+        from a closed tab. It killed the server under a waiting user twice.
+        The browser pings this while the page lives; when the tab closes the
+        pings stop and the idle timeout goes back to doing its job.
+
+        Deliberately the cheapest route here: no disk read, no JSON parse.
+        ``_update_activity`` above has already reset the clock by the time
+        this body runs.
+        """
+        resp = jsonify({'status': 'ok'})
+        resp.headers['Cache-Control'] = 'no-store'
+        return resp
+
     @app.route('/api/health')
     def health():
         """Expose a cheap readiness probe for the daemon launcher."""

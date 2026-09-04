@@ -139,6 +139,15 @@ belongs to, and the chain of sections were settled upstream by
 the screen owes the person is that nothing they choose here is refused later
 without warning.
 
+### The page keeps the server alive, and never hides that it is gone
+
+Reading and typing produce no traffic. The server cannot distinguish that from a closed tab, so
+the page says it is there — a ping every 30 seconds, for as long as the page exists. Closing the
+tab stops the ping, and the idle timeout goes back to doing its job. When two pings in a row go
+unanswered the page states it plainly and keeps the answers already on screen: the person reopens
+from chat and finds the same questions. One missed ping shows nothing — an alarm that flashes
+mid-decision costs more than the blip it reports.
+
 ### A wait must prove it is alive without inventing progress
 
 Looping art alone reads as frozen within a few seconds — the viewer recognises the loop. The
@@ -192,6 +201,7 @@ defect, not a wording problem.
 | 2026-09-04 | Confirming stamps `confirmed_at` into the outline | It records that a person approved the spine, and the agent waits on this file *changing* — so an outline nobody edited still has to differ from the one the agent wrote, or the run hangs |
 | 2026-09-04 | The chosen flow is shown, never re-picked here | Re-selecting a flow is a regeneration only `outline.py --scaffold` performs, and no route exposes it at this point; the button in the sketch would have promised what the pipeline cannot do |
 | 2026-09-04 | Merging names the section that loses its own chapter | `--check` credits one section per chapter, so a merge can cost the later section its slide; saying so beats a check failing after the window closes |
+| 2026-09-04 | The page pings the server while it is open, and says so when it stops answering | Filling in the form makes no requests, so the server's idle watchdog could not tell a reading user from a closed tab and shut down under one twice; the ping restarts its clock, and closing the tab stops the ping so the timeout still works. The banner waits for two missed pings — one blip must not flash an alarm mid-decision |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |

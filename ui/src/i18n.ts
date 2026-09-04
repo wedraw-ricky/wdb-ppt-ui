@@ -14,6 +14,10 @@ export const T = {
   confirmedHint: "선택이 저장됐습니다. 이 창을 닫고 채팅으로 돌아가세요.",
   recommended: "추천",
 
+  offlineTitle: "연결이 끊겼습니다",
+  offlineHint: "고르신 내용은 이 화면에 그대로 있습니다. 채팅으로 돌아가 다시 열어 주세요.",
+  offlineRetry: "다시 연결해 보는 중…",
+
   secTemplate: "이미 있는 디자인을 쓸까요?",
   secCanvas: "어떤 크기로 만들까요?",
   secAudience: "누가 보나요?",
