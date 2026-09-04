@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """
-The confirm server's idle watchdog, and the heartbeat that holds it off.
+What the confirm page needs from the server while a person is waiting on it.
+
+Two failures, one root: the page had no way to say it was still there, and the
+server had no way to say what it was doing.
 
 Filling in the confirm form makes no requests — a person reads, thinks and
 types for minutes — and the watchdog cannot tell that apart from a closed tab.
 It shut the server down under a waiting user twice. The heartbeat is the fix,
 and it has to work in both directions: hold the server open while the page is
 there, and still let it go when the page is gone.
+
+The progress notes are what the waiting screen reads. They are a record of
+what happened, never a forecast: a count or a total would be invented, since
+nothing here knows how much work is left.
 
 Skipped where Flask is absent; it is an optional dependency of this repository
 (`preflight.py` reports it), and the suite installs nothing.
@@ -25,7 +32,10 @@ import unittest
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / ".claude/skills/ppt-master/scripts"
+sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(SCRIPTS / "confirm_ui"))
+
+import confirm_progress  # noqa: E402
 
 try:
     import server as confirm_server
@@ -84,6 +94,88 @@ class Heartbeat(unittest.TestCase):
             stray.unlink()
         with app.test_client() as client:
             self.assertEqual(client.post("/api/heartbeat").status_code, 200)
+
+
+class ProgressNotes(unittest.TestCase):
+    """The waiting screen's only real content. Everything else on it is either
+    a loop or a clock."""
+
+    def project(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "confirm_ui").mkdir()
+        return root
+
+    def test_notes_come_back_in_the_order_they_happened(self):
+        root = self.project()
+        for i, note in enumerate(["자료 읽는 중", "뼈대 세우는 중", "대본 쓰는 중"]):
+            confirm_progress.append_note(root, note, now=1000.0 + i)
+        self.assertEqual([n["note"] for n in confirm_progress.read_notes(root, now=1010.0)],
+                         ["자료 읽는 중", "뼈대 세우는 중", "대본 쓰는 중"])
+
+    def test_a_note_from_an_earlier_wait_is_dropped(self):
+        # Otherwise the page tells the person the agent is doing something it
+        # finished before they even got there.
+        root = self.project()
+        confirm_progress.append_note(root, "지난번 것", now=0.0)
+        confirm_progress.append_note(root, "지금 것", now=10_000.0)
+        self.assertEqual([n["note"] for n in confirm_progress.read_notes(root, now=10_000.0)],
+                         ["지금 것"])
+
+    def test_the_file_does_not_grow_without_bound(self):
+        root = self.project()
+        for i in range(confirm_progress.MAX_NOTES + 15):
+            confirm_progress.append_note(root, f"{i}번", now=1000.0 + i)
+        kept = confirm_progress.read_notes(root, now=1000.0 + confirm_progress.MAX_NOTES + 20)
+        self.assertEqual(len(kept), confirm_progress.MAX_NOTES)
+        self.assertEqual(kept[-1]["note"], f"{confirm_progress.MAX_NOTES + 14}번")
+
+    def test_no_file_is_not_an_error(self):
+        self.assertEqual(confirm_progress.read_notes(self.project()), [])
+
+    def test_a_damaged_file_is_not_an_error(self):
+        # The page polls this while it is being written. A parse failure must
+        # read as "nothing yet", never break the waiting screen.
+        root = self.project()
+        (root / "confirm_ui" / "progress.json").write_text("{ broken", encoding="utf-8")
+        self.assertEqual(confirm_progress.read_notes(root), [])
+
+    def test_an_empty_note_is_refused(self):
+        root = self.project()
+        self.assertEqual(confirm_progress.main([str(root), "   "]), 1)
+        self.assertEqual(confirm_progress.read_notes(root), [])
+
+
+@unittest.skipIf(confirm_server is None, "Flask not installed")
+class ProgressRoute(unittest.TestCase):
+
+    def test_route_reports_ages_not_clock_times(self):
+        # The page compares these against its own wait, so a timestamp would
+        # mean trusting two clocks to agree.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "confirm_ui").mkdir()
+        (root / "project_meta.json").write_text(
+            json.dumps({"title": "t", "canvas_format": "ppt169"}), encoding="utf-8")
+        confirm_progress.append_note(root, "자료 읽는 중", now=time.time() - 5)
+        app = confirm_server.create_app(str(root), idle_timeout=0)
+        with app.test_client() as client:
+            body = client.get("/api/progress").get_json()
+        self.assertEqual(len(body["notes"]), 1)
+        self.assertEqual(body["notes"][0]["note"], "자료 읽는 중")
+        self.assertGreaterEqual(body["notes"][0]["age_seconds"], 4)
+        self.assertNotIn("at", body["notes"][0])
+
+    def test_route_is_quiet_when_nothing_has_happened(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "confirm_ui").mkdir()
+        app = confirm_server.create_app(str(root), idle_timeout=0)
+        with app.test_client() as client:
+            self.assertEqual(client.get("/api/progress").get_json(), {"notes": []})
 
 
 if __name__ == "__main__":

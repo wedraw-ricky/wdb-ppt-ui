@@ -12,7 +12,7 @@ Neither suite installs anything. Python uses `unittest`; the TypeScript suite
 uses Node's own runner and type stripping, so `model.ts` is read as-is.
 
 ```bash
-python3 -m unittest discover -s tests                       # 계약 + 게이트 · 93건
+python3 -m unittest discover -s tests                       # 계약 + 게이트 · 106건
 node --test --experimental-strip-types tests/*.test.mts     # 화면 모델 · 17건
 ```
 
@@ -26,6 +26,7 @@ node --test --experimental-strip-types tests/*.test.mts     # 화면 모델 · 1
 | `test_planning.py` | `plan_spec.py` parsing (status · heading · 별첨), `report_form.py` body markup and inline rules, form presets and the type scale, slide titles in `outline.py`, `--format auto` |
 | `test_gates.py` | The two checks that decide whether a run may advance — `plan_spec.py --check` (E-FACT · E-PAIR · E-GOAL · E-ALT · E-IR · E-ORDER, frame resolution) and `outline.py --check` (E-OPEN · E-ALT · E-IR · E-SHAPE · E-COVER · E-SYNC, layout assignment, §IX parity) |
 | `test_judgment_gates.py` | The four gates that stop an expensive mistake — `template_install_preflight.py` (canvas mismatch stops the install), `_conversion_profile.compare_source_counts` (tables and images lost in conversion), and `svg_quality_checker` `[VERDICT]` (a pass that a truncated read cannot fake) |
+| `test_confirm_server.py` | What the confirm page needs from the server while someone waits on it — the heartbeat that stops the idle watchdog killing a page in use, and the progress notes the waiting screen lists (order, the stale cutoff, the cap, a damaged file). Skipped without Flask |
 | `outline-model.test.mts` | `ui/src/outline/model.ts` — the `outline.md` round trip, the multi-line recovery, the §8 edits, and the checks the screen shows before saving |
 
 ## The design's own matrix

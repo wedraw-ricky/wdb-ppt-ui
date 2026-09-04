@@ -182,6 +182,24 @@ export async function shutdown(): Promise<void> {
   }
 }
 
+export interface ProgressNote {
+  note: string;
+  age_seconds: number;
+}
+
+/** What the agent has done so far. Ages, not clock times — the page decides
+    which of these belong to the wait it is currently showing. */
+export async function progressNotes(): Promise<ProgressNote[]> {
+  try {
+    const r = await fetch("/api/progress", { cache: "no-store" });
+    if (!r.ok) return [];
+    const body = await r.json();
+    return Array.isArray(body?.notes) ? body.notes : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Tell the server the page is still open. Resolves false when it is gone. */
 export async function heartbeat(): Promise<boolean> {
   try {

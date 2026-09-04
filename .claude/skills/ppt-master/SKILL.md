@@ -105,6 +105,7 @@ enhancement do not load or inherit this file.
 | `${SKILL_DIR}/scripts/slice_images.py` | Slice one AI illustration sheet into individual spot-illustration elements |
 | `${SKILL_DIR}/scripts/svg_authoring_view.py` | Create a lightweight non-destructive inspection projection of PPTX-imported SVGs; never a release source |
 | `${SKILL_DIR}/scripts/template_install_preflight.py` | Canvas gate before a template install |
+| `${SKILL_DIR}/scripts/confirm_progress.py` | One progress line for the waiting confirm page |
 | `${SKILL_DIR}/scripts/svg_quality_checker.py` | SVG quality check |
 | `${SKILL_DIR}/scripts/text_fit.py` | Pre-draw line-fit oracle — checker-identical width verdict + balanced-break suggestion before authoring text (free-design speed path; see `references/executor-cheatcard.md` §4) |
 | `${SKILL_DIR}/scripts/validate_spec.py` | Planning artifact gate — `design_spec.md` §IX/§VII + `spec_lock.md` coherence, run right after the Step 4 spec output |
@@ -471,6 +472,26 @@ Write `<project_path>/intake.json`. `frame` is derived by `plan_spec.py`, never 
 
 🚧 **GATE**: `intake.json` exists.
 
+**Progress notes (mandatory from here through Step 4.2)** — the user is watching a page that shows one unchanging label while this runs, and this stretch takes minutes. Record each boundary as you reach it:
+
+```bash
+python3 ${SKILL_DIR}/scripts/confirm_progress.py <project_path> "<한 줄>"
+```
+
+| Write one when | Example |
+|---|---|
+| Starting to read the sources | `자료 3건 읽는 중` |
+| The plan skeleton is written | `기획 뼈대 세우는 중` |
+| Each frame section is filled | `현상·원인 정리하는 중` |
+| The check passes | `기획서 점검 통과` |
+| The 기획서 document is written | `기획서 파일 만드는 중` |
+| Flow candidates are proposed | `발표 흐름 두 가지 짜는 중` |
+| The outline rows are filled | `장별 제목과 대본 쓰는 중` |
+| A template is installed (Step 4) | `덱 템플릿 설치 중` |
+| Recommendations are being authored (Step 4) | `색과 글꼴 후보 고르는 중` |
+
+One short Korean line, in the user's words — what is happening, not which script is running. **Forbidden**: a count, a total, a percentage, or an estimate of what is left. Nothing here measures the remaining work.
+
 ```
 Read references/planner.md
 ```
@@ -540,7 +561,7 @@ python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --wait-planning
 python3 ${SKILL_DIR}/scripts/outline.py <project_path> --check
 ```
 
-**✅ Checkpoint — `outline.md` confirmed by the user and `outline.py --check` passes.**
+**✅ Checkpoint — `outline.md` confirmed by the user, `outline.py --check` passes, and each boundary above was recorded with `confirm_progress.py`.**
 
 ---
 

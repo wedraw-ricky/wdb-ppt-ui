@@ -410,6 +410,18 @@ def _read_session(confirm_dir: Path) -> dict:
         return {}
 
 
+def _progress_notes(project_path: Path, *, now: Optional[float] = None) -> list:
+    """Read the agent's progress notes, if the writer script is reachable."""
+    try:
+        from confirm_progress import read_notes  # noqa: PLC0415
+    except ImportError:
+        return []
+    try:
+        return read_notes(project_path, now=now)
+    except OSError:
+        return []
+
+
 def _build_session_state(
     confirm_dir: Path,
     *,
@@ -1012,6 +1024,24 @@ def create_app(
             out[key] = {'exists': path.is_file(),
                         'version': _file_version(path) if path.is_file() else None}
         resp = jsonify(out)
+        resp.headers['Cache-Control'] = 'no-store'
+        return resp
+
+    @app.route('/api/progress')
+    def progress():
+        """Report what the agent has done during this wait.
+
+        Ages, not timestamps: the page filters to the notes that arrived since
+        it started waiting, and comparing two clocks — even on one machine —
+        is one more thing that can be subtly wrong. Notes say what already
+        happened; nothing here counts what is left.
+        """
+        now = time.time()
+        notes = _progress_notes(project_path, now=now)
+        resp = jsonify({'notes': [
+            {'note': n['note'], 'age_seconds': max(0, int(now - n['at']))}
+            for n in notes
+        ]})
         resp.headers['Cache-Control'] = 'no-store'
         return resp
 

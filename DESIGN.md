@@ -148,6 +148,16 @@ unanswered the page states it plainly and keeps the answers already on screen: t
 from chat and finds the same questions. One missed ping shows nothing — an alarm that flashes
 mid-decision costs more than the blip it reports.
 
+### A wait shows what already happened, never what is left
+
+The stage label is one line and it does not change; within about half a minute the screen reads
+as frozen even while the counter ticks. So the agent records each boundary it reaches — reading
+the sources, filling a section, writing the 기획서 — and the screen lists them: a tick on the ones
+that finished, a caret on the one running. Every line is a fact about the past. No count, no
+total, no percentage: the rule below is not relaxed by having more to say, and the moment the
+screen implies "4 of 7" it is inventing a number nothing measured. Once the list is running the
+generic sentence under it drops to the one instruction that still matters.
+
 ### A wait must prove it is alive without inventing progress
 
 Looping art alone reads as frozen within a few seconds — the viewer recognises the loop. The
@@ -201,6 +211,7 @@ defect, not a wording problem.
 | 2026-09-04 | Confirming stamps `confirmed_at` into the outline | It records that a person approved the spine, and the agent waits on this file *changing* — so an outline nobody edited still has to differ from the one the agent wrote, or the run hangs |
 | 2026-09-04 | The chosen flow is shown, never re-picked here | Re-selecting a flow is a regeneration only `outline.py --scaffold` performs, and no route exposes it at this point; the button in the sketch would have promised what the pipeline cannot do |
 | 2026-09-04 | Merging names the section that loses its own chapter | `--check` credits one section per chapter, so a merge can cost the later section its slide; saying so beats a check failing after the window closes |
+| 2026-09-04 | The waiting screen lists the agent's own notes, ticked as they finish | A fixed stage label reads as frozen within half a minute — the counter proves the page is alive but not that the work is. Notes are a record of the past, so they add movement without implying a total the pipeline never measured |
 | 2026-09-04 | The page pings the server while it is open, and says so when it stops answering | Filling in the form makes no requests, so the server's idle watchdog could not tell a reading user from a closed tab and shut down under one twice; the ping restarts its clock, and closing the tab stops the ping so the timeout still works. The banner waits for two missed pings — one blip must not flash an alarm mid-decision |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
