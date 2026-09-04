@@ -44,6 +44,55 @@ from typing import Optional
 
 CACHE_DIR = ".stage_cache"
 
+# 값 하나가 바뀌면 무엇이 따라서 무효가 되는가 (E-8 v2).
+#
+# 지어낸 것이 아니라 `references/strategist.md` 가 이미 말하고 있는 지배
+# 관계를 옮긴 것이다:
+#   §d 55행 — visual_style 이 색(e) · 아이콘(f) · 서체(g) 를 지배하고,
+#             delivery_purpose 가 본문 크기 · 밀도 · 쪽수(b) 를 정한다.
+#             이미지 팔레트는 §e 색을 따른다.
+#   §d 63행 — 덱 카드를 고르면 그 덱이 선언한 방향값(canvas · mode ·
+#             visual_style · delivery_purpose)이 다시 기본값으로 깔리고,
+#             덱의 스킨이 색 · 서체를 덮는다.
+#   E-2 게이트 — 캔버스가 바뀌면 템플릿이 맞는지 다시 봐야 한다.
+#
+# 여기에 없는 필드는 아무것도 지배하지 않는다. 확실하지 않은 것을 넣으면
+# 안 바뀌어도 될 값이 다시 뽑히고, 그것은 사람이 고른 것을 지우는 일이다.
+GOVERNS: dict[str, tuple[str, ...]] = {
+    "template": ("canvas", "mode", "visual_style", "delivery_purpose",
+                 "color", "typography"),
+    "canvas": ("template",),
+    "visual_style": ("color", "icons", "typography", "image_source"),
+    "delivery_purpose": ("typography", "page_count"),
+    "color": ("image_source",),
+}
+
+
+def stale(changed, user_edited=()) -> list[str]:
+    """What must be re-derived after these fields moved.
+
+    Follows `GOVERNS` transitively, and stops at anything the user set
+    themselves: strategist.md §d — "re-derive only the downstream fields the
+    user did not edit — user-set values stay verbatim". A field the user chose
+    keeps its value, so nothing below it goes stale through it either.
+
+    The changed fields are not themselves returned; they already hold their
+    new value.
+    """
+    held = set(user_edited)
+    out: set[str] = set()
+    queue = [f for f in changed]
+    seen = set(queue)
+    while queue:
+        field = queue.pop()
+        for downstream in GOVERNS.get(field, ()):
+            if downstream in held or downstream in seen:
+                continue
+            seen.add(downstream)
+            out.add(downstream)
+            queue.append(downstream)
+    return sorted(out - set(changed))
+
 
 def cache_dir(project: Path) -> Path:
     return project / CACHE_DIR
@@ -129,6 +178,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--end", metavar="STAGE", help="Stop timing a transition")
     mode.add_argument("--report", action="store_true",
                       help="Print how long each transition took")
+    mode.add_argument("--stale", metavar="FIELDS",
+                      help="Comma-separated fields the user changed; prints "
+                           "what must be re-derived")
+    parser.add_argument("--edited", metavar="FIELDS", default="",
+                        help="Comma-separated fields the user set themselves — "
+                             "these keep their value and are never re-derived")
     parser.add_argument("--assumed", help="JSON object of assumed anchor values")
     parser.add_argument("--confirmed", help="JSON object of confirmed anchor values")
     return parser
@@ -149,7 +204,9 @@ def _payload(raw: Optional[str], flag: str) -> dict:
 def main(argv: Optional[list[str]] = None) -> int:
     args = build_parser().parse_args(argv)
     project = Path(args.project_path).resolve()
-    if not project.is_dir():
+    # --stale 은 계약만 보고 답하므로 프로젝트가 없어도 된다. "무엇을 다시
+    # 뽑아야 하나" 는 폴더를 만들기 전에도 물을 수 있는 질문이다.
+    if not args.stale and not project.is_dir():
         print(f"[stage_cache] project not found: {project}", file=sys.stderr)
         return 1
 
@@ -161,6 +218,18 @@ def main(argv: Optional[list[str]] = None) -> int:
         for stage, seconds in rows:
             shown = f"{seconds:.0f}s" if seconds is not None else "미완료"
             print(f"  {stage:<12} {shown}")
+        return 0
+
+    if args.stale:
+        def split(raw: str) -> list[str]:
+            return [f.strip() for f in raw.split(",") if f.strip()]
+        changed = split(args.stale)
+        rest = stale(changed, split(args.edited))
+        print("바뀐 값 : " + ", ".join(changed))
+        if rest:
+            print("다시 뽑을 것: " + ", ".join(rest))
+        else:
+            print("다시 뽑을 것: 없음 — 이 값에 매달린 것이 없습니다")
         return 0
 
     if args.begin or args.end:

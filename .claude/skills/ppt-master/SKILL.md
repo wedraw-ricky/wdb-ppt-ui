@@ -642,9 +642,22 @@ curl -s localhost:<port>/api/confirmed        # 확정 값, 단계별로
 ```
 
 Or read `<project>/confirm_ui/result.json` directly when the server is down.
-Re-derive only what depends on the field being changed; everything else keeps
-the value the user already chose. Saying "처음부터 다시 해야 합니다" when only
-one field moved is the failure this exists to prevent.
+
+Then ask what actually goes stale, instead of re-deriving the bundle:
+
+```bash
+python3 ${SKILL_DIR}/scripts/stage_cache.py <project_path> \
+    --stale <바뀐 필드> --edited <사용자가 직접 고른 필드>
+```
+
+It answers from `strategist.md` §d's governance — `visual_style` governs colour,
+icon and typography; `delivery_purpose` sets body size and page count; a deck
+card re-defaults the anchors it declares. **Everything not listed keeps the value
+the user already chose**, and a field the user set themselves is never re-derived
+even when something above it moved (§d: "user-set values stay verbatim").
+
+Saying "처음부터 다시 해야 합니다" when only one field moved is the failure this
+exists to prevent.
 
 First, read the role definition:
 ```

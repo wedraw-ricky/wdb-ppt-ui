@@ -312,6 +312,59 @@ class FigureRules(unittest.TestCase):
              if "수치" in e], [])
 
 
+class Restage(unittest.TestCase):
+    """한 값을 고치면 무엇을 다시 뽑아야 하나 (E-8 v2).
+
+    지배 관계는 strategist.md §d 에 이미 적혀 있는 것을 옮긴 것이라, 여기서
+    검사하는 것은 '계약대로 번지는가' 와 '사람이 고른 것을 지우지 않는가' 다.
+    필요 이상으로 번지면 사람이 고른 값이 지워진다."""
+
+    def test_색은_이미지에만_번진다(self):
+        # h.5 팔레트는 §e 색을 따른다. 그 외에는 아무것도 색에 매달리지 않는다.
+        self.assertEqual(stage_cache.stale(["color"]), ["image_source"])
+
+    def test_시각_스타일은_색_아이콘_서체를_지배한다(self):
+        self.assertEqual(
+            stage_cache.stale(["visual_style"]),
+            ["color", "icons", "image_source", "typography"])
+
+    def test_전달_목적은_서체와_쪽수를_정한다(self):
+        self.assertEqual(stage_cache.stale(["delivery_purpose"]),
+                         ["page_count", "typography"])
+
+    def test_아무것도_지배하지_않는_값도_있다(self):
+        for field in ("page_count", "icons", "typography", "audience"):
+            self.assertEqual(stage_cache.stale([field]), [], field)
+
+    def test_사람이_고른_값은_다시_뽑지_않는다(self):
+        got = stage_cache.stale(["visual_style"], user_edited=["typography"])
+        self.assertNotIn("typography", got)
+
+    def test_사람이_고른_값_아래로는_번지지_않는다(self):
+        # 캔버스 → 템플릿 → (나머지 전부) 사슬에서 템플릿을 직접 고르셨으면,
+        # 캔버스를 바꿔도 그 아래로는 아무것도 번지지 않는다.
+        self.assertEqual(
+            stage_cache.stale(["canvas"], user_edited=["template"]), [])
+
+    def test_이미지는_색과_시각_스타일_양쪽에_매달린다(self):
+        # 계약 §d 55행이 이미지를 둘로 나눈다 — 그림체는 시각 방향을 따르고
+        # 팔레트만 §e 색을 따른다. 그래서 색을 직접 고르셨어도 시각 스타일이
+        # 바뀌면 그림체는 다시 뽑아야 한다.
+        got = stage_cache.stale(["visual_style"], user_edited=["color"])
+        self.assertNotIn("color", got)
+        self.assertIn("image_source", got)
+
+    def test_바뀐_값_자신은_다시_뽑을_목록에_없다(self):
+        # 이미 새 값을 들고 있다. 목록에 넣으면 방금 고른 것을 덮어쓴다.
+        self.assertNotIn("template", stage_cache.stale(["template"]))
+
+    def test_서로_지배하는_값이_있어도_멈춘다(self):
+        # canvas 와 template 은 서로를 가리킨다. 순환에서 안 돌아야 한다.
+        got = stage_cache.stale(["canvas"])
+        self.assertIn("template", got)
+        self.assertNotIn("canvas", got)
+
+
 class WorkAhead(unittest.TestCase):
     """단계 전환 시간 (PRD §14 7번) — 미리 뽑아둔 것이 아직 유효한지 판단한다.
 
