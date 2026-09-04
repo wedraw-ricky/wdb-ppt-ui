@@ -104,6 +104,7 @@ enhancement do not load or inherit this file.
 | `${SKILL_DIR}/scripts/image_gen.py` | AI image generation (multi-provider) |
 | `${SKILL_DIR}/scripts/slice_images.py` | Slice one AI illustration sheet into individual spot-illustration elements |
 | `${SKILL_DIR}/scripts/svg_authoring_view.py` | Create a lightweight non-destructive inspection projection of PPTX-imported SVGs; never a release source |
+| `${SKILL_DIR}/scripts/template_install_preflight.py` | Canvas gate before a template install |
 | `${SKILL_DIR}/scripts/svg_quality_checker.py` | SVG quality check |
 | `${SKILL_DIR}/scripts/text_fit.py` | Pre-draw line-fit oracle — checker-identical width verdict + balanced-break suggestion before authoring text (free-design speed path; see `references/executor-cheatcard.md` §4) |
 | `${SKILL_DIR}/scripts/validate_spec.py` | Planning artifact gate — `design_spec.md` §IX/§VII + `spec_lock.md` coherence, run right after the Step 4 spec output |
@@ -224,7 +225,19 @@ inputs or directory inputs, `-o` is an output directory. Backend converter detai
 > Browser-based live preview cannot render EMF (will show blank) — this is expected;
 > the PPTX output is the source of truth.
 
-**✅ Checkpoint — Confirm source content is ready, proceed to Step 2.**
+**Conversion-loss gate (mandatory)** — the converter counts the tables and images in the source itself, records them in `<stem>.conversion_profile.json` under `source.counts`, and compares them with what came out. Read `warnings[]` from every profile the conversion wrote:
+
+```bash
+python3 -c "import json,sys,glob; [print(f) or [print('  -',w) for w in json.load(open(f,encoding='utf-8')).get('warnings',[])] for f in sorted(glob.glob(sys.argv[1]))]" '<dir>/*.conversion_profile.json'
+```
+
+- `warnings[]` empty on every profile → proceed to Step 2.
+- **Any warning → stop.** Show it to the user and ask them to check the original. Do not proceed on the converted Markdown, and do not decide for them that the loss is acceptable.
+- The counts are recorded whether or not they disagree, so an empty `warnings[]` is evidence, not merely an absence.
+
+> Note: a deck built on a source whose tables silently became prose carries no numbers, and nobody finds out until the deck is finished.
+
+**✅ Checkpoint — Confirm source content is ready and every conversion profile's `warnings[]` is empty, proceed to Step 2.**
 
 ---
 
@@ -333,6 +346,26 @@ Normalize every explicit path before any write:
 | Current workspace: `<root>/templates/design_spec.md` | `<root>/templates/` | Any existing `<root>/images/`, `<root>/icons/` | Map the existing portable roots to the target project's matching roots; ignore `<root>/exports/` |
 | Compatible legacy-flat package: `<root>/design_spec.md` | `<root>/` | Package-local files | SVG/spec/non-bitmaps → project `templates/`; bitmaps → project `images/`; route declared icons to project `icons/` |
 
+**Canvas gate (mandatory, runs first — before any path resolution or copy)**:
+```bash
+python3 ${SKILL_DIR}/scripts/template_install_preflight.py <project_path> --template <deck_id>
+python3 ${SKILL_DIR}/scripts/template_install_preflight.py <project_path> --template-path <workspace_path>
+```
+| Exit | Do |
+|---|---|
+| `0` | Proceed to the atomic preflight below |
+| `2` | **Stop.** Copy no file, create no `templates/`, print the script's two options and wait for the user's answer. No automatic correction, either direction |
+| `1` | Bad path — fix the argument and re-run |
+
+> Note: a deck's Master/Layout geometry is fixed to the canvas it was drawn for, so installing it onto another one promises a re-layout that never happens and the pages get drawn and then thrown away.
+
+**Forbidden** — these three claims are false, whatever the user asks:
+- "the template will be re-laid out for the other ratio"
+- "`adaptive` will build a new Master for this canvas"
+- "the structured route follows whatever canvas you pick"
+
+Say the script's sentence instead: a different canvas keeps the color, type and rules, and re-composes every page from scratch as a flat document with no slide master.
+
 **Atomic install preflight (mandatory)**: Resolve source and destination paths, enumerate the complete file mapping, and reject every destination collision before copying any file. Equality between a current project workspace root and the target project root means in-place consumption and no copy. For an external single path, a collision stops Step 3 rather than overwriting. For multi-path fusion, do not copy packages sequentially: resolve segment conflicts and asset-name conflicts first, construct one final mapping, then write it once. Never use recursive copy as an implicit conflict policy.
 
 Never infer that a flat directory has legacy Master/Layout semantics solely from packaging.
@@ -404,7 +437,7 @@ The fused frontmatter `kind` describes the resulting bundle: `deck` when both id
 
 #### Deferred install — template card
 
-When Step 3 took the free-design default, the Step 4 Confirm UI page still offers a decks-only template card (catalog synced live from `decks_index.json`; free design is the default). If the confirmed `result.json` carries `template: "<deck_id>"`, run this Step's install for `templates/decks/<deck_id>/` at that point — same kind matrix, same structured-template preflight, no bypass — in the same turn, before writing `design_spec.md` / `spec_lock.md` (the deck-declared skin then overrides the color / typography fields the user left at your original recommendation — Step 4 reconciliation). On preflight failure do NOT silently fall back to free design: report the error in chat and let the user re-pick (another deck or free design). `template: "free"` (or the field's absence) keeps the free-design path. When a template was already installed via an explicit path, the card renders locked (informational) and no deferred install happens.
+When Step 3 took the free-design default, the Step 4 Confirm UI page still offers a decks-only template card (catalog synced live from `decks_index.json`; free design is the default). If the confirmed `result.json` carries `template: "<deck_id>"`, run this Step's install for `templates/decks/<deck_id>/` at that point — same kind matrix, same canvas gate, same structured-template preflight, no bypass — in the same turn, before writing `design_spec.md` / `spec_lock.md` (the deck-declared skin then overrides the color / typography fields the user left at your original recommendation — Step 4 reconciliation — **except a named client's CI color, which the skin never overrides**; see `references/strategist.md` §e). On preflight failure do NOT silently fall back to free design: report the error in chat and let the user re-pick (another deck or free design). `template: "free"` (or the field's absence) keeps the free-design path. When a template was already installed via an explicit path, the card renders locked (informational) and no deferred install happens.
 
 **✅ Checkpoint — Default path proceeds to Step 4 without user interaction. If the user supplied one or more explicit template paths, those have been copied, staged in place, or fused into `<project_path>/templates/` before advancing. A template-card selection installs later, at the Step 4 confirmation handoff (see Deferred install above).**
 
@@ -826,6 +859,9 @@ The page-1 run is the strictest instance — structural violations are systemati
 ```bash
 python3 ${SKILL_DIR}/scripts/svg_quality_checker.py <project_path>
 ```
+- **Forbidden — reading this output through `head`, `tail`, `grep`, or any other filter, and declaring a pass from a partial read.** Take the outcome from the `[VERDICT]` line only: `[VERDICT] PASS|FAIL | errors: N (deck-level D, page-level P) | warnings: W | files: T`. It prints at both the top and the bottom of the summary and is written to stderr as well, so a piped stdout cannot lose it. A pass needs `PASS` with `errors: 0`. Same rule for the milestone gate above.
+
+  > Note: deck-wide findings print after every per-page line, so a truncated read shows passing pages and reports "0 errors" while deck-level errors stand.
 - Any `error` (banned SVG features, viewBox mismatch, spec_lock drift, text-geometry overflow / cross-group collision, etc.) MUST be fixed before proceeding — return to Visual Construction, regenerate that page, re-run check.
 - `warning` entries (low-res image, non-PPT-safe font tail, etc.): fix when straightforward, otherwise acknowledge and release.
 - **Text-geometry warnings are never acknowledge-and-release.** For each `text geometry:` warning (unnecessary wrap / over-width copy), output one disposition line: the fix applied (unwrap to one line, redistribute the zone, re-break at a balanced word boundary, or apply a bounded copy trim per the executor-base.md repair ladder — trims are the last resort and capped; never gut the copy to force a fit) or why the flagged break is intended (e.g. a deliberate balanced two-line lead, quoted verse keeping its authored breaks). Default is fix.
@@ -849,7 +885,7 @@ The Step 6 live-preview server is already running — pass its actual URL from t
 - [x] text_fit.py page-object batch run before drawing each non-trivial page (pre-clears width + vertical + collision; hand-eyeballing the geometry is the documented miss)
 - [x] Milestone gate run (page 1 + every 4 pages via --pages block; errors fixed and text-geometry warnings dispositioned per block)
 - [x] All SVGs generated to svg_output/
-- [x] svg_quality_checker.py passed (0 errors)
+- [x] svg_quality_checker.py [VERDICT] line read whole (not through head/tail/grep): PASS, errors 0 — deck-level 0 and page-level 0
 - [x] Text-geometry warnings dispositioned one by one (fix or stated intent)
 - [x] Selective pixel check run on flagged + hero/scrim pages (silently skipped when playwright or the preview server is absent)
 - [x] Structured-template PPTX warnings dispositioned one by one when applicable

@@ -1328,6 +1328,40 @@ def should_merge_lines(current: dict, next_line: dict) -> bool:
     return True
 
 
+def _profile_warnings(profile_path) -> list[str]:
+    """Read back the warnings the profile writer recorded, if any."""
+    try:
+        payload = json.loads(Path(profile_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    warnings = payload.get("warnings")
+    return [str(item) for item in warnings] if isinstance(warnings, list) else []
+
+
+def count_source_objects(doc: "fitz.Document") -> dict[str, int]:
+    """Count tables and images in the PDF itself, before any conversion.
+
+    Deliberately independent of the extraction path below: the point is to
+    have a second opinion the conversion cannot talk itself out of. A PDF
+    whose three tables all arrive as loose paragraphs looks perfectly healthy
+    from the output alone — this is the only place the loss is visible.
+    Detection failures count as zero rather than raising; a profile with an
+    undercount is still better than no conversion.
+    """
+    tables = 0
+    images = 0
+    for page in doc:
+        try:
+            tables += len(list(page.find_tables()))
+        except Exception:
+            pass
+        try:
+            images += len(page.get_images(full=True))
+        except Exception:
+            pass
+    return {"tables": tables, "images": images}
+
+
 def extract_pdf_to_markdown(
     pdf_path: str,
     output_path: str = None,
@@ -1357,6 +1391,10 @@ def extract_pdf_to_markdown(
         print(f"[HINT] {len(doc)} pages — for very large PDFs, consider splitting "
               f"the source by chapter beforehand (e.g. with pdftk / qpdf / PyPDF2) "
               f"and converting each part individually.")
+
+    source_counts = count_source_objects(doc)
+    print(f"[INFO] Source objects: tables={source_counts['tables']}, "
+          f"images={source_counts['images']}")
 
     filename = Path(pdf_path).stem
     title = re.sub(r'^\d+-', '', filename).strip()
@@ -1736,10 +1774,15 @@ def extract_pdf_to_markdown(
             converter="pdf_to_md.py",
             conversion_type="pdf",
             asset_dir=img_dir,
+            source_counts=source_counts,
         )
         print(f"[OK] Saved Markdown to: {output_path}")
         if profile_path:
             print(f"   Wrote conversion profile -> {profile_path}")
+            loss = _profile_warnings(profile_path)
+            for message in loss:
+                print(f"[WARN] {message}")
+                print(f"[WARN] {message}", file=sys.stderr)
 
     return markdown_content
 

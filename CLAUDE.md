@@ -47,6 +47,7 @@ changed. What differs is the *cost* of changing it.
 | SVG / direct-PPTX pipeline — `scripts/`, most `references/`, `templates/`, `workflows/` | Vendored (Hugo He → byungjunjang) | Ours to edit, but it is a large body of working code with conventions of its own |
 | Planning stage — `planner.md` · `storyline.md` · `report-format.md`, `plan_spec.py` · `outline.py` · `render_plan_doc.py` · `report_form.py`, `templates/report_forms/`, SKILL.md Steps 3.5–3.7 | WeDraw | New work; change it whenever the thinking changes |
 | Confirm UI — `ui/`, `static/`, [`DESIGN.md`](DESIGN.md) | WeDraw | Same |
+| Judgment gates — `template_install_preflight.py`, `compare_source_counts` in `_conversion_profile.py`, `deck_level_counts` / `verdict_line` in `svg_quality_checker.py`, `strategist.md` *When the contract is silent* + §e | WeDraw | New work sitting inside vendored files. Keep each one a self-contained function so it stays ours to change and to test |
 | This file, [`AGENTS.md`](AGENTS.md), [`docs/rules/`](docs/rules/), `docs/00-pm` · `01-plan` · `02-design` | WeDraw | Same |
 
 **Hard rule — two kinds of rule, two different bars**:
@@ -135,7 +136,7 @@ Decks and documents are different products and do not share a font rule.
 
 - This repository is a workflow/skill package, not an app or service scaffold.
 - Do NOT assume generic-project conventions like `.worktrees/` or mandatory branch setup unless the user explicitly requests them.
-- **Tests are scoped, not banned.** The vendored pipeline ships none and stays that way — [`docs/rules/code-style.md §11`](docs/rules/code-style.md) describes what is there, and a suite for it means migrating hundreds of files. WeDraw-authored code (the planning stage and the confirm UI, listed under *What is whose*) may carry lightweight tests where a contract is machine-checkable; two defects that reached a rendered document — a `status:` value silently truncated, and an option line parsed as a footnote — were each a one-line test. They live in [`tests/`](tests/) — `python3 -m unittest discover -s tests` and `node --test --experimental-strip-types tests/*.test.mts`, neither of which installs anything.
+- **Tests are scoped, not banned.** The vendored pipeline ships none and stays that way — [`docs/rules/code-style.md §11`](docs/rules/code-style.md) describes what is there, and a suite for it means migrating hundreds of files. WeDraw-authored code (the planning stage, the confirm UI, and the judgment gates, listed under *What is whose*) may carry lightweight tests where a contract is machine-checkable — a gate added inside a vendored file counts as WeDraw's own function, not as a licence over the file; two defects that reached a rendered document — a `status:` value silently truncated, and an option line parsed as a footnote — were each a one-line test. They live in [`tests/`](tests/) — `python3 -m unittest discover -s tests` and `node --test --experimental-strip-types tests/*.test.mts`, neither of which installs anything.
 - On conflict with a generic coding skill, prioritize the selected repo-local
   execution owner. The main [`ppt-master/SKILL.md`](.claude/skills/ppt-master/SKILL.md)
   has that role only when routing selected the main SVG family or an explicit

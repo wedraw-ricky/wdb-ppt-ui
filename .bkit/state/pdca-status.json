@@ -1,7 +1,7 @@
 {
   "features": {
     "ppt-service-rebuild": {
-      "phase": "check",
+      "phase": "act",
       "startedAt": "2026-09-04T12:02:19",
       "prd": "docs/00-pm/ppt-service-rebuild.prd.md",
       "decisions": {
@@ -18,7 +18,8 @@
         "산출물": "기획서 + 발표자료 둘 다",
         "설계 수정": "intake/outline 을 3단계 상태기계에 넣지 않고 별도 파일 라우트로 (회귀 위험 회피)",
         "docx 산출": "Markdown 항상 + docx 선택 의존성 — auto 는 intake.doc_kind 를 따름 (2026-09-04 · module-7)",
-        "보고서 양식": "한국은행 양식 (Ⅰ 번호박스 → □ 핵심 → ─ 세부 → * 각주, 맑은고딕/한컴바탕, A4 세로). 숫자는 굵게만 — 개선/악화 색은 지표 방향을 알아야 해서 렌더러가 추론하지 않음 (2026-09-04)"
+        "보고서 양식": "한국은행 양식 (Ⅰ 번호박스 → □ 핵심 → ─ 세부 → * 각주, 맑은고딕/한컴바탕, A4 세로). 숫자는 굵게만 — 개선/악화 색은 지표 방향을 알아야 해서 렌더러가 추론하지 않음 (2026-09-04)",
+        "게이트 임계값": "변환 손실은 명백할 때만 경고 — 전부 사라졌거나 절반 이하만 남았을 때. 표가 쪽을 걸치면 하나로 합쳐져 개수가 하나 줄어드는 것이 정상이라 1개 차이로는 안 멈춘다 (2026-09-04)"
       },
       "completed": [
         "설치 문서 수정 (wdb-ppt-ui@8b9ba49)",
@@ -33,27 +34,39 @@
         "보고서 양식 프리셋화: templates/report_forms/{bok,khnp}.json + report_form.py — 본문 마커(▢◦*)·통계표·배지·증감색",
         "CLAUDE.md 정리: 업스트림/WeDraw 소유 구분, 폰트 제품별 분리, 테스트 범위 개방 (code-style §11 동반 수정)",
         "테스트 89건: tests/test_planning.py(계약) · tests/test_gates.py(게이트) · tests/outline-model.test.mts(화면 모델) — 새 의존성 0",
-        "PR #1 병합 (master@2301dd2) — module-6·7 + 보고서 양식 + 테스트 89건. 병합 후 master 체크아웃 상태에서 테스트 재실행 통과"
+        "PR #1 병합 (master@2301dd2) — module-6·7 + 보고서 양식 + 테스트 89건. 병합 후 master 체크아웃 상태에서 테스트 재실행 통과",
+        "PR #2 병합 (master@9339932) — PDCA 상태 갱신 + CLAUDE.md 보고 방식 규칙",
+        "판단 게이트 4건 (대표 우선순위 1~4번) — 기획 단계로 범위가 바뀌며 밀려 있던 것. ① 캔버스 게이트 template_install_preflight.py 신설 (설치 전 정지, 부분 설치 없음, 확인 화면과 같은 두 선택지) ② strategist.md §e — 고객 CI 색이 템플릿 스킨보다 앞 ③ svg_quality_checker.py [VERDICT] 줄을 요약 앞뒤 + stderr 로 (잘라 읽어도 안 사라짐) ④ pdf_to_md.py 원본 표·이미지 카운트 → 프로파일 warnings[] → SKILL.md Step 1 정지",
+        "strategist.md 서두 '계약이 침묵할 때' 규칙 (R-T8) — 되돌리기 비싼 판단은 조용히 하지 않는다",
+        "테스트 21건 추가: tests/test_judgment_gates.py — 게이트마다 오작동 방향과 정상 방향 양쪽"
       ],
       "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
-      "updatedAt": "2026-09-04T08:55:00Z",
+      "updatedAt": "2026-09-04T10:20:00Z",
       "design": "docs/02-design/features/ppt-service-rebuild.design.md",
-      "scope": "module-1~7 완료 · 설계 §8 L1/L2 검증 완료 · master 병합 완료. 남은 것은 실자료·Word 가 있어야 하는 확인 2건",
-      "next": "① L3-1 실자료 E2E (캠페인 PDF → 인터뷰 → 기획 → 뼈대 편집 → PPTX) — projects/ 가 gitignore 라 자료가 있는 로컬에서만 가능  ② Word 에서 한글·숫자 자간 확인 (1,015명 이 붙어 나오는지) — LibreOffice 가 autoSpaceDE/DN 을 무시해 원격 검증 불가, 안 되면 문단 단위 지정 등 다른 방법 필요",
+      "scope": "사이클 1(기획·스토리라인 단계) 완료 + 대표 우선순위 1~4번 판단 게이트 완료. 테스트 110건 (파이썬 93 · 화면 17). 남은 것은 실자료·Word 가 있어야 하는 확인 2건",
+      "next": "① 실자료로 처음부터 끝까지 한 번 (캠페인 PDF → 인터뷰 → 기획 → 뼈대 편집 → PPTX) — 자료가 있는 대표님 컴퓨터에서만 가능  ② Word 에서 한글·숫자 사이가 벌어지는지 확인 (1,015명)  ③ 다음 사이클 후보: 대표 우선순위 5~8번 (확인 서버가 대기 중 죽는 것, 단계 전환이 느리고 안 보이는 것, 확인 폼을 한 화면씩 넘기기)",
       "repo": "wedraw-ricky/wdb-ppt-ui — 파이프라인과 화면이 한 저장소로 합쳐짐 (2026-09-04)",
       "workdir": "/Users/rickys/dev/workspaces/wdb-ppt-ui",
       "fixed_in_passing": [
         "plan_spec.py parse(): status 를 `\\S+` 로 읽어 '확인 필요' 가 '확인' 으로 잘리던 것 — outline.py:144 의 `!= '확인 필요'` 비교가 영영 참이 되던 잠복 결함 (module-7 에서 발견)",
         "outline.py pick_shape(): 단위 목록에 만원·억원·천원이 없어 '3200만원' 이 수치로 세어지지 않던 것 — 수치 3개 이상 판정이 어긋나 kpi_cards 대신 body 가 배정됨 (게이트 테스트에서 발견)"
       ],
-      "merged": {
-        "pr": "wedraw-ricky/wdb-ppt-ui#1",
-        "merge_commit": "2301dd2",
-        "merged_at": "2026-09-04T08:49:54Z",
-        "commits": 10,
-        "diff": "26 files · +3,311 / −32",
-        "note": "머지 커밋으로 병합 — 커밋 10개의 개별 이력 보존 (squash 안 함)"
-      },
+      "merged": [
+        {
+          "pr": "wedraw-ricky/wdb-ppt-ui#1",
+          "merge_commit": "2301dd2",
+          "merged_at": "2026-09-04T08:49:54Z",
+          "commits": 10,
+          "diff": "26 files · +3,311 / −32",
+          "note": "머지 커밋으로 병합 — 커밋 10개의 개별 이력 보존 (squash 안 함)"
+        },
+        {
+          "pr": "wedraw-ricky/wdb-ppt-ui#2",
+          "merge_commit": "9339932",
+          "merged_at": "2026-09-04T10:05:00Z",
+          "note": "PDCA 상태 갱신 + 대표에게 보고하는 방식 규칙"
+        }
+      ],
       "blocked_on_user": [
         "L3-1: 캠페인 PDF 등 projects/ 실자료가 로컬에만 있음",
         "Word 자간: 원격 컨테이너에 Word 가 없고 LibreOffice 는 해당 설정을 무시함"

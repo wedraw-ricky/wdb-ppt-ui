@@ -264,10 +264,16 @@ def classify_license(
 way — this section describes the code that is actually there, and a suite for it
 would mean migrating hundreds of files.
 
-**Scope**: WeDraw-authored code — the planning stage (`plan_spec.py`, `outline.py`,
-`render_plan_doc.py`, `report_form.py`) and the confirm UI — is exempt and may carry
-lightweight tests where a contract is machine-checkable. See CLAUDE.md
-*What is whose* for the boundary.
+**Scope**: WeDraw-authored code is exempt and may carry lightweight tests where a
+contract is machine-checkable — the planning stage (`plan_spec.py`, `outline.py`,
+`render_plan_doc.py`, `report_form.py`), the confirm UI, and the judgment gates
+(`template_install_preflight.py`). See CLAUDE.md *What is whose* for the boundary.
+
+A gate WeDraw added **inside** a vendored file is exempt as its own function, not
+as a licence over the file: `compare_source_counts` in `_conversion_profile.py`
+and `deck_level_counts` / `verdict_line` in `svg_quality_checker.py` are tested;
+the vendored conversion and checking around them are not. Keep such a gate a pure
+function precisely so it can be tested without reaching into the vendored code.
 
 **Forbidden — in the vendored pipeline**:
 
