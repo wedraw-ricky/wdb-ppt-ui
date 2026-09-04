@@ -1,0 +1,2 @@
+- [ppt-service-rebuild scope](ppt_service_rebuild_scope.md) — 4-axis rebuild scope (사고과정/플로우/UI편의/유려함) set by 대표, excludes SVG/export quality
+- [Repo contracts gotchas](repo_contracts_gotchas.md) — verified gaps: color precedence, canvas_format lock, no source-side table count, no template lint, no stage back-nav

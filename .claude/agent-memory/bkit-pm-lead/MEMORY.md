@@ -1,0 +1,3 @@
+- [Decision-maker profile](user_decision_maker.md) — 유민균 대표, non-dev PPT 제작 전문가, Korean deliverables, wants rankable problem lists
+- [ppt-service-rebuild scope](project_ppt_rebuild_scope.md) — 4 in-scope axes, SVG/export quality OUT, canvas-aware style parked
+- [PRD calibration feedback](feedback_prd_calibration.md) — internal tool: brief market sizing, evidence over invention, ranked problem list at end

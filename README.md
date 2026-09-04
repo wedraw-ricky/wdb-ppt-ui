@@ -28,49 +28,41 @@ import한 뒤 네 가지만 딴 데로 돌려놓고 제어권을 그대로 돌�
 (파이프라인 스크립트가 `str | None` 문법을 쓰기 때문에 3.9에서는 동작하지 않습니다.)
 
 ```bash
-# 1. 파이프라인 — 위드비 포크를 받으세요
-#    원본(byungjunjang/slide-master)에는 위드비 수정이 들어 있지 않습니다.
-git clone https://github.com/wedraw-ricky/slide-master.git ~/dev/slide-master
+# 1. 이 저장소 하나만 받으면 됩니다 (파이프라인이 안에 들어 있습니다)
+git clone https://github.com/wedraw-ricky/wdb-ppt-ui.git ~/dev/wdb-ppt-ui
 
 # 2. 파이썬 패키지
 #    python-pptx / Pillow 가 없으면 PPTX 내보내기 자체가 실패합니다.
-#    flask 는 이 확인 화면에 필수입니다.
 python3 -m pip install python-pptx Pillow flask numpy requests
-
-# 3. 이 저장소 (확인 화면)
-git clone https://github.com/wedraw-ricky/wdb-ppt-ui.git ~/dev/wdb-ppt-ui
-
-# 4. 파이프라인 경로 알려주기 (wdb-ui.config.json 에 기록되고 gitignore 됩니다)
-cd ~/dev/wdb-ppt-ui
-python3 install.py --ppt-master ~/dev/slide-master/.claude/skills/ppt-master
 ```
+
+경로를 연결하는 설정 단계는 없습니다. 파이프라인이 `.claude/skills/ppt-master/`
+안에 함께 들어 있어서 저장소가 스스로를 찾습니다.
 
 ### 설치가 됐는지 확인
 
-파이프라인이 자체 점검 스크립트를 갖고 있습니다. **이걸 통과하면 설치는 끝난 것입니다.**
-
 ```bash
-python3 ~/dev/slide-master/.claude/skills/ppt-master/scripts/preflight.py
+python3 ~/dev/wdb-ppt-ui/.claude/skills/ppt-master/scripts/preflight.py
 ```
 
 `[preflight] PASS — environment ready` 가 나오면 정상입니다. 빠진 패키지가 있으면
 `pip install <이름>` 형태로 무엇을 깔아야 하는지 그대로 알려줍니다.
 
-> 확인 화면 자체는 **덱 프로젝트가 있어야** 띄울 수 있습니다(`recommendations.json` 이
-> 필요). 프로젝트는 Claude Code에서 `ppt-master` 스킬로 덱을 시작하면 자동으로
-> 만들어집니다. 빈 상태로 `server.py` 를 부르면 "recommendations.json not found"
-> 에러가 정상입니다.
+### 쓰는 법
+
+Claude Code를 이 폴더에서 열고 자료를 주면서 PPT를 만들어 달라고 하면 됩니다.
+`.claude/skills/` 안의 스킬을 Claude Code가 자동으로 찾습니다.
+
+확인 화면은 덱 작업이 시작되면 자동으로 뜹니다. 직접 띄우려면:
+
+```bash
+python3 server.py projects/<프로젝트> --daemon
+```
 
 ### 선택 사항
 
 - `playwright` — 6단계 픽셀 검사와 시각 리뷰에 쓰입니다. 없으면 그 단계만 건너뜁니다.
   `python3 -m pip install playwright && python3 -m playwright install chromium`
-- `--wire-stub` — `~/.claude/skills/ppt-master/SKILL.md` 전역 스텁이 **이미 있을 때만**
-  씁니다. 확인: `ls ~/.claude/skills/ppt-master/SKILL.md`. 없으면 안 쓰셔도 되고,
-  `server.py` 를 직접 부르면 됩니다.
-
-원본 경로를 찾는 순서는 `WDB_UI_PPT_MASTER_DIR` 환경변수 → `wdb-ui.config.json` →
-없으면 명확한 에러입니다.
 
 ### 서체
 
@@ -136,8 +128,8 @@ npx vite build            # -> static/app/confirm.js + confirm.css
 ## 폴더 구조
 
 ```
-server.py     진입점 + 네 가지 리다이렉트
-install.py    wdb-ui.config.json 작성, 선택적으로 전역 스텁 배선
+.claude/skills/ppt-master/   파이프라인 (원저작 Hugo He · byungjunjang)
+server.py     진입점 — 확인 화면을 우리 것으로 바꿔 파이프라인 서버를 띄운다
 ui/           React 소스
 static/       빌드 결과 · 폰트 · 카탈로그 · 이전 바닐라 화면
 decks/        오버레이 덱 템플릿
@@ -153,7 +145,7 @@ DESIGN.md     화면 설계 계약과 결정 기록
 
 | 무엇 | 만든 사람 | 라이선스 | 관계 |
 |---|---|---|---|
-| **slide-master / ppt-master 파이프라인** — 실제로 문서를 SVG로 만들고 네이티브 PPTX로 내보내는 엔진 전체 | **Hugo He** (LICENSE 표기) · 커밋 이력은 **byungjunjang** (`byungjun.jang89@gmail.com`, `jangpm`) | MIT | 이 저장소는 파이프라인을 **재배포하지 않고** import해서 씁니다. 위드비는 [byungjunjang/slide-master](https://github.com/byungjunjang/slide-master)를 [wedraw-ricky/slide-master](https://github.com/wedraw-ricky/slide-master)로 포크해 쓰고 있으며, 설치할 때는 그 포크를 받습니다 |
+| **ppt-master 파이프라인** — 문서를 SVG로 만들고 네이티브 PPTX로 내보내는 엔진 전체. `.claude/skills/` 아래 그대로 들어 있습니다 | **Hugo He** (LICENSE 표기) · 한국어 적응과 커밋 이력은 **byungjunjang** ([slide-master](https://github.com/byungjunjang/slide-master)) | MIT | 이 저장소가 **품고 있습니다**. 소스→SVG→PPTX 경로, 구조화 템플릿 계약, 3단계 확인 흐름은 전부 원저작자의 설계입니다 |
 | **Paperlogy (페이퍼로지체)** | 배포 [fonts-archive](https://github.com/fonts-archive/Paperlogy) · [freesentation.blog](https://freesentation.blog/paperlogyfont) | SIL OFL 1.1 | `static/fonts/`에 woff2 5종 번들. 상세는 [`static/fonts/NOTICE.md`](static/fonts/NOTICE.md) |
 | **HeroUI v3** · React · Tailwind CSS · React Aria | 각 프로젝트 | 각 프로젝트 라이선스 (`ui/package.json`) | UI 구성 요소 |
 | **withby-green 덱 템플릿** | 원본 `PPT 탬플릿 예시.pptx` 19장을 해부해 이식 | MIT (이 저장소) | ⚠️ **확인 필요** — 원본 PPTX를 만든 분의 성함이 확인되면 여기에 적습니다 |

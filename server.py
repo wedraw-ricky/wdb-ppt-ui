@@ -33,35 +33,34 @@ ROOT = HERE.parent
 OUR_STATIC = ROOT / "static"
 
 _ENV_VAR = "WDB_UI_PPT_MASTER_DIR"
-_CONFIG = ROOT / "wdb-ui.config.json"
 OUR_DECKS = ROOT / "decks"
 MERGED_DECKS = ROOT / ".decks-merged"
 
 
 def resolve_skill_dir() -> Path:
-    """Locate the ppt-master skill directory (the real one, not a global stub)."""
+    """Locate the ppt-master skill directory.
+
+    The pipeline now lives inside this repository, so the default needs no
+    configuration. The env var stays as an escape hatch for pointing a checkout
+    at a pipeline somewhere else.
+    """
     candidates: list[Path] = []
     env = os.environ.get(_ENV_VAR)
     if env:
         candidates.append(Path(env).expanduser())
-    if _CONFIG.is_file():
-        try:
-            raw = json.loads(_CONFIG.read_text(encoding="utf-8")).get("ppt_master_dir")
-            if raw:
-                candidates.append(Path(raw).expanduser())
-        except (OSError, ValueError) as exc:
-            print(f"[wdb-ui] ignoring unreadable {_CONFIG.name}: {exc}", file=sys.stderr)
+    candidates.append(ROOT / ".claude" / "skills" / "ppt-master")
 
     for cand in candidates:
         if (cand / "scripts" / "confirm_ui" / "server.py").is_file():
             return cand.resolve()
 
-    tried = "\n".join(f"  - {c}" for c in candidates) or "  (none configured)"
+    tried = "\n".join(f"  - {c}" for c in candidates)
     raise SystemExit(
-        "[wdb-ui] could not locate the ppt-master skill directory.\n"
+        "[wdb-ui] could not locate the ppt-master pipeline.\n"
         f"Tried:\n{tried}\n\n"
-        f"Fix it by running:  python3 {ROOT / 'install.py'} --ppt-master <path>\n"
-        f"or by exporting {_ENV_VAR}=<path to .claude/skills/ppt-master>"
+        "The pipeline ships with this repository at .claude/skills/ppt-master.\n"
+        "A missing copy usually means an incomplete clone — re-clone, or set\n"
+        f"{_ENV_VAR}=<path to .claude/skills/ppt-master> to point elsewhere."
     )
 
 

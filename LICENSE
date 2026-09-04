@@ -1,6 +1,7 @@
 MIT License
 
-Copyright (c) 2026 WeDraw (위드비)
+Copyright (c) 2025-2026 Hugo He — the ppt-master pipeline
+Copyright (c) 2026 WeDraw (위드비) — the confirm UI and the planning stage
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -27,11 +28,13 @@ Third-party components keep their own licences:
 - Pretendard-adjacent bundled webfont **Paperlogy** — SIL Open Font License 1.1.
   Full text at `static/fonts/OFL.txt`; attribution at `static/fonts/NOTICE.md`.
   The OFL governs those font files, not this MIT grant.
-- The upstream `ppt-master` / slide-master pipeline is a separate project,
-  MIT-licensed, Copyright (c) 2025-2026 Hugo He, developed at
-  https://github.com/byungjunjang/slide-master. This repository imports it at
-  runtime and does not redistribute any part of it. The three-stage confirm
-  flow, the recommendations.json -> result.json contract and the structured
-  PPTX export are that project's design, not this one's.
+- The `ppt-master` pipeline under `.claude/skills/` is the work of Hugo He
+  (MIT, per the copyright above), developed and adapted for Korean use at
+  https://github.com/byungjunjang/slide-master. This repository now vendors it
+  rather than importing it, under the same MIT terms. The pipeline's design —
+  the source-to-SVG-to-PPTX route, the structured template contract, the
+  three-stage confirmation flow and its recommendations.json -> result.json
+  contract — is that project's, not this one's. WeDraw's additions are the
+  confirm UI and the planning stage (intake, planner, storyline).
 - The `decks/withby-green/` prototypes were ported from an existing 19-slide
   PPTX template; the original template's author is not recorded here yet.

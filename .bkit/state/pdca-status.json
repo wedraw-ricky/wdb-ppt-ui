@@ -1,0 +1,36 @@
+{
+  "features": {
+    "ppt-service-rebuild": {
+      "phase": "do",
+      "startedAt": "2026-09-04T12:02:19",
+      "prd": "docs/00-pm/ppt-service-rebuild.prd.md",
+      "decisions": {
+        "priority": "9번(실습생 설치 문서)을 1위로 — 대표 결정 2026-09-04",
+        "D-1": "미결정",
+        "D-3": "미결정",
+        "D-3 서체": "템플릿 지정 우선 + 미설치 경고 (2026-09-04)",
+        "게이트 동작": "항상 되묻기 — 자동 교정 없음 (2026-09-04)",
+        "업스트림 PR": "계획 없음 — 격리 없이 최단 경로 (2026-09-04)",
+        "사이클1 범위": "기획·스토리라인 단계 신설 (판단 게이트 4건은 이 안으로 흡수)",
+        "설계안": "B · 깔끔한 분리 (2026-09-04)",
+        "1안·2안 범위": "발표 흐름과 결론에만",
+        "2안 성격": "같은 목표를 다른 방법으로",
+        "산출물": "기획서 + 발표자료 둘 다",
+        "설계 수정": "intake/outline 을 3단계 상태기계에 넣지 않고 별도 파일 라우트로 (회귀 위험 회피)"
+      },
+      "completed": [
+        "설치 문서 수정 (wdb-ppt-ui@8b9ba49)",
+        "module-1: planner.md(248줄) + storyline.md(198줄) 계약 작성",
+        "module-2: plan_spec.py (골격 스캐폴드 + 유형별 검증)",
+        "module-3: outline.py (골든서클 배치 + §IX 생성 + 동기화 검사)",
+        "module-4: SKILL.md Step 3.5~3.7 + confirm server 계획 산출물 라우트·대기",
+        "module-5: 인터뷰 화면 (wdb-ppt-ui@99efbb1)"
+      ],
+      "plan": "docs/01-plan/features/ppt-service-rebuild.plan.md",
+      "updatedAt": "2026-09-04T13:21:46",
+      "design": "docs/02-design/features/ppt-service-rebuild.design.md",
+      "scope": "module-1~5 완료 · module-6 은 새 세션",
+      "next": "module-6 뼈대 편집 화면 (단독 세션 권장) → module-7 기획서 렌더"
+    }
+  }
+}
