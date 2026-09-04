@@ -276,7 +276,15 @@ lightweight tests where a contract is machine-checkable. See CLAUDE.md
 - `unittest` / `pytest` imports
 - `if __name__ == "__main__":` blocks that run a self-test suite
 
-**Use instead**:
+**Where the exempt tests live**: [`tests/`](../../tests/) at the repository root,
+never beside the code. Run them with:
+
+```bash
+python3 -m unittest discover -s tests
+node --test --experimental-strip-types tests/*.test.mts
+```
+
+**Use instead**, in the vendored pipeline:
 
 - Inline smoke commands via `python3 -c "..."` against real project samples; show the output in the conversation / PR description
 - Manual verification steps in the runbook
