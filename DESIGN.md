@@ -129,6 +129,15 @@ fake step ticker: nothing here measures the agent's remaining work, so nothing m
 The art animates the work itself — title, body, image, palette, in the order they are decided —
 rather than drifting.
 
+### Never promise what the pipeline cannot do
+
+A deck template's Master geometry is fixed to its own `canvas_format`, and the structured route
+requires that Master to be retained — `adaptive` may add a Layout, never a Master. So a deck
+picked against a different canvas can contribute colour, type and rules, but not structure.
+The screen says exactly that, offers the one-click canvas fix, and refuses to advance until the
+user picks one of the two real options. Copy that describes a capability the pipeline lacks is a
+defect, not a wording problem.
+
 ## Copy
 
 - Section headings are **questions a person can answer**: "어떤 크기로
@@ -157,6 +166,7 @@ rather than drifting.
 | 2026-09-03 | Palette shown as a slide painted in it | Six swatches ask the reader to imagine the assembled page; the mini slide is the outcome itself |
 | 2026-09-03 | Type plan shown as the real size ladder | One sample line proves the family but not the hierarchy, which is what the numbers actually control |
 | 2026-09-03 | Image sources drawn, generated-image styles use the reference gallery | Same rule as stage 1 — a source is a kind of picture, so show one |
+| 2026-09-04 | Canvas/template mismatch blocks stage 1 until resolved | The old copy promised a re-layout that the structured route cannot perform; a soft warning let a user reach a dead end only discoverable after the deck was authored |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |

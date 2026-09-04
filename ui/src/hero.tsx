@@ -130,7 +130,10 @@ function Rail({ steps }: { steps: Step[] }) {
     with object-contain. Cropping to fill would hide part of the slide and imply
     the template reflows to the new shape, which it does not — a deck declares
     one canvas_format, so a mismatch is called out instead. */
-function AnchorPreview({ state, cat }: { state: Dict; cat: Dict }) {
+function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
+  state: Dict; cat: Dict; ack: boolean;
+  onFixCanvas: (canvasId: string) => void; onAck: () => void;
+}) {
   const canvas = (cat.canvas || []).find((c: Dict) => c.id === state.canvas);
   const dim = canvas?.dim || "1280×720";
   const m = String(dim).match(/(\d+)\s*[×xX*]\s*(\d+)/);
@@ -175,11 +178,31 @@ function AnchorPreview({ state, cat }: { state: Dict; cat: Dict }) {
       </div>
 
       {mismatch ? (
-        <div className="rounded-lg px-3 py-2 text-xs leading-relaxed"
-             style={{ background: "rgba(255,255,255,0.12)" }}>
-          이 템플릿은 <b>{deckDim || deckCanvas}</b> 기준으로 만들어졌습니다. 지금 고르신 크기와
-          달라서 위 미리보기는 원래 비율로 보여드립니다 — 그대로 진행하면 페이지를 새 비율에
-          맞춰 다시 배치합니다.
+        <div className="rounded-lg p-4"
+             style={{ background: "#FFFFFF", borderLeft: "4px solid var(--wdb-warning, #E1A200)" }}>
+          <div className="text-[13px] font-bold" style={{ color: "var(--wdb-charcoal)" }}>
+            이 템플릿은 {deckDim || deckCanvas} 기준입니다
+          </div>
+          <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "var(--wdb-gray)" }}>
+            크기가 다르면 <b>템플릿의 페이지 구조를 쓸 수 없습니다.</b> 시안의 자리 배치와
+            슬라이드 마스터는 원래 크기에 고정돼 있어서, 다른 크기에서는 색·서체·괘선만
+            가져오고 지면은 처음부터 새로 짭니다. 결과물에 슬라이드 마스터가 없는
+            평면 문서로 나옵니다.
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => onFixCanvas(String(deckCanvas))}
+                    className="rounded-lg px-3 py-2 text-[13px] font-semibold"
+                    style={{ background: "var(--wdb-primary)", color: "#FFFFFF" }}>
+              크기를 템플릿에 맞추기 ({deckDim || deckCanvas})
+            </button>
+            <button type="button" onClick={onAck} aria-pressed={ack}
+                    className="rounded-lg px-3 py-2 text-[13px] font-semibold"
+                    style={{ border: "1.5px solid " + (ack ? "var(--wdb-primary)" : "var(--border)"),
+                             background: ack ? "var(--wdb-primary)" : "#FFFFFF",
+                             color: ack ? "#FFFFFF" : "var(--wdb-charcoal)" }}>
+              {ack ? "✓ 색·서체만 가져옵니다" : "구조 없이 색·서체만 가져오기"}
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -230,8 +253,11 @@ function ImagePreview({ state }: { state: Dict }) {
 }
 
 export function Hero({
-  state, cat, stageNum, steps,
-}: { state: Dict; cat: Dict; stageNum: number; steps: Step[] }) {
+  state, cat, stageNum, steps, ack, onFixCanvas, onAck,
+}: {
+  state: Dict; cat: Dict; stageNum: number; steps: Step[];
+  ack: boolean; onFixCanvas: (canvasId: string) => void; onAck: () => void;
+}) {
   return (
     <aside className="wdb-hero hidden w-[38%] max-w-[560px] min-w-[380px] flex-col gap-6 overflow-y-auto p-7 lg:flex">
       <div className="flex items-center gap-3 border-b border-white/20 pb-4">
@@ -252,7 +278,8 @@ export function Hero({
         <div className="text-xs opacity-80">
           {stageNum === 1 ? "고르신 템플릿과 크기" : stageNum === 3 ? "고르신 이미지 방향" : "전체 인상 미리보기"}
         </div>
-        {stageNum === 1 ? <AnchorPreview state={state} cat={cat} />
+        {stageNum === 1 ? <AnchorPreview state={state} cat={cat} ack={ack}
+                                 onFixCanvas={onFixCanvas} onAck={onAck} />
           : stageNum === 3 ? <ImagePreview state={state} />
           : <SkinPreview state={state} />}
       </div>

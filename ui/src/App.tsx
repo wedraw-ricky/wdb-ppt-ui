@@ -78,6 +78,7 @@ type Phase = "loading" | "form" | "deriving" | "done" | "error";
 export default function App() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [waitTarget, setWaitTarget] = useState(2);
+  const [mismatchAck, setMismatchAck] = useState(false);
   const [rec, setRec] = useState<Recommendations>({});
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
@@ -102,6 +103,8 @@ export default function App() {
     }
   }
   useEffect(() => { load(); }, []);
+  // 템플릿이나 크기를 다시 고르면 불일치 확인과 그때 띄운 오류 문구를 함께 무효화한다
+  useEffect(() => { setMismatchAck(false); setMsg(""); }, [state?.template, state?.canvas]);
 
   /** After a stage submit, wait for the agent to write the next stage. */
   async function pollNext(target: number) {
@@ -119,6 +122,10 @@ export default function App() {
     setMsg("");
     try {
       if (stageNum === 1) {
+        if (canvasMismatch && !mismatchAck) {
+          setMsg(T.errCanvasMismatch);
+          return;
+        }
         await api.postConfirm(api.stage1Payload(state, cat));
         setWaitTarget(2); setPhase("deriving"); pollNext(2); return;
       }
@@ -168,12 +175,20 @@ export default function App() {
     if (s?.id) spectrum[s.id] = `${s.tag_ko || s.tag_en || ""}${s.note_ko ? " · " + s.note_ko : ""}`;
   });
   const styleItems = (cat.visual_styles || []).flatMap((g: Dict) => g.items || []);
+  // 덱 템플릿의 Master 기하는 그 덱의 canvas_format 에 고정돼 있다. 캔버스가 다르면
+  // 구조화 라우트가 성립하지 않고 색·서체만 가져오는 flat 이 된다 — 조용히 넘기지 않는다.
+  const pickedDeck = (cat.templates || []).find((d: Dict) => d.id === state.template);
+  const deckFormat = state.template && state.template !== "free" ? pickedDeck?.canvas_format : null;
+  const canvasMismatch = Boolean(deckFormat && deckFormat !== state.canvas);
   const steps = stageSteps(stageNum, state, cat, isPpt);
   let n = 0;
 
   return (
     <div className="flex h-full">
-      <Hero state={state} cat={cat} stageNum={stageNum} steps={steps} />
+      <Hero state={state} cat={cat} stageNum={stageNum} steps={steps}
+              ack={mismatchAck}
+              onFixCanvas={(id) => set("canvas", id)}
+              onAck={() => setMismatchAck((v) => !v)} />
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="border-b px-8 py-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
           <h1 className="text-xl font-bold">{stageNum ? T.stages[stageNum - 1] : T.title}</h1>
