@@ -180,10 +180,13 @@ function Chips({
 
 /** Pick a starting point, then edit it — never a blank box. */
 export function PresetField({
-  legend, hint, presets, value, onChange, rows = 2, placeholder,
+  legend, hint, presets, value, onChange, rows = 2, placeholder, ariaLabel,
 }: {
   legend: string; hint?: string; presets: { id: string; label: string; text: string }[];
   value: string; onChange: (v: string) => void; rows?: number; placeholder?: string;
+  /** 눈에 보이는 제목이 이 묶음 밖에 있을 때, 글 상자에 붙일 이름.
+      없으면 화면 낭독기가 "편집" 이라고만 읽고 무슨 칸인지 말해주지 못한다. */
+  ariaLabel?: string;
 }) {
   const active = presets.find((p) => p.text === value)?.id ?? null;
   return (
@@ -194,7 +197,7 @@ export function PresetField({
       </div>
       <Chips presets={presets} active={active} onPick={(p) => onChange(p.text)} />
       <TextField value={value} onChange={onChange}>
-        <TextArea rows={rows} placeholder={placeholder} />
+        <TextArea rows={rows} placeholder={placeholder} aria-label={ariaLabel || legend || undefined} />
       </TextField>
     </div>
   );
@@ -351,7 +354,8 @@ export function Choice({
       {legend ? <Label>{legend}</Label> : null}
       {items.map((it) => (
         <Radio key={it.id} value={it.id}>
-          <Radio.Content>
+          {/* 한 줄이 20px 면 손이 떨리는 사람은 옆 항목을 누른다 — 24px 로. */}
+          <Radio.Content className="min-h-[24px] items-center">
             <Radio.Control><Radio.Indicator /></Radio.Control>
             <span>{label(it)}{recommended === it.id ? <Star /> : null}</span>
           </Radio.Content>

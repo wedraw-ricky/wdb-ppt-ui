@@ -5,7 +5,7 @@
    picking "성과 보고" shows you the report skeleton you are about to get,
    before any of it is written. */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import * as api from "./api";
 import type { IntakeData } from "./api";
 import { cardStyle, PresetField } from "./selectors";
@@ -106,10 +106,13 @@ function Chain({ steps }: { steps: string[] }) {
 function Field({ label, hint, children }: {
   label: string; hint?: string; children: React.ReactNode;
 }) {
+  // 제목을 눈에만 보여주면 화면 낭독기는 칸에 이름이 없다고 읽는다. 묶음에
+  // 제목을 붙여 그 안의 것들이 무엇을 묻는 칸인지 함께 들리게 한다.
+  const id = useId();
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5" role="group" aria-labelledby={id}>
       <div>
-        <div className="text-[15px] font-semibold">{label}</div>
+        <div id={id} className="text-[15px] font-semibold">{label}</div>
         {hint ? (
           <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div>
         ) : null}
@@ -216,6 +219,7 @@ export function Intake({ draft, onDone }: {
           <Field label="결론적으로 무엇을 말하고 싶으신가요?"
                  hint="한 문장이면 됩니다. 이 문장이 덱 전체의 기준이 됩니다">
             <textarea value={v.conclusion} onChange={(e) => set("conclusion", e.target.value)}
+                      aria-label="결론적으로 무엇을 말하고 싶으신가요?"
                       rows={2} placeholder="예: 시범 성과가 확인됐으니 전사로 확대해야 합니다"
                       className="w-full rounded-lg border px-4 py-3 text-[15px] leading-relaxed outline-none"
                       style={{ borderColor: "var(--border)", background: "var(--surface)",
@@ -225,6 +229,7 @@ export function Intake({ draft, onDone }: {
           <Field label="이 자료에서 무엇을 중요하게 보시나요?"
                  hint="비워 두시면 제가 자료에서 찾아 제안드립니다">
             <textarea value={v.emphasis} onChange={(e) => set("emphasis", e.target.value)}
+                      aria-label="이 자료에서 무엇을 중요하게 보시나요?"
                       rows={2} placeholder="예: 신고 건수보다 재해 감소가 핵심입니다"
                       className="w-full rounded-lg border px-4 py-3 text-[15px] leading-relaxed outline-none"
                       style={{ borderColor: "var(--border)", background: "var(--surface)",
@@ -232,7 +237,7 @@ export function Intake({ draft, onDone }: {
           </Field>
 
           <Field label="누구에게 보여줍니까?">
-            <PresetField legend="" presets={AUDIENCE_PRESETS} value={v.audience}
+            <PresetField legend="" ariaLabel="누구에게 보여줍니까?" presets={AUDIENCE_PRESETS} value={v.audience}
                          onChange={(t: string) => set("audience", t)}
                          placeholder="가까운 것을 고르고 필요하면 고쳐 쓰세요" />
           </Field>

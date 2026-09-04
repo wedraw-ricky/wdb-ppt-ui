@@ -10,7 +10,7 @@ import {
   AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice, IMAGE_PRESETS,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
-import { Deriving, Disconnected, DoneArt } from "./states";
+import { Deriving, Disconnected, DoneArt, ErrorArt, LoadingArt } from "./states";
 import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
 import { Hero, stageSteps } from "./hero";
 import { Intake } from "./intake";
@@ -275,8 +275,27 @@ function Confirm() {
         }}
       />
     );
-  if (phase === "loading") return <Centered>{T.loading}</Centered>;
-  if (phase === "error") return <Centered>{T.loadError}</Centered>;
+  if (phase === "loading")
+    return (
+      <Centered>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <LoadingArt />
+          <div className="text-lg font-bold" style={{ color: "var(--foreground)" }}>{T.loading}</div>
+        </div>
+      </Centered>
+    );
+  if (phase === "error")
+    return (
+      <Centered>
+        <div className="flex max-w-[42ch] flex-col items-center gap-4 text-center">
+          <ErrorArt />
+          <div className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+            {T.loadErrorTitle}
+          </div>
+          <div className="text-sm" style={{ color: "var(--muted)" }}>{T.loadError}</div>
+        </div>
+      </Centered>
+    );
   if (phase === "deriving")
     return (
       <Centered>
@@ -334,7 +353,7 @@ function Confirm() {
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="border-b px-8 py-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
           <h1 className="text-xl font-bold">{stageNum ? T.stages[stageNum - 1] : T.title}</h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{T.hint}</p>
+          <p className="mt-1 max-w-[52ch] text-sm" style={{ color: "var(--muted)" }}>{T.hint}</p>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">

@@ -247,4 +247,12 @@ defect, not a wording problem.
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |
 | 2026-09-03 | Hero gradient limited to one surface | wdb-pptx §2 — a full-bleed fill is not the 10% tier's job |
 | 2026-09-03 | WDB tokens mapped onto HeroUI CSS variables | Brand propagates once; no per-component colour work |
-| 2026-09-03 | Waiting/finished art drawn as SVG, not generated | Two generation attempts came back isometric with shadows against the flat rule; the shapes are computable, so drawing them inherits the tokens and costs a kilobyte |
+| 2026-09-03 | ~~Waiting/finished art drawn as SVG, not generated~~ | **Reversed 2026-09-05.** The drawn version was stacked `<rect>`s, and it read as a wireframe left in place rather than as artwork — the exact tell the deck is meant to avoid |
+| 2026-09-05 | 상태 그림 셋(여는 중 · 못 읽음 · 다 됐어요)은 생성한 그림 | 사각형을 쌓아 만든 그림은 "아직 안 그린 자리" 로 보였다. 한 세트로 뽑아 붙인다 — 같은 장 더미, 같은 선 굵기, 같은 정면 시점. 첫 판이 입체로 나와 세트가 깨지자 잘 나온 한 장을 기준 이미지로 물려 다시 뽑았다 |
+| 2026-09-05 | 장표 모양 29개와 이야기 구조 아이콘은 계속 도형 | 그건 장식이 아니라 "글이 어디 앉고 사진이 어디 앉는지" 를 알려주는 설계도다. 사진으로 바꾸면 무엇을 고르는지가 오히려 안 보인다 |
+| 2026-09-05 | "여기 사진" 자리는 빗금 대신 자리표시용 사진 한 장 | 빗금은 "뭔가 온다" 까지만 말한다. 사진을 자리마다 다르게 잘라 넣으니 전면·옆에·겹침이 한눈에 갈린다 |
+| 2026-09-05 | 색 있는 바탕에서 투명도로 위계를 주지 않는다 | 밝은 쪽 파랑(#3667FF) 위에서 흰 글씨는 4.62:1 로 겨우 통과한다. 조금만 흐리면 전부 미달이라, 위계는 크기와 굵기로만 준다 — 글꼴 규칙과 같은 말이다 |
+| 2026-09-05 | 지금 있는 줄은 밝히지 말고 어둡게 표시 | 흰빛으로 밝히면 그 위 흰 글씨를 잡아먹어 3.56:1 이 됐다. 어둡게 누르면 7.6:1 |
+| 2026-09-05 | `--warning` #d97706 → #b45309 | 12px 에서 3.19:1 이라 "확인 필요" 가 안 읽혔다. 새 값은 5.02:1 |
+| 2026-09-05 | 누르는 줄은 무엇이든 24px 이상 | 체크상자 13px · 라디오 20px · 스위치 20px 이었다. 손이 떨리면 옆 항목이 눌린다 |
+| 2026-09-05 | 화면 점수는 눈이 아니라 [`tests/screen_audit.js`](tests/screen_audit.js) 가 잰다 | 대비를 눈으로 보고 "3.1:1 쯤" 이라 했다가 실제 2.52:1 이었던 적이 있다. 네 항목은 대표가 말한 순서 그대로 — AI 슬롭 · 가독성 · 명확한 비주얼라이징 · 접근성 — 이고 AI 슬롭은 CLAUDE.md 의 금지 낱말표를 그대로 쓴다 |

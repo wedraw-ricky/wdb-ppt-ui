@@ -42,8 +42,9 @@ function Journey({ here }: { here: string }) {
     <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
       {JOURNEY.map((s, i) => (
         <li key={s.id} className="flex items-center gap-2">
-          <span className={i === at ? "font-bold" : ""}
-                style={{ opacity: i < at ? 0.6 : i === at ? 1 : 0.4 }}>
+          {/* 지난 곳은 ✓ 로, 지금 있는 곳은 굵기로 안다. 흐리게 하지 않는다 —
+              파란 바탕에서 흰 글씨는 4.62:1 라 조금만 흐려도 안 읽힌다. */}
+          <span className={i === at ? "font-bold" : "font-normal"}>
             {i < at ? "✓ " : ""}{s.label}
           </span>
           {i < JOURNEY.length - 1 ? (
@@ -231,9 +232,11 @@ function ChapterCard({
       </div>
 
       <div className="flex items-center gap-1 px-0.5">
-        <label className="mr-auto flex items-center gap-1.5 text-[12px]"
+        <label className="mr-auto flex min-h-[24px] cursor-pointer items-center gap-1.5
+                          pr-2 text-[12px]"
                style={{ color: "var(--muted)" }}>
           <input type="checkbox" checked={picked} onChange={onPick}
+                 className="h-[18px] w-[18px]"
                  aria-label={`${row.n}번째 장을 합치기 대상으로 선택`} />
           합치기
         </label>
@@ -476,7 +479,7 @@ export function OutlineEditor({ doc, onConfirm }: {
           <div className="grid h-8 w-8 place-items-center rounded-lg border border-white/30
                           bg-white/15 text-[12px] font-bold">PM</div>
           <div className="min-w-0">
-            <div className="text-[10px] tracking-widest opacity-80">PPT MASTER</div>
+            <div className="text-[10px] font-semibold tracking-widest">PPT MASTER</div>
             <div className="truncate text-[13px] font-bold">뼈대 정하기</div>
           </div>
         </div>
@@ -541,7 +544,7 @@ export function OutlineEditor({ doc, onConfirm }: {
               ))}
             </div>
           </div>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          <p className="mt-1 max-w-[52ch] text-sm" style={{ color: "var(--muted)" }}>
             장을 끌어 순서를 바꾸고, 눌러서 안을 고치세요. 여기서 확정한 뼈대가 그대로 슬라이드가 됩니다.
           </p>
         </header>

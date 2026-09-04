@@ -66,20 +66,21 @@ function Journey({ stageNum }: { stageNum: number }) {
       <ol className="flex flex-col gap-2">
         {JOURNEY.map((s) => {
           const done = s.n < stageNum, now = s.n === stageNum;
+          // 동그라미가 이미 ✓ · 지금 · 아직 을 말한다. 여기에 흐리기까지
+          // 얹으면 파란 바탕에서 글자가 안 읽힌다 — 상태는 한 번만.
           return (
-            <li key={s.n} className="flex items-start gap-2.5 text-[13px]"
-                style={{ opacity: now ? 1 : done ? 0.7 : 0.45 }}>
+            <li key={s.n} className="flex items-start gap-2.5 text-[13px]">
               <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
                     style={{
                       background: done ? "var(--wdb-cyan)"
-                        : now ? "#ffffff" : "rgba(255,255,255,0.16)",
+                        : now ? "#ffffff" : "rgba(0,0,0,0.32)",
                       color: done || now ? "var(--wdb-charcoal)" : "#ffffff",
                     }}>
                 {done ? "✓" : s.n}
               </span>
               <span className="leading-snug">
                 <b className={now ? "" : "font-normal"}>{s.title}</b>
-                <span className="block text-[11px] opacity-75">{s.covers}</span>
+                <span className="block text-[11px] font-normal">{s.covers}</span>
               </span>
             </li>
           );
@@ -103,7 +104,7 @@ function Rail({ steps, current, onGo }: {
     <div>
       <div className="mb-3 flex items-baseline gap-2">
         <span className="text-sm font-bold">이 단계에서 정할 것</span>
-        <span className="text-xs opacity-80">
+        <span className="text-xs font-normal">
           {left ? `아직 ${left}개 남았습니다` : "다 정하셨습니다"}
         </span>
       </div>
@@ -118,7 +119,7 @@ function Rail({ steps, current, onGo }: {
                 aria-current={here ? "step" : undefined}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition"
                 style={{
-                  background: here ? "rgba(255,255,255,0.16)" : "transparent",
+                  background: here ? "rgba(0,0,0,0.30)" : "transparent",
                   fontWeight: here ? 700 : 400,
                 }}
               >
@@ -126,17 +127,18 @@ function Rail({ steps, current, onGo }: {
                   className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
                   style={{
                     background: s.filled ? "var(--wdb-cyan)"
-                              : here ? "#ffffff" : "rgba(255,255,255,0.16)",
+                              : here ? "#ffffff" : "rgba(0,0,0,0.32)",
                     color: s.filled || here ? "var(--wdb-charcoal)" : "#ffffff",
                   }}
                 >
                   {s.filled ? "✓" : i + 1}
                 </span>
-                <span className={s.filled && !here ? "opacity-70" : ""}>{s.title}</span>
+                <span className={s.filled && !here ? "font-normal" : ""}>{s.title}</span>
                 {s.required ? (
-                  <span className="ml-auto text-[11px]" style={{ color: "var(--wdb-cyan)" }}>필수</span>
+                  <span className="ml-auto rounded px-1.5 py-0.5 text-[11px] font-semibold"
+                        style={{ color: "var(--wdb-cyan)", background: "rgba(0,0,0,0.32)" }}>필수</span>
                 ) : (
-                  <span className="ml-auto text-[11px] opacity-55">선택</span>
+                  <span className="ml-auto text-[11px] font-normal">선택</span>
                 )}
               </button>
             </li>
@@ -191,9 +193,9 @@ function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-xs opacity-85">
+      <div className="flex items-center gap-3 text-xs">
         <span>{dim}</span>
-        <span className="opacity-60">·</span>
+        <span aria-hidden="true">·</span>
         <svg viewBox="0 0 88 64" className="h-7 w-10" aria-hidden="true">
           {MODE_SHAPES[state.mode] ?? null}
         </svg>
@@ -269,7 +271,7 @@ function ImagePreview({ state }: { state: Dict }) {
       ) : null}
       <div className="text-sm">
         <div className="font-semibold">{s.name}</div>
-        <div className="mt-1 text-xs opacity-80">{s.mood}</div>
+        <div className="mt-1 text-xs font-normal">{s.mood}</div>
       </div>
     </div>
   );
@@ -285,11 +287,11 @@ export function Hero({
   return (
     <aside className="wdb-hero hidden w-[38%] max-w-[560px] min-w-[380px] flex-col gap-6 overflow-y-auto p-7 lg:flex">
       <div className="flex items-center gap-3 border-b border-white/20 pb-4">
-        <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/30 bg-white/15 text-sm font-bold">
+        <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/40 bg-black/25 text-sm font-bold">
           PM
         </div>
         <div>
-          <div className="text-[11px] tracking-widest opacity-80">PPT MASTER</div>
+          <div className="text-[11px] font-semibold tracking-widest">PPT MASTER</div>
           <div className="text-sm font-bold">{T.title}</div>
         </div>
       </div>
@@ -299,7 +301,7 @@ export function Hero({
       <Rail steps={steps} current={current} onGo={onGo} />
 
       <div className="flex flex-col gap-2">
-        <div className="text-xs opacity-80">
+        <div className="text-xs font-normal">
           {stageNum === 1 ? "고르신 템플릿과 크기" : stageNum === 3 ? "고르신 이미지 방향" : "전체 인상 미리보기"}
         </div>
         {stageNum === 1 ? <AnchorPreview state={state} cat={cat} ack={ack}

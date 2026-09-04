@@ -4,7 +4,13 @@
    of names. A row that said only `kpi_cards` would ask the reader to imagine
    the page; the drawing is the page. Every layout here is computable geometry,
    so it is drawn rather than fetched — same reasoning as the canvas ratios and
-   the narrative-shape diagrams in stage 1. */
+   the narrative-shape diagrams in stage 1.
+
+   그림 한 장만 예외다. "여기에 사진이 온다" 는 도형으로 그릴 수 있는 게 아니라
+   사진으로 보여줘야 하는 것이라, 자리 표시용 사진 한 장을 넣어 잘라 쓴다.
+   레이아웃 자체는 여전히 전부 도형이다. */
+
+import photoArt from "../art/photo.png";
 
 const GROUND = "var(--surface)";
 const LINE = "var(--border)";
@@ -486,37 +492,31 @@ function Body({ shape }: { shape: string }) {
     사선 빗금은 "여기에 사진이 온다" 는 표시다. 실제 사진은 Step 5 에서 붙는다. */
 function ImageArea({ use }: { use: string }) {
   if (use === "none") return null;
-  const hatch = (
-    <pattern id="wdb-photo" width="6" height="6" patternUnits="userSpaceOnUse"
-             patternTransform="rotate(45)">
-      <rect width="6" height="6" fill={BLOCK} opacity="0.10" />
-      <line x1="0" y1="0" x2="0" y2="6" stroke={BLOCK} strokeWidth="1.6" opacity="0.22" />
-    </pattern>
+  // 예전에는 빗금이었다. 빗금은 "여기에 뭔가 온다" 까지만 말하고 무엇이 오는지는
+  // 보는 사람이 상상해야 해서, 세 배치의 차이가 잘 안 느껴졌다. 사진 한 장을
+  // 자리마다 다르게 잘라 보여주면 전면·옆에·겹침이 한눈에 갈린다.
+  const photo = (x: number, y: number, w: number, h: number, id: string) => (
+    <>
+      <defs>
+        <clipPath id={id}>
+          <rect x={x} y={y} width={w} height={h} rx="3" />
+        </clipPath>
+      </defs>
+      <image href={photoArt} x={x} y={y} width={w} height={h}
+             preserveAspectRatio="xMidYMid slice" clipPath={`url(#${id})`} />
+    </>
   );
   if (use === "full") {
     // 사진이 지면을 꽉 채우고, 글이 읽히도록 그 위에 어두운 막을 깐다.
     return (
       <>
-        <defs>{hatch}</defs>
-        <rect x="1" y="1" width="158" height="88" rx="3" fill="url(#wdb-photo)" />
-        <rect x="1" y="1" width="158" height="88" rx="3" fill={INK} opacity="0.30" />
+        {photo(1, 1, 158, 88, "wdb-photo-full")}
+        <rect x="1" y="1" width="158" height="88" rx="3" fill={INK} opacity="0.42" />
       </>
     );
   }
-  if (use === "side") {
-    return (
-      <>
-        <defs>{hatch}</defs>
-        <rect x="100" y="1" width="59" height="88" rx="3" fill="url(#wdb-photo)" />
-      </>
-    );
-  }
-  return (
-    <>
-      <defs>{hatch}</defs>
-      <rect x="86" y="14" width="66" height="62" rx="3" fill="url(#wdb-photo)" />
-    </>
-  );
+  if (use === "side") return photo(100, 1, 59, 88, "wdb-photo-side");
+  return photo(86, 14, 66, 62, "wdb-photo-over");
 }
 
 export function SlideArt({ shape, image = "none", className = "" }: {

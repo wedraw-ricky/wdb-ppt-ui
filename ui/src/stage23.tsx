@@ -6,6 +6,11 @@
    row of chips the reader has to imagine assembled. */
 
 import { cardStyle, Star } from "./selectors";
+import aiArt from "./art/src-ai.png";
+import noneArt from "./art/src-none.png";
+import placeholderArt from "./art/src-placeholder.png";
+import providedArt from "./art/src-provided.png";
+import webArt from "./art/src-web.png";
 import { label, desc } from "./i18n";
 
 type Dict = Record<string, any>;
@@ -200,46 +205,14 @@ export function PageCount({ value, onChange }: { value: string; onChange: (v: st
 }
 
 /** Image sources, drawn. Each card shows the kind of picture it produces. */
-const SOURCE_ART: Record<string, JSX.Element> = {
-  ai: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="var(--wdb-secondary)" opacity="0.16" />
-      <path d="M38 52 L52 34 L64 50 L72 42 L84 60 H20 Z" fill="var(--wdb-primary)" opacity="0.55" />
-      <path d="M74 20 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 z" fill="var(--wdb-cyan)" />
-    </g>
-  ),
-  web: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="var(--wdb-secondary)" opacity="0.12" />
-      <circle cx="52" cy="42" r="19" fill="none" stroke="var(--wdb-primary)" strokeWidth="2.5" />
-      <path d="M33 42h38M52 23a26 26 0 0 0 0 38a26 26 0 0 0 0 -38" fill="none"
-            stroke="var(--wdb-primary)" strokeWidth="2.5" />
-    </g>
-  ),
-  provided: (
-    <g>
-      <rect x="20" y="22" width="60" height="42" rx="4" fill="var(--wdb-secondary)" opacity="0.2" />
-      <rect x="14" y="16" width="60" height="42" rx="4" fill="var(--wdb-card-bg)"
-            stroke="var(--wdb-primary)" strokeWidth="2" />
-      <circle cx="30" cy="30" r="5" fill="var(--wdb-cyan)" />
-      <path d="M18 52 L34 36 L44 46 L54 38 L70 54 H18 Z" fill="var(--wdb-primary)" opacity="0.5" />
-    </g>
-  ),
-  placeholder: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="none"
-            stroke="var(--wdb-gray)" strokeWidth="2.5" strokeDasharray="7 5" />
-      <path d="M36 34 L68 58 M68 34 L36 58" stroke="var(--wdb-gray)" strokeWidth="2.5" opacity="0.6" />
-    </g>
-  ),
-  none: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="var(--wdb-card-bg)"
-            stroke="var(--border)" strokeWidth="2" />
-      <path d="M30 30 h40 M30 42 h40 M30 54 h26" stroke="var(--wdb-gray)" strokeWidth="3"
-            strokeLinecap="round" opacity="0.55" />
-    </g>
-  ),
+/* 이미지를 어디서 가져올지 고르는 다섯 카드의 그림. 예전에는 여기도 도형을
+   얹어 만든 아이콘이었는데, 얇은 선 아이콘 다섯 개는 어느 서비스에나 붙어
+   있는 얼굴이라 "그냥 갖다 붙인 화면" 으로 읽혔다. 한 세트로 그려 넣는다 —
+   같은 장 한 장, 같은 선 굵기, 같은 정면 시점. 옆에 이름과 설명이 이미 있으니
+   그림은 거드는 쪽이고, 그래서 alt 는 비운다. */
+const SOURCE_ART: Record<string, string> = {
+  ai: aiArt, web: webArt, provided: providedArt,
+  placeholder: placeholderArt, none: noneArt,
 };
 
 export function ImageSourceChoice({
@@ -261,9 +234,8 @@ export function ImageSourceChoice({
                 className="overflow-hidden rounded-xl border p-0 text-left transition"
                 style={cardStyle(on(it.id))}>
           <div className="border-b" style={{ borderColor: "var(--border)", background: "var(--wdb-card-bg)" }}>
-            <svg viewBox="0 0 104 84" className="h-[84px] w-full" aria-hidden="true">
-              {SOURCE_ART[it.id] ?? SOURCE_ART.none}
-            </svg>
+            <img src={SOURCE_ART[it.id] ?? SOURCE_ART.none} alt="" draggable={false}
+                 className="mx-auto h-[84px] w-full object-contain py-2" />
           </div>
           <div className="p-4">
             <div className="flex items-center text-[15px] font-semibold">

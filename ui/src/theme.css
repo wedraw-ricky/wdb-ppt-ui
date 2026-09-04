@@ -39,7 +39,7 @@
   --focus: var(--wdb-primary);
   --link: var(--wdb-primary);
   --success: #059669;
-  --warning: #d97706;
+  --warning: #b45309;  /* 흰 바탕 5.02:1 — #d97706 은 3.19:1 이라 12px 에서 안 읽혔다 */
   --danger: #e11d48;
   --field-background: #ffffff;
   --field-border: #e1e6ed;
@@ -99,3 +99,10 @@ body {
 }
 .wdb-sweep { animation: wdb-sweep 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
 @media (prefers-reduced-motion: reduce) { .wdb-sweep { animation: none; width: 100%; } }
+
+/* 켬/끔 스위치의 누르는 줄. 기본이 20px 라 손이 떨리면 빗나간다.
+   한 곳에서 올려야 스위치가 새로 생겨도 같이 따라온다. */
+.switch__content {
+  min-height: 24px;
+  align-items: center;
+}

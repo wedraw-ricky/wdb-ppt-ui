@@ -13,6 +13,9 @@
 import { useEffect, useState } from "react";
 import * as api from "./api";
 import { T } from "./i18n";
+import doneArt from "./art/done.png";
+import errorArt from "./art/error.png";
+import loadingArt from "./art/loading.png";
 
 const PANEL = "var(--wdb-card-bg)";
 const LINE = "var(--border)";
@@ -197,21 +200,17 @@ export function Deriving({ target }: { target: number }) {
 }
 
 /** The same stack, settled, with the check that says it is done. */
-export function DoneArt() {
-  return (
-    <svg viewBox="0 0 160 120" className="h-[120px] w-[160px]" role="img"
-         aria-label="선택이 저장됨">
-      {[0, 1, 2].map((i) => (
-        <rect key={i} x="12" y={52 + i * 16} width="88" height="12" rx="2"
-              fill={PANEL} stroke={LINE} strokeWidth="1" />
-      ))}
-      <rect x="12" y="36" width="88" height="12" rx="2" fill={INDIGO} />
-      <rect x="12" y="20" width="88" height="12" rx="2" fill={BLUE} />
-      <path d="M114 74 L126 86 L148 56" fill="none" stroke={CYAN} strokeWidth="9"
-            strokeLinecap="square" strokeLinejoin="miter" />
-    </svg>
-  );
+/* 상태 그림 셋. 예전에는 <rect> 를 쌓아 만들었는데, 그건 그린 게 아니라
+   자리만 잡아둔 티가 나서 오히려 "기계가 만든 화면" 으로 읽혔다. 세 장을 한
+   세트로 그려 붙인다 — 같은 장 더미, 같은 선 굵기, 같은 정면 시점.
+   글자를 대신하는 그림이 아니라 옆의 문장을 거드는 그림이라 alt 는 비운다. */
+function StateArt({ src }: { src: string }) {
+  return <img src={src} alt="" className="h-[132px] w-auto" draggable={false} />;
 }
+
+export function LoadingArt() { return <StateArt src={loadingArt} />; }
+export function ErrorArt() { return <StateArt src={errorArt} />; }
+export function DoneArt() { return <StateArt src={doneArt} />; }
 
 /** Says the server went away — the one thing this screen cannot recover from
     on its own. It stays a banner rather than a blocking overlay because the
