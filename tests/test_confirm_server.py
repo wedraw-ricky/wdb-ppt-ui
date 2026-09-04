@@ -43,6 +43,83 @@ except ImportError:  # Flask missing
     confirm_server = None
 
 
+class StageFieldMap(unittest.TestCase):
+    """어느 필드가 어느 단계 것인지가 두 언어에 손으로 적혀 있다 (E-8 v1).
+
+    서버는 `CONFIRMED_BY_STAGE` 로 확정 값을 되읽고, 화면은 `PREVIEW_FIELDS` 로
+    무엇을 비출지 정한다. 같은 분류인데 파일이 둘이라, 한쪽만 고치면 조용히
+    어긋난다 — E-10 과 정확히 같은 모양이므로 여기서 대조한다.
+
+    Flask 없이도 도는 검사다. 이 파일에서 유일하게 서버 실행이 필요 없다.
+    """
+
+    API_TS = Path(__file__).resolve().parent.parent / "ui/src/api.ts"
+
+    def preview_fields(self):
+        """`PREVIEW_FIELDS` 를 api.ts 에서 그대로 읽는다."""
+        import re
+        text = self.API_TS.read_text(encoding="utf-8")
+        block = re.search(r"PREVIEW_FIELDS[^=]*=\s*\{(.*?)\n\};", text, re.S)
+        self.assertIsNotNone(block, "api.ts 에서 PREVIEW_FIELDS 를 못 찾았다")
+        out = {}
+        for stage, body in re.findall(r"(\d+):\s*\[(.*?)\]", block.group(1), re.S):
+            out[int(stage)] = set(re.findall(r'"([^"]+)"', body))
+        return out
+
+    @unittest.skipIf(confirm_server is None, "Flask not installed")
+    def test_두_언어의_단계_분류가_같다(self):
+        server_map = {k: set(v) for k, v in
+                      confirm_server.CONFIRMED_BY_STAGE.items()}
+        self.assertEqual(server_map, self.preview_fields())
+
+    def test_화면_쪽_분류를_읽을_수_있다(self):
+        # 정규식이 조용히 빈 사전을 돌려주면 위 검사가 통과해버린다.
+        fields = self.preview_fields()
+        self.assertEqual(sorted(fields), [1, 2, 3])
+        self.assertIn("canvas", fields[1])
+
+
+@unittest.skipIf(confirm_server is None, "Flask not installed")
+class ConfirmedReadback(unittest.TestCase):
+    """확정한 값을 되읽는 길 (E-8 v1). 한 필드를 바꾸려고 처음부터 다시 하는
+    일을 없애려면, 먼저 무엇을 확정했는지 볼 수 있어야 한다."""
+
+    def result(self, payload):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "result.json"
+        path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        return path
+
+    def test_확정한_값을_단계별로_묶어_돌려준다(self):
+        got = confirm_server.confirmed_values(self.result({
+            "canvas": "16:9", "audience": "행정실장",
+            "page_count": 12, "generation_mode": "split",
+        }))
+        self.assertEqual(got["1"], {"canvas": "16:9", "audience": "행정실장"})
+        self.assertEqual(got["2"], {"page_count": 12})
+        self.assertEqual(got["3"], {"generation_mode": "split"})
+
+    def test_안_고른_것은_빈_칸으로_남기지_않는다(self):
+        got = confirm_server.confirmed_values(self.result({
+            "canvas": "16:9", "audience": "", "icons": None, "image_usage": [],
+        }))
+        self.assertEqual(got, {"1": {"canvas": "16:9"}})
+
+    def test_아직_아무것도_확정_안_했으면_빈_답(self):
+        self.assertEqual(confirm_server.confirmed_values(self.result({})), {})
+
+    def test_읽을_수_없는_파일은_오류가_아니라_빈_답(self):
+        # 확정 전에 조회하는 것은 흔한 일이라 오류로 만들면 안 된다.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "result.json"
+        path.write_text("{ 깨짐", encoding="utf-8")
+        self.assertEqual(confirm_server.confirmed_values(path), {})
+        self.assertEqual(
+            confirm_server.confirmed_values(Path(tmp.name) / "없음.json"), {})
+
+
 @unittest.skipIf(confirm_server is None, "Flask not installed")
 class Heartbeat(unittest.TestCase):
 

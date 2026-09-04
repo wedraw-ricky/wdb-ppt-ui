@@ -133,6 +133,24 @@ export function allPreviewFields(): Set<string> {
   return new Set(Object.values(PREVIEW_FIELDS).flat());
 }
 
+/** What was already settled, grouped by the stage that asked (E-8).
+ *
+ * The server derives this from `result.json` with the same stage split as
+ * `PREVIEW_FIELDS`; the two are compared in `tests/test_confirm_server.py`.
+ * An empty object means nothing is confirmed yet, which is the ordinary state
+ * at the start of a run — never an error.
+ */
+export async function fetchConfirmed(): Promise<Record<string, Dict>> {
+  try {
+    const r = await fetch("/api/confirmed", { cache: "no-store" });
+    if (!r.ok) return {};
+    const data = await r.json();
+    return data && typeof data === "object" ? data : {};
+  } catch {
+    return {};
+  }
+}
+
 /** Stage 1 = direction anchors only (confirm_ui.md round-trip contract). */
 export function stage1Payload(s: Dict, catalogs: Dict): Dict {
   const p: Dict = {

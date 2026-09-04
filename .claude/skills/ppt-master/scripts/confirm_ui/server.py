@@ -588,6 +588,39 @@ def _installed_template_info(project_path: Path) -> Optional[dict]:
     return {'kind': kind, 'name': name}
 
 
+# 확정한 값을 단계별로 되읽기 위한 분류 (E-8). 한 필드를 바꾸려고 처음부터
+# 다시 하는 일을 없애려면, 먼저 무엇을 확정했는지 볼 수 있어야 한다.
+#
+# 같은 분류가 `ui/src/api.ts` 의 `PREVIEW_FIELDS` 에도 있다. 손으로 둘을
+# 맞춰 두면 한쪽만 고쳐질 때 조용히 어긋나므로, `tests/test_gates.py` 가
+# 둘을 대조해 어긋나면 필드 이름을 대며 실패한다.
+CONFIRMED_BY_STAGE: dict[int, tuple[str, ...]] = {
+    1: ('template', 'template_adherence', 'canvas', 'audience',
+        'content_divergence', 'mode', 'visual_style', 'delivery_purpose'),
+    2: ('page_count', 'color', 'icons', 'typography', 'formula_policy'),
+    3: ('image_source', 'image_usage', 'generation_mode', 'refine_spec'),
+}
+
+
+def confirmed_values(result_file: Path) -> dict:
+    """What the person actually settled, grouped by the stage that asked.
+
+    An unreadable or absent result is an empty answer, never an error: nothing
+    confirmed yet is the ordinary state at the start of a run.
+    """
+    try:
+        res = _read_json_object(result_file)
+    except (OSError, json.JSONDecodeError, ValueError):
+        return {}
+    out: dict = {}
+    for stage, keys in CONFIRMED_BY_STAGE.items():
+        picked = {k: res[k] for k in keys
+                  if res.get(k) not in (None, '', [], {})}
+        if picked:
+            out[str(stage)] = picked
+    return out
+
+
 def _merge_confirmed_choices(data: dict, result_file: Path) -> None:
     """Fold already-confirmed choices into later-stage recommendations."""
     try:
@@ -1086,6 +1119,17 @@ def create_app(
                 server_port=app.config.get('SERVER_PORT'),
             ),
         })
+        resp.headers['Cache-Control'] = 'no-store'
+        return resp
+
+    @app.route('/api/confirmed')
+    def get_confirmed():
+        """Read back what was already settled, grouped by stage (E-8 v1).
+
+        Read-only. Changing a confirmed value is a later step; being able to
+        look at it without re-running the whole confirmation is this one.
+        """
+        resp = jsonify(confirmed_values(confirm_dir / RESULT_NAME))
         resp.headers['Cache-Control'] = 'no-store'
         return resp
 

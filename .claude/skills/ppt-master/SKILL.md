@@ -634,6 +634,18 @@ too, and simply means the whole bundle is authored here as before.
 `--report` prints how long each transition actually took. Use it when the user
 asks why a step was slow; do not quote it as a promise.
 
+**When the user asks to change one thing after confirming (E-8)** — read what
+was settled instead of re-running the confirmation:
+
+```bash
+curl -s localhost:<port>/api/confirmed        # 확정 값, 단계별로
+```
+
+Or read `<project>/confirm_ui/result.json` directly when the server is down.
+Re-derive only what depends on the field being changed; everything else keeps
+the value the user already chose. Saying "처음부터 다시 해야 합니다" when only
+one field moved is the failure this exists to prevent.
+
 First, read the role definition:
 ```
 Read references/strategist.md
