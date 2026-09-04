@@ -85,17 +85,75 @@ function Detail({ row }: { row: Row | undefined }) {
   );
 }
 
+/** 이 장에서 사람이 봐야 할 것. 이 화면이 가진 데이터로만 판단한다.
+    `checkOutline` 은 덱 전체 문제만 내고 장별 신호는 주지 않으므로, 없는 것을
+    지어내면 "확인 필요" 라는 말이 곧 의미를 잃는다. */
+function needsLook(row: Row): string {
+  if (!row.title.trim()) return "제목이 비어 있습니다";
+  if (!row.screen.trim()) return "화면에 넣을 내용이 비어 있습니다";
+  return "";
+}
+
+/* 왜 이 장이 여기 이렇게 있는가.
+
+   이것이 다른 도구와 갈리는 자리다. Gamma 는 "생성" 뒤에 근거를 숨기고, 그래서
+   발표장에서 "이 수치 어디서 나온 겁니까" 를 받으면 답을 못 한다. 우리는 답할
+   수 있다 — 기획서 어느 절에서 왔고, 골든서클 어느 층이며, 왜 이 모양인지가
+   전부 데이터에 있다. 지어내는 것이 하나도 없다.
+
+   같은 내용이 발표자 노트로도 나가야 회의실까지 따라간다. */
+function Why({ row }: { row: Row }) {
+  const section = row.source.split("#").pop() || "";
+  const layer = LAYERS.find((l) => l.id === row.layer);
+  const shape = SHAPES.find((s) => s.id === row.shape);
+  const role = row.role !== "body" ? (ROLE_LABELS[row.role] || row.role) : "";
+
+  const lines: { k: string; v: string }[] = [];
+  if (section) lines.push({ k: "기획서에서", v: `«${section}» 절이 이 장이 됐습니다` });
+  if (layer) lines.push({ k: "이야기의 자리", v: `${layer.label} — ${layer.note}` });
+  if (shape) lines.push({ k: "이 모양인 이유", v: `${shape.label} · ${shape.note}` });
+  if (role) lines.push({ k: "역할", v: role });
+  if (!lines.length) return null;
+
+  return (
+    <section className="flex flex-col gap-2.5">
+      <h3 className="text-[13px] font-bold">왜 이 장인가</h3>
+      <dl className="m-0 flex flex-col gap-2 border-l-2 pl-3"
+          style={{ borderColor: "var(--wdb-primary)" }}>
+        {lines.map((l) => (
+          <div key={l.k}>
+            <dt className="text-[11px]" style={{ color: "var(--muted)" }}>{l.k}</dt>
+            <dd className="m-0 text-[13px] leading-snug">{l.v}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="m-0 text-[12px]" style={{ color: "var(--muted)" }}>
+        이 설명은 발표자 노트로도 함께 나갑니다 — 발표장에서 근거를 물으면 여기 있습니다.
+      </p>
+    </section>
+  );
+}
+
 /* ---- row -------------------------------------------------------------- */
 
 /* 한 장 = 스토리보드의 한 컷.
 
    줄로 늘어놓으면 순서는 읽히지만 흐름이 안 읽힌다 — 이 화면이 묻는 것은
    "이 순서로 이야기할까요" 이므로 여러 장이 한눈에 들어와야 한다. 그래서 컷을
-   격자로 놓고, 그림을 카드 너비만큼 키운다. `art.tsx` 는 이미 레이아웃 14종을
+   격자로 놓고 그림을 카드 너비만큼 키운다 — `art.tsx` 는 이미 레이아웃 14종을
    제 도형으로 그리고 있었고, 104px 로 줄여 쓰느라 그 노력이 안 보였다.
 
-   글자로는 절 이름 하나만 쓴다. 모양(글 위주 · 항목 나열)은 그림이 이미 말하고,
-   역할은 표지 · 1안 · 2안일 때만 — 본문일 때는 적어도 정보가 늘지 않는다. */
+   글자로는 절 이름 하나만 쓴다. 모양은 그림이 이미 말하고, 역할은 표지 · 1안 ·
+   2안일 때만 — 본문일 때는 적어도 아는 것이 늘지 않는다.
+
+   접근성 세 가지가 여기 걸려 있다:
+   ① 경계선은 `--border-strong` — 기본 `--border` 는 흰 바탕에서 1.25:1 이라
+      저시력 사용자에게 카드가 안 보인다.
+   ② 고른 장은 색만으로 알리지 않는다. 굵은 테두리와 왼쪽 세로 막대가 형태로도
+      말한다 (WCAG 1.4.1).
+   ③ 옮기고 지우는 단추를 마우스오버 뒤에 숨기지 않는다. 숨기면 마우스 쓰는
+      사람에게만 깔끔해지고 키보드·터치·스크린리더에서는 기능이 사라진다.
+      개수는 크기와 명도로 줄인다. */
 function ChapterCard({
   row, index, total, selected, picked, onOpen, onPick, onMove, onDelete,
 }: {
@@ -104,25 +162,36 @@ function ChapterCard({
   onMove: (to: number) => void; onDelete: () => void;
 }) {
   const roleBadge = row.role !== "body" ? (ROLE_LABELS[row.role] || row.role) : "";
-  // 절 이름이 제목과 같은 말이면 두 번 쓰지 않는다 — 잉크만 늘고 아는 것은 그대로다.
+  const look = needsLook(row);
   const source = row.source.split("#").pop() || "";
   const sourceLabel = source && source !== row.title.trim() ? source : "";
   return (
-    <div className="group relative flex flex-col gap-2 rounded-lg border p-2 transition"
+    <div className="relative flex flex-col gap-2 rounded-lg p-2 transition"
          style={{
-           borderColor: selected ? "var(--wdb-primary)" : "var(--border)",
-           borderWidth: selected ? 2 : 1,
+           // 확인 필요는 색만이 아니라 점선으로도 말한다 (WCAG 1.4.1).
+           border: selected
+             ? "2px solid var(--wdb-primary)"
+             : look
+               ? "1px dashed var(--warning)"
+               : "1px solid var(--border-strong)",
            padding: selected ? 7 : 8,
            background: "var(--surface)",
          }}>
-      <button type="button" onClick={onOpen}
-              className="overflow-hidden rounded-md border text-left"
-              style={{ borderColor: "var(--border)" }}
-              aria-label={`${row.n}번째 장 고르기`} aria-pressed={selected}>
+      {selected ? (
+        <span aria-hidden="true" className="absolute rounded-full"
+              style={{ left: -4, top: 12, bottom: 12, width: 5,
+                       background: "var(--wdb-primary)" }} />
+      ) : null}
+
+      <button type="button" onClick={onOpen} aria-pressed={selected}
+              className="overflow-hidden rounded-md text-left"
+              style={{ border: "1px solid var(--border-strong)" }}
+              aria-label={`${row.n}번째 장 ${row.title.trim() || "제목 미정"} 고르기`}>
         <SlideArt shape={row.shape} />
       </button>
 
-      <span className="pointer-events-none absolute left-3.5 top-3.5 grid h-5 w-5
+      <span aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-3.5 grid h-5 w-5
                        place-items-center rounded text-[10px] font-bold text-white"
             style={{ background: "var(--wdb-secondary)" }}>{row.n}</span>
 
@@ -150,26 +219,26 @@ function ChapterCard({
             {sourceLabel ? <span className="truncate">{sourceLabel}</span> : null}
           </div>
         ) : null}
+        {look ? (
+          <span className="text-[12px] font-semibold" style={{ color: "var(--warning)" }}>
+            확인 필요 — {look}
+          </span>
+        ) : null}
       </div>
 
-      {/* 손대는 장에만 보인다. 45개가 늘 떠 있으면 눈이 갈 곳이 45군데가 된다. */}
-      <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition
-                      group-hover:opacity-100 group-focus-within:opacity-100">
-        <IconBtn label="앞으로" disabled={index === 0}
+      <div className="flex items-center gap-1 px-0.5">
+        <label className="mr-auto flex items-center gap-1.5 text-[12px]"
+               style={{ color: "var(--muted)" }}>
+          <input type="checkbox" checked={picked} onChange={onPick}
+                 aria-label={`${row.n}번째 장을 합치기 대상으로 선택`} />
+          합치기
+        </label>
+        <IconBtn label={`${row.n}번째 장을 앞으로`} disabled={index === 0}
                  onClick={() => onMove(index - 1)}>←</IconBtn>
-        <IconBtn label="뒤로" disabled={index === total - 1}
+        <IconBtn label={`${row.n}번째 장을 뒤로`} disabled={index === total - 1}
                  onClick={() => onMove(index + 1)}>→</IconBtn>
-        <IconBtn label="이 장 지우기" onClick={onDelete}>✕</IconBtn>
+        <IconBtn label={`${row.n}번째 장 지우기`} onClick={onDelete}>✕</IconBtn>
       </div>
-
-      <label className="absolute bottom-2 right-2 flex items-center gap-1 text-[11px]
-                        opacity-0 transition group-hover:opacity-100
-                        group-focus-within:opacity-100 has-[:checked]:opacity-100"
-             style={{ color: "var(--muted)" }}>
-        <input type="checkbox" checked={picked} onChange={onPick}
-               aria-label={`${row.n}번째 장 선택`} />
-        합치기
-      </label>
     </div>
   );
 }
@@ -180,8 +249,8 @@ function IconBtn({ children, label, onClick, disabled }: {
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label}
             title={label}
-            className="grid h-6 w-6 place-items-center rounded border text-[12px] transition disabled:opacity-30"
-            style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+            className="grid h-6 w-6 place-items-center rounded text-[12px] transition disabled:opacity-30"
+            style={{ border: "1px solid var(--border-strong)", color: "var(--muted)" }}>
       {children}
     </button>
   );
@@ -308,11 +377,16 @@ export function OutlineEditor({ doc, onConfirm }: {
   const [dragging, setDragging] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // 확인할 곳만 걸러 보기 · 층을 접고 전부 펼쳐 보기. 22장이 넘어가면
+  // 층별 목록만으로는 훑을 수가 없다.
+  const [onlyLook, setOnlyLook] = useState(false);
+  const [flat, setFlat] = useState(false);
   const [msg, setMsg] = useState("");
 
   const issues = useMemo(() => checkOutline({ ...doc, rows }), [doc, rows]);
   const blocked = issues.filter((i) => i.tone === "block");
   const flow = metaGet(doc, "flow");
+  const lookCount = rows.filter((r) => needsLook(r)).length;
   const current = open >= 0 ? open : 0;
 
   /** Every mutation runs through here so the selection and the open row cannot
@@ -387,6 +461,11 @@ export function OutlineEditor({ doc, onConfirm }: {
           <Detail row={rows[current]} />
           {rows[current] ? (
             <div className="border-t pt-5" style={{ borderColor: "var(--border)" }}>
+              <Why row={rows[current]} />
+            </div>
+          ) : null}
+          {rows[current] ? (
+            <div className="border-t pt-5" style={{ borderColor: "var(--border)" }}>
               <Editor row={rows[current]}
                       onPatch={(p) => setRows(patchRow(rows, current, p))} />
             </div>
@@ -397,7 +476,33 @@ export function OutlineEditor({ doc, onConfirm }: {
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="border-b px-8 py-5"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <h1 className="text-xl font-bold">이 순서로 이야기할까요?</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="mr-auto text-xl font-bold">이 순서로 이야기할까요?</h1>
+            <button type="button" onClick={() => setOnlyLook((v) => !v)}
+                    aria-pressed={onlyLook} disabled={lookCount === 0}
+                    className="rounded-lg px-3 py-1.5 text-[13px] font-semibold transition
+                               disabled:opacity-40"
+                    style={onlyLook
+                      ? { background: "var(--warning)", color: "var(--surface)",
+                          border: "1px solid var(--warning)" }
+                      : { border: "1px solid var(--warning)", color: "var(--warning)" }}>
+              확인할 곳만 {lookCount}
+            </button>
+            <div role="group" aria-label="보기 방식"
+                 className="flex overflow-hidden rounded-lg"
+                 style={{ border: "1px solid var(--border-strong)" }}>
+              {[["층별", false], ["전체", true]].map(([label, v]) => (
+                <button key={String(v)} type="button" onClick={() => setFlat(v as boolean)}
+                        aria-pressed={flat === v}
+                        className="px-3 py-1.5 text-[13px] transition"
+                        style={flat === v
+                          ? { background: "var(--wdb-primary)", color: "#fff", fontWeight: 600 }
+                          : { color: "var(--muted)" }}>
+                  {label as string}
+                </button>
+              ))}
+            </div>
+          </div>
           <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
             장을 끌어 순서를 바꾸고, 눌러서 안을 고치세요. 여기서 확정한 뼈대가 그대로 슬라이드가 됩니다.
           </p>
@@ -432,14 +537,20 @@ export function OutlineEditor({ doc, onConfirm }: {
           {/* Why · How · What 을 띠로 묶고 그 안에 컷을 늘어놓는다. 15개가 각자
               테두리를 두르면 정작 묶여야 할 세 덩어리의 경계가 안 보인다. */}
           <div className="flex flex-col gap-7">
-            {LAYERS.map((layer) => {
+            {(flat || onlyLook
+              ? [{ id: "", label: "", note: "" } as (typeof LAYERS)[number]]
+              : LAYERS
+            ).map((layer) => {
               const items = rows
                 .map((row, i) => ({ row, i }))
-                .filter(({ row }) => row.layer === layer.id);
+                .filter(({ row }) =>
+                  (flat || onlyLook || row.layer === layer.id)
+                  && (!onlyLook || needsLook(row)));
               if (!items.length) return null;
               return (
-                <section key={layer.id} className="flex flex-col gap-3">
-                  <header className="flex items-baseline gap-3">
+                <section key={layer.id || "all"} className="flex flex-col gap-3">
+                  <header className="flex items-baseline gap-3"
+                          hidden={flat || onlyLook}>
                     <h2 className="text-[14px] font-bold">{layer.label}</h2>
                     <span className="text-[12px]" style={{ color: "var(--muted)" }}>
                       {layer.note}
@@ -517,7 +628,9 @@ export function OutlineEditor({ doc, onConfirm }: {
                 style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
             {msg || (picked.length >= 2
               ? mergeWarning(rows, picked) || "고른 장을 한 장으로 합칩니다"
-              : `모두 ${rows.length}장 · 고치신 장은 다시 만들어도 그대로 둡니다`)}
+              : lookCount
+                ? `모두 ${rows.length}장 · 확인할 곳 ${lookCount}군데 — 그냥 만드셔도 됩니다`
+                : `모두 ${rows.length}장 · 이대로 만드셔도 됩니다`)}
           </span>
           <button type="button" onClick={confirm} disabled={busy || blocked.length > 0}
                   className="rounded-lg px-5 py-2.5 text-[15px] font-semibold text-white

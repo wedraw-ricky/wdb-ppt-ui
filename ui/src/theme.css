@@ -29,6 +29,12 @@
   --default-foreground: var(--wdb-charcoal);
   --muted: var(--wdb-gray);
   --border: #e1e6ed;
+  /* 물건의 경계를 그리는 선. `--border` 는 흰 바탕에서 명암비 1.25:1 이라
+     WCAG 1.4.11(3:1)에 못 미치고, 저시력 사용자에게 카드 경계가 보이지
+     않는다. 색상은 그대로 두고 명도만 낮춰 흰 바탕 3.37:1 · 카드 바탕
+     3.14:1 로 맞춘 값. 나뉘는 것이 보여야 하는 곳에만 쓴다 — 장식 선은
+     계속 `--border` 다. */
+  --border-strong: #828d9b;
   --separator: #e1e6ed;
   --focus: var(--wdb-primary);
   --link: var(--wdb-primary);
