@@ -29,3 +29,8 @@ Thumbs.db
 
 # Vite writes this next to the bundle, but the page served is static/index.html.
 static/app/index.html
+
+# 강사 자료는 저장소에 올리지 않는다. 규칙만 references/ 로 옮긴다.
+docs/자료/
+*강의*.txt
+*강의*.pdf

@@ -57,6 +57,38 @@ Role definition for the **planning path**: read the intake answers plus the sour
 
 ---
 
+## 2.5 제목 — the one line that decides
+
+**Hard rule**: a 기획서 제목 is `[목적] 을 위한 [실행안]`. The purpose goes in front,
+the thing you will actually do goes behind. This shape is the default whenever
+nothing better presents itself; it is not a fallback, it is the rule.
+
+| Half | Carries | Test |
+|---|---|---|
+| before 위한 | the end being pursued — what gets better | Name what is not working now. Not a category |
+| after 위한 | the action being proposed | A reader can tell what will be done |
+
+**Forbidden — a 제목 with no purpose.** `생산성 툴 노션 도입안` states an action and
+nothing else: a decision-maker reads it and cannot tell what improves, so the
+answer is a question rather than an approval.
+
+**Forbidden — a purpose too broad to locate.** `업무 효율을 위한 노션 도입안` is
+still failing: 업무 효율 does not say *what* is not working. `실시간 업무 소통의
+극대화를 위한 생산성 툴 노션 도입안` does.
+
+**Hard rule**: a recurring proposal states what changed since last time. "Same as
+last year" is the fastest way to a rejected approval.
+
+The 제목 is written for a reader who may read nothing else, so it does two things
+at once: it names what that reader wants, and it says what this achieves. A 제목
+that leaves the reader incurious has already failed twice — they do not open it,
+and if they do they keep asking what it means.
+
+> Note: this is the 기획서 제목. A 보고서 reports a result that already exists, so
+> its 제목 leads with the figure instead — [`report-format.md`](./report-format.md)
+> §2.2. Applying the 보고서 rule to a 기획서 demands a result the proposal has not
+> produced yet.
+
 ## 3. Frames
 
 Each frame is an ordered chain of sections. `plan_spec.md` carries exactly the chain for the selected `frame`.

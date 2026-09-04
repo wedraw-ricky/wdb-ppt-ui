@@ -353,29 +353,73 @@ def _banned_in(text: str) -> list[str]:
     return [w for w in BANNED_WORDS if w in text]
 
 
-def check_title(meta: dict) -> list[str]:
-    """report-format.md §2.2 제목 — `[핵심 수단] + [결과/수치]`, 12~18자.
+# A 기획서 proposes; a 보고서 reports a result that already exists. Their 제목 は
+# different sentences and were being judged by one rule: demanding a figure in
+# the 제목 of a proposal asks for a result it has not produced yet.
+PROPOSAL_FRAMES = frozenset({"problem", "hypothesis", "intro", "ir", "teach"})
 
-    The scaffold used to drop `intake.conclusion` here, so the 제목 arrived as
-    whatever sentence the writer had typed about their conclusion: two clauses,
-    no figure, thirty-odd characters. That is a 거버닝 메시지, not a 제목.
+# `[목적] 을 위한 [실행안]` — the proposal 제목 shape (planner.md §2.5).
+_PURPOSE_RE = re.compile(r"(.+?)\s*(?:을|를)\s*위(?:한|해)\s*(.+)")
+
+# A purpose so broad it locates nothing: it names a direction, not what is
+# failing. "업무 효율을 위한" passes a naive check and still tells no one anything.
+BROAD_PURPOSE = (
+    "업무 효율", "효율화", "생산성", "역량 강화", "매출 증대", "이익 증대",
+    "성과 향상", "경쟁력 강화", "혁신", "고도화", "선진화", "활성화",
+    "내실화", "개선", "발전",
+)
+
+
+def check_title(meta: dict, frame: Optional[Frame] = None) -> list[str]:
+    """The 제목 rule, by document kind.
+
+    A proposal's 제목 is `[목적] 을 위한 [실행안]` (planner.md §2.5); a report's
+    leads with the figure (report-format.md §2.2). One rule for both demanded a
+    result the proposal had not produced, and let a proposal ship with no
+    purpose in its 제목 at all — which is the one thing a decision-maker reads.
     """
-    errs = []
     title = (meta.get("title") or "").strip()
+    is_proposal = frame is None or frame.key in PROPOSAL_FRAMES
     if not title or title.startswith("["):
-        return ["E-TITLE 제목이 비어 있다 — [핵심 수단] + [결과 수치] 로 12~18자"]
-    length = len(re.sub(r"\s", "", title))
-    if length > 24:
-        errs.append(f"E-TITLE 제목이 {length}자 — 12~18자로 줄인다 "
-                    f"(수단과 결과 수치만 남긴다)")
+        shape = ("[목적] 을 위한 [실행안]" if is_proposal
+                 else "[핵심 수단] + [결과 수치] 로 12~18자")
+        return [f"E-TITLE 제목이 비어 있다 — {shape}"]
+
+    errs = []
     if len(re.findall(r"[.!?]\s|[.!?]$", title)) >= 2 or title.count(". ") >= 1:
         errs.append("E-TITLE 제목이 두 문장 — 제목은 한 덩어리다. "
                     "나머지는 거버닝 메시지로 옮긴다")
-    if not _FIGURE_RE.search(title):
-        errs.append("E-TITLE 제목에 수치가 없다 — 결과는 정량으로 (§2.2)")
     for w in _banned_in(title):
         errs.append(f"E-TITLE 제목의 '{w}' — 최상위·추상 수식어는 삭제하거나 "
                     f"검증 가능한 구체어로 바꾼다")
+
+    if not is_proposal:
+        length = len(re.sub(r"\s", "", title))
+        if length > 24:
+            errs.append(f"E-TITLE 제목이 {length}자 — 12~18자로 줄인다 "
+                        f"(수단과 결과 수치만 남긴다)")
+        if not _FIGURE_RE.search(title):
+            errs.append("E-TITLE 보고서 제목에 수치가 없다 — 결과는 정량으로 "
+                        "(report-format.md §2.2)")
+        return errs
+
+    match = _PURPOSE_RE.match(title)
+    if not match:
+        errs.append("E-TITLE 제목에 목적이 없다 — '[목적] 을 위한 [실행안]' 으로 "
+                    "쓴다. 무엇이 나아지는지가 없으면 결재자는 승인 대신 "
+                    "질문을 한다 (planner.md §2.5)")
+        return errs
+
+    purpose = match.group(1).strip()
+    for w in BROAD_PURPOSE:
+        if purpose == w or purpose.endswith(w):
+            errs.append(f"E-TITLE 제목의 목적 '{purpose}' 이 너무 넓다 — "
+                        f"무엇이 안 되고 있는지를 짚는다 "
+                        f"(예: '실시간 업무 소통의 극대화를 위한 …')")
+            break
+    if len(re.sub(r"\s", "", purpose)) < 4:
+        errs.append(f"E-TITLE 제목의 목적 '{purpose}' 이 너무 짧다 — "
+                    f"달성하려는 것을 한 구절로 적는다")
     return errs
 
 
@@ -507,7 +551,7 @@ def run_check(project: Path) -> list[str]:
     errs += check_target(frame, by_name)
     errs += check_options(frame, by_name)
     errs += check_direction_marks(sections)
-    errs += check_title(meta)
+    errs += check_title(meta, frame)
     errs += check_governing(meta)
     errs += check_headings(sections)
     errs += check_register(sections)

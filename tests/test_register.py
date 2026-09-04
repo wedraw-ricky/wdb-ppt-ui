@@ -33,11 +33,55 @@ def sec(name, body="", heading=""):
                              heading=heading, source="", options=[])
 
 
-class Title(unittest.TestCase):
-    """`[핵심 수단] + [결과/수치]`, 12~18자."""
+class ProposalTitle(unittest.TestCase):
+    """`[목적] 을 위한 [실행안]` — planner.md §2.5.
+
+    The cases here are the lecture's own: the 제목 it calls a failure, the
+    revision it says still fails, and the one it rewrites to. A proposal was
+    being judged by the report rule, which demanded a result figure the
+    proposal has not produced and never asked for a purpose at all.
+    """
 
     def errs(self, title):
-        return plan_spec.check_title({"title": title})
+        return plan_spec.check_title({"title": title},
+                                     plan_spec.FRAMES["problem"])
+
+    def test_the_rewritten_title_passes(self):
+        self.assertEqual(
+            self.errs("실시간 업무 소통의 극대화를 위한 생산성 툴 노션 도입안"), [])
+
+    def test_a_title_with_no_purpose_is_caught(self):
+        # An action and nothing else: the reader cannot tell what improves.
+        found = self.errs("생산성 툴 노션 도입안")
+        self.assertTrue(any("목적이 없다" in e for e in found))
+
+    def test_a_purpose_too_broad_is_caught(self):
+        # 업무 효율 names a direction, not what is failing.
+        for bad in ("업무 효율을 위한 노션 도입안",
+                    "생산성을 위한 협업 도구 도입안",
+                    "매출 증대를 위한 채널 확대안"):
+            found = self.errs(bad)
+            self.assertTrue(any("너무 넓다" in e for e in found), bad)
+
+    def test_a_specific_purpose_passes(self):
+        self.assertEqual(
+            self.errs("신입사원 1년 이내 퇴사율 40% 해소를 위한 온보딩 재설계안"), [])
+
+    def test_a_proposal_title_needs_no_figure(self):
+        # The report rule demanded one; a proposal has no result yet.
+        self.assertEqual(self.errs("현장 보고 경로 부재 해소를 위한 익명 채널 개설안"), [])
+
+    def test_an_unwritten_title_names_the_proposal_shape(self):
+        found = self.errs("")
+        self.assertTrue(any("위한" in e for e in found))
+
+
+class Title(unittest.TestCase):
+    """보고서 제목 — `[핵심 수단] + [결과/수치]`, 12~18자."""
+
+    def errs(self, title):
+        return plan_spec.check_title({"title": title},
+                                     plan_spec.FRAMES["report"])
 
     def test_a_title_to_shape_passes(self):
         self.assertEqual(self.errs("익명 신고채널 도입, 참여율 75.7%"), [])
@@ -58,6 +102,10 @@ class Title(unittest.TestCase):
     def test_an_unwritten_title_is_caught(self):
         self.assertTrue(self.errs(""))
         self.assertTrue(self.errs("[핵심 수단] + [결과 수치] — 12~18자"))
+
+    def test_the_report_rule_still_wants_a_figure(self):
+        # Scoping the proposal rule must not loosen the report rule.
+        self.assertTrue(any("수치가 없다" in e for e in self.errs("신고채널 도입 성과")))
 
 
 class Governing(unittest.TestCase):
