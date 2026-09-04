@@ -26,6 +26,8 @@ Role definition for the **planning path**: read the intake answers plus the sour
 
 **Hard rule**: Numeric values from the source or from research are transcribed, never generated. A figure absent from the source is absent from `plan_spec.md`.
 
+**Hard rule**: Section bodies are written in the 보고형 register defined by [`report-format.md`](./report-format.md) §2 — 최상위 수식어 removed, the 수치 or 결론 in the first third of the sentence, 개조식 lines carrying no full stop. The Word renderer typesets that register; it cannot produce it, so a body written outside it reaches the reader outside it.
+
 ---
 
 ## 2. Frame Selection
