@@ -262,6 +262,23 @@ class ReportWriter:
             el.set(self.qn("w:val"), "0")
             ppr.insert(0, el)
 
+    def no_auto_space_para(self, para) -> None:
+        """Repeat the setting on one paragraph.
+
+        The document default is what Word reads, and it is enough for Word. Other
+        readers — LibreOffice among them — ignore `docDefaults` here and pad the
+        seam anyway, which means a converted preview shows "1,015 명" and nobody
+        can tell a real defect from a rendering artifact. Stating it per
+        paragraph makes the file say the same thing to every reader.
+        """
+        ppr = para._p.get_or_add_pPr()
+        for tag in ("w:autoSpaceDN", "w:autoSpaceDE"):
+            if ppr.find(self.qn(tag)) is not None:
+                continue
+            el = self.OxmlElement(tag)
+            el.set(self.qn("w:val"), "0")
+            ppr.insert(0, el)
+
     def top_rule(self, para, color: str, size: int = 6) -> None:
         borders = self.OxmlElement("w:pBdr")
         top = self.OxmlElement("w:top")
@@ -532,6 +549,22 @@ class ReportWriter:
         for el in (begin, instr, end):
             run._element.append(el)
 
+    def _seal_auto_space(self) -> None:
+        """Repeat the no-padding setting on every paragraph, table cells included.
+
+        One pass at the end rather than at each of the places a paragraph is
+        made: a new kind of paragraph added later would otherwise quietly opt
+        out of it, and the defect only shows up in a rendered document.
+        """
+        for para in self.doc.paragraphs:
+            self.no_auto_space_para(para)
+        for table in self.doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        self.no_auto_space_para(para)
+
     def save(self, path: Path) -> None:
+        self._seal_auto_space()
         path.parent.mkdir(parents=True, exist_ok=True)
         self.doc.save(str(path))

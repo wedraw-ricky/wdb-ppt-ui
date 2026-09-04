@@ -11,6 +11,7 @@ writes body text — it owns the frame contract, not the content.
 
 Checks (per selected frame, see references/planner.md §4):
     - E-FACT   fact-required section filled without a `source:` line
+    - E-MARK   an empty `{+}` / `{-}` — the mark wraps the figure, it does not follow it
     - E-PAIR   paired section carries a claim with no counterpart
     - E-GOAL   target section missing a period or a level
     - E-ALT    option block present where the frame suppresses options,
@@ -283,6 +284,29 @@ def check_facts(frame: Frame, by_name: dict[str, Section]) -> list[str]:
     return errs
 
 
+# `{+…}` / `{-…}` wrap the figure whose direction the author is asserting. An
+# empty one is a near miss for `75.7%{+}`, where the marker follows the figure
+# instead of enclosing it.
+_EMPTY_DIRECTION_RE = re.compile(r"\{([+-])\s*\}")
+
+
+def check_direction_marks(sections: list[Section]) -> list[str]:
+    """Catch a direction mark that colours nothing.
+
+    It renders as no mark at all — no error, no colour, the figure simply
+    stays black — so without this the author's intent is dropped in silence
+    and only a careful reading of the finished document would show it.
+    """
+    errs = []
+    for sec in sections:
+        for sign in _EMPTY_DIRECTION_RE.findall(sec.body or ""):
+            errs.append(
+                f"E-MARK '{sec.name}' has an empty {{{sign}}} — the mark wraps "
+                f"the figure it describes: write {{{sign}75.7%}}, not 75.7%{{{sign}}}"
+            )
+    return errs
+
+
 def check_pairs(frame: Frame, by_name: dict[str, Section]) -> list[str]:
     errs = []
     for first, second in frame.pairs:
@@ -359,6 +383,7 @@ def run_check(project: Path) -> list[str]:
     errs += check_pairs(frame, by_name)
     errs += check_target(frame, by_name)
     errs += check_options(frame, by_name)
+    errs += check_direction_marks(sections)
     return errs
 
 

@@ -104,7 +104,11 @@ Content shape selects the layout. The assignment is written to `shape` and remai
 | Tabular grid, three to eight columns | `basic_table` |
 | None of the above | Body layout from the deck template |
 
-**Validation**: Every `shape` value exists in `templates/charts/charts_index.json`. An absent id is an error.
+**Order**: a specific signal wins over the figure count. A body carrying ordered steps *and* three figures is a sequence that happens to be measured; reading the count first sent five of one report's seven slides to the same KPI grid.
+
+**"Mixed units" is half the rule.** Three counts in one unit — 428건 / 371건 / 57건 — is a list or a table, not a KPI row; `%p` counts as `%`, and 만원 / 억원 / 천원 all count as money.
+
+**Validation**: Every `shape` value exists in `templates/charts/charts_index.json`. An absent id is an error. Three or more consecutive slides sharing one layout raise `W-SAME` — a warning, never a correction: the layout follows the content, and the skeleton screen is one click from changing it.
 
 **Hard rule**: One strong graphic per slide on 16:9. A4 permits two. Three kinds — chart, diagram, and table — never share one page.
 

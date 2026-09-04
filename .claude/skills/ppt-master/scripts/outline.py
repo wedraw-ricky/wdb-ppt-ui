@@ -21,6 +21,7 @@ Checks (see references/storyline.md):
     - E-ALT    frame needs proposal_alt and has none, or forbids it and has one
     - E-IR     `ir` deck has no financial-scenario slide
     - E-SHAPE  a `shape` value is absent from charts_index.json
+    - W-SAME   (warning) three or more slides in a row share one layout
     - E-COVER  a `확정` plan_spec section reaches no slide
     - E-SYNC   outline row count or numbering disagrees with §IX
 
@@ -91,9 +92,17 @@ LAYERS: dict[str, dict[str, str]] = {
 
 SHAPE_SIGNALS: tuple[tuple[str, str], ...] = (
     (r"(?:①|1단계|먼저|첫째).*(?:②|2단계|다음|둘째)", "numbered_steps"),
-    (r"(?:→|vs\.?|대비|전후|전 ?→ ?후)", "comparison_columns"),
+    (r"(?:→|vs\.?|대비|전후|전 ?→ ?후|보다|에서\s*\S+\s*(?:으로|로)\s*(?:올|내|늘|줄|상승|하락))",
+     "comparison_columns"),
     (r"\d{4}년.*\d{4}년|\d+분기.*\d+분기", "grouped_bar_chart"),
 )
+
+# `%p` is the same measure as `%`, and 만원/억원/천원 are all money. A row of
+# KPI cards earns its place by showing different *kinds* of measure; three
+# counts in the same unit (428건 / 371건 / 57건) is a list or a table.
+_UNIT_FAMILY = {
+    "%p": "%", "만원": "원", "억원": "원", "천원": "원", "억": "원",
+}
 
 
 @dataclass
@@ -116,19 +125,35 @@ def load_shapes() -> set[str]:
     return set(data["charts"]) | {"body", "cover"}
 
 
+def figure_units(body: str) -> list[str]:
+    """The unit of every figure in the body, collapsed into measure families.
+
+    Longest unit first: `%p` before `%`, `만원` before `원`. Korean reports
+    state money in compounds, and 3200만원 counted as no figure at all left a
+    수치 나열 slide reading as plain prose.
+    """
+    units = re.findall(
+        r"\d[\d,.]*\s*(%p|%|만원|억원|천원|억|점|건|명|원|일|배|개월|개소|회|시간)",
+        body)
+    return [_UNIT_FAMILY.get(u, u) for u in units]
+
+
 def pick_shape(body: str) -> str:
-    """Choose a layout from the content's shape. See storyline.md §5."""
-    # Longest unit first: `%p` before `%`, `만원` before `원`. Korean reports
-    # state money in compounds, and 3200만원 counted as no figure at all left a
-    # 수치 나열 slide reading as plain prose.
-    figures = re.findall(
-        r"\d[\d,.]*\s*(?:%p|%|만원|억원|천원|억|점|건|명|원|일|배)", body)
-    if len(figures) >= 3:
-        return "kpi_cards"
+    """Choose a layout from the content's shape. See storyline.md §5.
+
+    Specific signals are tested before the figure count. A body carrying both
+    ordered steps and three figures is a sequence that happens to be measured,
+    not a metrics board — reading the count first sent five straight slides of
+    one report to the same KPI grid.
+    """
     for pattern, shape in SHAPE_SIGNALS:
         if re.search(pattern, body, re.S):
             return shape
-    bullets = re.findall(r"^\s*[-*·]\s+\S", body, re.M)
+    units = figure_units(body)
+    # §5 says "three or more figures, mixed units" — both halves matter.
+    if len(units) >= 3 and len(set(units)) >= 2:
+        return "kpi_cards"
+    bullets = re.findall(r"^\s*[-*·◦▢]\s+\S", body, re.M)
     if 3 <= len(bullets) <= 6:
         return "vertical_list"
     return "body"
@@ -252,6 +277,33 @@ def render_ix(slides: list[Slide]) -> str:
     return "\n".join(out)
 
 
+def shape_runs(slides: list) -> list[str]:
+    """Warn where the same layout runs three slides deep.
+
+    Not an error and never auto-corrected: the layout follows the content, and
+    a report whose middle really is three comparisons in a row is telling the
+    truth. But three identical pages read as a template that stopped thinking,
+    and the person is one click from changing it on the skeleton screen — so
+    say it there rather than deciding for them.
+    """
+    warnings: list[str] = []
+    run_start = 0
+    body = [s for s in slides if s.role != "cover"]
+    for i in range(1, len(body) + 1):
+        same = i < len(body) and body[i].shape == body[run_start].shape
+        if same:
+            continue
+        length = i - run_start
+        if length >= 3:
+            warnings.append(
+                f"W-SAME slides {body[run_start].n}–{body[i - 1].n} all use "
+                f"'{body[run_start].shape}' — {length} pages of one layout. "
+                f"Change any of them on the skeleton screen if the content differs"
+            )
+        run_start = i
+    return warnings
+
+
 def run_check(project: Path) -> list[str]:
     outline_path = project / "outline.md"
     if not outline_path.is_file():
@@ -366,6 +418,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     errors = run_check(project)
+    warnings = shape_runs(load(project / "outline.md")[1])
+    for w in warnings:
+        print(f"  ! {w}", file=sys.stderr)
     if errors:
         print(f"[outline] FAIL ({len(errors)} error(s)):", file=sys.stderr)
         for e in errors:

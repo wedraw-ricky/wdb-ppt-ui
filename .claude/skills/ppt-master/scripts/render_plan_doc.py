@@ -128,6 +128,24 @@ def _stamp_date(stamp: str) -> str:
         return datetime.now().strftime("%Y-%m-%d")
 
 
+# A `source:` line does two different jobs. `plan_spec.py --check` reads it to
+# confirm a fact-required section is grounded, and for that a repo-relative path
+# is exactly right. A reader of the finished report is a different audience:
+# "sources/source.md §Ⅱ" tells them nothing and reads as a leak from inside the
+# machine. Only a citation a person could follow is printed.
+_INTERNAL_SOURCE = re.compile(
+    r"(^|[\s(])(?:sources|analysis|exports|projects|templates)/|\.(?:md|json|csv|txt|ya?ml)\b",
+    re.I)
+
+
+def readable_source(source: str) -> str:
+    """Return the citation to print, or "" when it only names a working file."""
+    text = (source or "").strip()
+    if not text or _INTERNAL_SOURCE.search(text):
+        return ""
+    return text
+
+
 def _empty_note(plan: Plan, section: Section) -> str:
     """Why a section is blank — the frame's own reason, not a guess."""
     if plan.frame is not None and section.name in plan.frame.fact_required:
@@ -159,8 +177,9 @@ def render_markdown(plan: Plan) -> str:
             out += [strip_markup(sec.body), ""]
         else:
             out += [f"_{_empty_note(plan, sec)}_", ""]
-        if sec.source:
-            out += [f"근거: `{sec.source}`", ""]
+        cite = readable_source(sec.source)
+        if cite:
+            out += [f"근거: {cite}", ""]
 
     pending = pending_sections(plan)
     if pending:
@@ -211,8 +230,9 @@ def render_docx(plan: Plan, out_path: Path, form_name: str) -> None:
                 writer.write_table(payload)
             else:
                 writer.write_line(level, payload)
-        if sec.source:
-            writer.write_line("note", f"근거: {sec.source}")
+        cite = readable_source(sec.source)
+        if cite:
+            writer.write_line("note", f"근거: {cite}")
 
     pending = pending_sections(plan)
     if pending:

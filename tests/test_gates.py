@@ -356,5 +356,71 @@ class L1_5_SectionIXParity(unittest.TestCase):
         self.assertEqual(outline.run_check(path), [])
 
 
+class LayoutAssignmentRules(unittest.TestCase):
+    """storyline.md §5. Both halves of the kpi_cards rule were found missing by
+    running a real report through: five of its seven slides came out identical."""
+
+    def test_a_specific_signal_beats_the_figure_count(self):
+        # A sequence that happens to be measured is still a sequence. Reading
+        # the count first sent it to the KPI grid.
+        body = "먼저 1단계 3건을 처리하고, 다음 2단계에서 428건을 12명이 맡는다"
+        self.assertEqual(outline.pick_shape(body), "numbered_steps")
+
+    def test_mixed_units_are_required_for_kpi_cards(self):
+        self.assertEqual(
+            outline.pick_shape("접수 428건, 완료 371건, 진행 57건"), "body")
+        self.assertEqual(
+            outline.pick_shape("참여 1,015명, 참여율 75.7%, 만족도 4.3점"),
+            "kpi_cards")
+
+    def test_percent_and_percentage_point_are_one_measure(self):
+        # 75.7% / 63.3% / 12.4%p is one kind of number stated three times.
+        self.assertNotEqual(
+            outline.pick_shape("75.7%에 그쳤다. 63.3%였고 12.4%p 차이다"),
+            "kpi_cards")
+
+    def test_money_compounds_are_one_measure(self):
+        self.assertNotEqual(
+            outline.pick_shape("640만원, 1,800만원, 120만원 편성"), "kpi_cards")
+
+    def test_a_before_and_after_reads_as_a_comparison(self):
+        self.assertEqual(
+            outline.pick_shape("만족도가 3.8점에서 4.3점으로 올랐다"),
+            "comparison_columns")
+        self.assertEqual(
+            outline.pick_shape("본사 평균 79.0%보다 22.7%p 낮다"),
+            "comparison_columns")
+
+
+class SameLayoutRun(unittest.TestCase):
+    """A warning, never a correction: the layout follows the content, and a
+    report whose middle really is three comparisons is telling the truth."""
+
+    def slides(self, *shapes):
+        rows = [outline.Slide(n=1, layer="why", role="cover", title="", shape="cover")]
+        rows += [outline.Slide(n=i + 2, layer="how", role="body", title=f"{i}",
+                               shape=sh) for i, sh in enumerate(shapes)]
+        return rows
+
+    def test_three_in_a_row_is_flagged(self):
+        w = outline.shape_runs(self.slides("kpi_cards", "kpi_cards", "kpi_cards"))
+        self.assertEqual(len(w), 1)
+        self.assertIn("slides 2–4", w[0])
+
+    def test_two_in_a_row_is_not(self):
+        self.assertEqual(
+            outline.shape_runs(self.slides("kpi_cards", "kpi_cards", "body")), [])
+
+    def test_the_cover_never_joins_a_run(self):
+        # Every deck opens on a cover; counting it would flag every deck.
+        self.assertEqual(
+            outline.shape_runs(self.slides("body", "body")), [])
+
+    def test_two_separate_runs_are_both_named(self):
+        w = outline.shape_runs(self.slides(
+            "kpi_cards", "kpi_cards", "kpi_cards", "body", "body", "body"))
+        self.assertEqual(len(w), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
