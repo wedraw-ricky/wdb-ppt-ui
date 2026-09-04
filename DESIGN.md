@@ -97,6 +97,18 @@ This screen decides visual outcomes, so every picker renders evidence:
   (empty, waiting and finished states).
 - The AI's pick carries the ★ badge in the cyan tier — one per group.
 
+### One decision, one screen
+
+Twelve questions stacked ran 4088px: to answer the third you had to hold that two were
+scrolled above you and nine below. Each question now takes the screen alone, in the order the
+rail already lists — the rail and the form read the same `stageSteps`, so they cannot disagree
+about what is left. The rail stops being a checklist and becomes the map: it marks the question
+in hand, and every row is a jump, so going back to the second answer costs one click rather
+than paging through the ones between. Answers stay in memory while you move, and the footer
+carries 이전 / 다음 with the position (3 / 12); the submit button appears only on the last
+question, where it is the only thing left to do. This is one pattern for all three stages and
+the single-pass form, per CLAUDE.md's hard rule.
+
 ### The preview must track the current decision
 
 The left panel shows what is being chosen **right now**, not a fixed sample. It
@@ -211,6 +223,7 @@ defect, not a wording problem.
 | 2026-09-04 | Confirming stamps `confirmed_at` into the outline | It records that a person approved the spine, and the agent waits on this file *changing* — so an outline nobody edited still has to differ from the one the agent wrote, or the run hangs |
 | 2026-09-04 | The chosen flow is shown, never re-picked here | Re-selecting a flow is a regeneration only `outline.py --scaffold` performs, and no route exposes it at this point; the button in the sketch would have promised what the pipeline cannot do |
 | 2026-09-04 | Merging names the section that loses its own chapter | `--check` credits one section per chapter, so a merge can cost the later section its slide; saying so beats a check failing after the window closes |
+| 2026-09-04 | One question per screen, the rail as the map | A 4088px scroll made every answer depend on remembering what was off-screen; paging costs one click per question and the rail's rows become jumps, so going back is cheaper than it was by scrolling |
 | 2026-09-04 | The waiting screen lists the agent's own notes, ticked as they finish | A fixed stage label reads as frozen within half a minute — the counter proves the page is alive but not that the work is. Notes are a record of the past, so they add movement without implying a total the pipeline never measured |
 | 2026-09-04 | The page pings the server while it is open, and says so when it stops answering | Filling in the form makes no requests, so the server's idle watchdog could not tell a reading user from a closed tab and shut down under one twice; the ping restarts its clock, and closing the tab stops the ping so the timeout still works. The banner waits for two missed pings — one blip must not flash an alarm mid-decision |
 | 2026-09-03 | Step rail added to the left panel | Required steps were invisible until you scrolled the whole form |

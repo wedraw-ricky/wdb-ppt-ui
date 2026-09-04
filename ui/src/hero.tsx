@@ -89,7 +89,15 @@ function Journey({ stageNum }: { stageNum: number }) {
   );
 }
 
-function Rail({ steps }: { steps: Step[] }) {
+/** The rail is now also the way back.
+
+    With one question per screen the rail stops being a list of what is left and
+    becomes the map of where you are: it marks the question in hand and every row
+    is a jump, so revisiting the second answer costs one click instead of paging
+    back through the ones between. */
+function Rail({ steps, current, onGo }: {
+  steps: Step[]; current: string; onGo: (key: string) => void;
+}) {
   const left = steps.filter((s) => s.required && !s.filled).length;
   return (
     <div>
@@ -99,26 +107,41 @@ function Rail({ steps }: { steps: Step[] }) {
           {left ? `아직 ${left}개 남았습니다` : "다 정하셨습니다"}
         </span>
       </div>
-      <ol className="flex flex-col gap-1.5">
-        {steps.map((s, i) => (
-          <li key={s.key} className="flex items-center gap-2.5 text-sm">
-            <span
-              className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
-              style={{
-                background: s.filled ? "var(--wdb-cyan)" : "rgba(255,255,255,0.16)",
-                color: s.filled ? "var(--wdb-charcoal)" : "#ffffff",
-              }}
-            >
-              {s.filled ? "✓" : i + 1}
-            </span>
-            <span className={s.filled ? "opacity-70" : ""}>{s.title}</span>
-            {s.required ? (
-              <span className="text-[11px]" style={{ color: "var(--wdb-cyan)" }}>필수</span>
-            ) : (
-              <span className="text-[11px] opacity-55">선택</span>
-            )}
-          </li>
-        ))}
+      <ol className="flex flex-col gap-0.5">
+        {steps.map((s, i) => {
+          const here = s.key === current;
+          return (
+            <li key={s.key}>
+              <button
+                type="button"
+                onClick={() => onGo(s.key)}
+                aria-current={here ? "step" : undefined}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition"
+                style={{
+                  background: here ? "rgba(255,255,255,0.16)" : "transparent",
+                  fontWeight: here ? 700 : 400,
+                }}
+              >
+                <span
+                  className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold"
+                  style={{
+                    background: s.filled ? "var(--wdb-cyan)"
+                              : here ? "#ffffff" : "rgba(255,255,255,0.16)",
+                    color: s.filled || here ? "var(--wdb-charcoal)" : "#ffffff",
+                  }}
+                >
+                  {s.filled ? "✓" : i + 1}
+                </span>
+                <span className={s.filled && !here ? "opacity-70" : ""}>{s.title}</span>
+                {s.required ? (
+                  <span className="ml-auto text-[11px]" style={{ color: "var(--wdb-cyan)" }}>필수</span>
+                ) : (
+                  <span className="ml-auto text-[11px] opacity-55">선택</span>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -253,10 +276,11 @@ function ImagePreview({ state }: { state: Dict }) {
 }
 
 export function Hero({
-  state, cat, stageNum, steps, ack, onFixCanvas, onAck,
+  state, cat, stageNum, steps, ack, current, onGo, onFixCanvas, onAck,
 }: {
   state: Dict; cat: Dict; stageNum: number; steps: Step[];
-  ack: boolean; onFixCanvas: (canvasId: string) => void; onAck: () => void;
+  ack: boolean; current: string; onGo: (key: string) => void;
+  onFixCanvas: (canvasId: string) => void; onAck: () => void;
 }) {
   return (
     <aside className="wdb-hero hidden w-[38%] max-w-[560px] min-w-[380px] flex-col gap-6 overflow-y-auto p-7 lg:flex">
@@ -272,7 +296,7 @@ export function Hero({
 
       <Journey stageNum={stageNum} />
 
-      <Rail steps={steps} />
+      <Rail steps={steps} current={current} onGo={onGo} />
 
       <div className="flex flex-col gap-2">
         <div className="text-xs opacity-80">

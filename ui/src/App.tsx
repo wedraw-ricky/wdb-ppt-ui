@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   Button, Card, Checkbox, CheckboxGroup, Description, Input, Label,
   Switch, TextArea, TextField,
@@ -21,7 +21,25 @@ import {
 
 /* ---------- small building blocks ------------------------------------- */
 
-function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+/** Which question is on screen. Read by `Section`, written by the footer and
+    the rail — one source, so a jump from the rail and a press of 다음 cannot
+    land on different questions. */
+const StepCtx = createContext<{ current: string; index: (k: string) => number }>(
+  { current: "", index: () => 0 });
+
+const useStep = () => useContext(StepCtx);
+
+/** One decision, one screen.
+
+    Twelve of these stacked made a 4088px scroll: to answer the third question
+    you had to remember the first two were above you and the rest below. Each
+    now waits its turn, in the order the rail already lists — the rail and the
+    form read the same `stageSteps`, so they can never disagree about what is
+    left. */
+function Section({ k, title, children }: { k: string; title: string; children: React.ReactNode }) {
+  const { current, index } = useStep();
+  if (k !== current) return null;
+  const n = index(k) + 1;
   return (
     <Card className="mb-8">
       <Card.Header className="pb-1">
@@ -131,6 +149,10 @@ function Confirm() {
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
   const [msg, setMsg] = useState("");
+  // Which question is on screen, held by key so a changing list cannot strand
+  // it. Declared here, above every early return: a hook that only runs in one
+  // phase changes the hook count when the phase changes.
+  const [stepKey, setStepKey] = useState("");
 
   const stageNum = useMemo(() => {
     const s = String(rec.stage || "");
@@ -167,6 +189,9 @@ function Confirm() {
   useEffect(() => { load(); }, []);
   // 템플릿이나 크기를 다시 고르면 불일치 확인과 그때 띄운 오류 문구를 함께 무효화한다
   useEffect(() => { setMismatchAck(false); setMsg(""); }, [state?.template, state?.canvas]);
+  // A new stage starts at its own first question. Clearing the key is enough —
+  // an unknown key resolves to position 0 below.
+  useEffect(() => { setStepKey(""); }, [stageNum]);
 
   /** After intake, wait for the agent to produce the outline the user edits. */
   async function pollOutline() {
@@ -288,12 +313,22 @@ function Confirm() {
   const deckFormat = state.template && state.template !== "free" ? pickedDeck?.canvas_format : null;
   const canvasMismatch = Boolean(deckFormat && deckFormat !== state.canvas);
   const steps = stageSteps(stageNum, state, cat, isPpt);
-  let n = 0;
+
+  // The list can change under us — picking a deck adds or drops a question — so
+  // an unknown key falls back to the first, never to an empty screen.
+  const at = Math.max(0, steps.findIndex((s) => s.key === stepKey));
+  const current = steps[at]?.key ?? "";
+  const stepCtx = { current, index: (k: string) => steps.findIndex((s) => s.key === k) };
+  const goTo = (i: number) => {
+    const next = steps[Math.min(Math.max(i, 0), steps.length - 1)];
+    if (next) setStepKey(next.key);
+  };
+  const isLast = at >= steps.length - 1;
 
   return (
     <div className="flex h-full">
       <Hero state={state} cat={cat} stageNum={stageNum} steps={steps}
-              ack={mismatchAck}
+              ack={mismatchAck} current={current} onGo={setStepKey}
               onFixCanvas={(id) => set("canvas", id)}
               onAck={() => setMismatchAck((v) => !v)} />
       <main className="flex min-w-0 flex-1 flex-col">
@@ -303,10 +338,11 @@ function Confirm() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
+          <StepCtx.Provider value={stepCtx}>
           {showAnchors && (
             <>
               {cat.templates?.length > 1 && (
-                <Section n={++n} title={T.secTemplate}>
+                <Section k="template" title={T.secTemplate}>
                   <ThumbChoice
                     items={cat.templates} value={state.template}
                     onChange={(v) => set("template", v)} recommended={R.template}
@@ -316,11 +352,11 @@ function Confirm() {
                   />
                 </Section>
               )}
-              <Section n={++n} title={T.secCanvas}>
+              <Section k="canvas" title={T.secCanvas}>
                 <RatioChoice items={cat.canvas || []} value={state.canvas}
                              onChange={(v) => set("canvas", v)} recommended={R.canvas} />
               </Section>
-              <Section n={++n} title={T.secAudience}>
+              <Section k="audience" title={T.secAudience}>
                 <PresetField
                   legend="가까운 것을 고르고 필요하면 고쳐 쓰세요"
                   presets={AUDIENCE_PRESETS} value={state.audience}
@@ -340,7 +376,7 @@ function Confirm() {
                   </div>
                 )}
               </Section>
-              <Section n={++n} title={T.secStyle}>
+              <Section k="style" title={T.secStyle}>
                 <div>
                   <div className="mb-3 text-base font-semibold">{T.subMode}</div>
                   <DiagramChoice items={cat.modes || []} value={state.mode}
@@ -366,10 +402,10 @@ function Confirm() {
 
           {showDesign && (
             <>
-              <Section n={++n} title={T.secPages}>
+              <Section k="pages" title={T.secPages}>
                 <PageCount value={state.page_count} onChange={(v) => set("page_count", v)} />
               </Section>
-              <Section n={++n} title={T.secColor}>
+              <Section k="color" title={T.secColor}>
                 <PaletteChoice
                   candidates={rec.color?.candidates || []}
                   selectedIndex={(rec.color?.candidates || []).findIndex(
@@ -389,11 +425,11 @@ function Confirm() {
                                color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))} />
                 </div>
               </Section>
-              <Section n={++n} title={T.secIcons}>
+              <Section k="icons" title={T.secIcons}>
                 <IconChoice items={cat.icons || []} value={state.icons}
                             onChange={(v) => set("icons", v)} recommended={R.icons} />
               </Section>
-              <Section n={++n} title={T.secType}>
+              <Section k="type" title={T.secType}>
                 <TypeSpecimen
                   typography={state.typography || {}}
                   onBody={(v) => setState((s) => {
@@ -409,7 +445,7 @@ function Confirm() {
                     typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
                 />
               </Section>
-              <Section n={++n} title={T.secFormula}>
+              <Section k="formula" title={T.secFormula}>
                 <Choice items={cat.formula_policy || []} value={state.formula_policy}
                         onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
               </Section>
@@ -418,7 +454,7 @@ function Confirm() {
 
           {showImages && (
             <>
-              <Section n={++n} title={T.secImages}>
+              <Section k="images" title={T.secImages}>
                 <ImageSourceChoice
                   items={cat.image_usage || []} value={state.image_usage}
                   onChange={(v) => set("image_usage", v)}
@@ -447,11 +483,11 @@ function Confirm() {
                   </>
                 )}
               </Section>
-              <Section n={++n} title={T.secMode}>
+              <Section k="genmode" title={T.secMode}>
                 <Choice items={cat.generation_mode || []} value={state.generation_mode}
                         onChange={(v) => set("generation_mode", v)} recommended={R.generation_mode} />
               </Section>
-              <Section n={++n} title={T.secRefine}>
+              <Section k="refine" title={T.secRefine}>
                 <Switch isSelected={state.refine_spec}
                         onChange={(b: boolean) => set("refine_spec", b)}>
                   <Switch.Control><Switch.Thumb /></Switch.Control>
@@ -462,14 +498,25 @@ function Confirm() {
               </Section>
             </>
           )}
+          </StepCtx.Provider>
         </div>
 
-        <footer className="flex items-center justify-end gap-3 border-t px-6 py-3"
+        <footer className="flex items-center gap-3 border-t px-6 py-3"
                 style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          {msg ? <span className="text-sm" style={{ color: "var(--danger)" }}>{msg}</span> : null}
-          <Button variant="primary" onPress={onPrimary}>
-            {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
+          <Button variant="secondary" isDisabled={at === 0} onPress={() => goTo(at - 1)}>
+            ← {T.prev}
           </Button>
+          <span className="text-sm tabular-nums" style={{ color: "var(--muted)" }}>
+            {at + 1} / {steps.length}
+          </span>
+          <div className="ml-auto flex items-center gap-3">
+            {msg ? <span className="text-sm" style={{ color: "var(--danger)" }}>{msg}</span> : null}
+            {isLast
+              ? <Button variant="primary" onPress={onPrimary}>
+                  {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
+                </Button>
+              : <Button variant="primary" onPress={() => goTo(at + 1)}>{T.next} →</Button>}
+          </div>
         </footer>
       </main>
     </div>

@@ -2,13 +2,14 @@
    questions, descriptions say what you get, no pipeline jargon. */
 export const T = {
   title: "PPT 만들기 — 디자인 정하기",
-  hint: "고르고 나서 아래 버튼만 누르면 됩니다. 창이 닫히면 채팅으로 돌아오세요.",
+  hint: "한 번에 하나씩 여쭙니다. 왼쪽 목록에서 아무 항목이나 눌러 오갈 수 있습니다.",
   stages: ["1단계 · 무엇을, 누구에게", "2단계 · 어떤 모습으로", "3단계 · 이미지와 마무리"],
   loading: "불러오는 중…",
   errCanvasMismatch: "고르신 크기가 템플릿 기준과 다릅니다. 왼쪽에서 크기를 맞추거나, 구조 없이 색·서체만 가져오기를 눌러 확인해 주세요.",
   deriving: "고르신 내용에 맞춰 다음 단계를 준비하는 중…",
   loadError: "추천안을 불러오지 못했습니다. 채팅으로 돌아가 다시 시도해 주세요.",
   next: "다음",
+  prev: "이전",
   confirm: "이대로 만들기",
   confirmedTitle: "다 정했습니다",
   confirmedHint: "선택이 저장됐습니다. 이 창을 닫고 채팅으로 돌아가세요.",
