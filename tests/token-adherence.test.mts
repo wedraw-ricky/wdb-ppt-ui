@@ -95,3 +95,32 @@ describe("토큰을 쓰고 있는가", () => {
       `theme.css 는 이름만 잇는 곳이다 — 값은 tokens.css 에 둔다: ${declared.join(", ")}`);
   });
 });
+
+describe("부품을 쓰고 있는가", () => {
+  it("고르는 자리는 전부 Pick 을 거친다", () => {
+    // 고르는 부품이 일곱 개였다 — 하는 일은 같은데 각각 따로 쓰여서 그림자·
+    // 모서리·고른 표시가 제각각이었다. 화면마다 다르게 보이던 이유가 이것이다.
+    const CHOOSERS = ["ThumbChoice", "RatioChoice", "DiagramChoice", "IconChoice",
+                      "Choice", "ArtChoice", "ImageSourceChoice"];
+    const bad: string[] = [];
+    for (const f of FILES) {
+      const src = readFileSync(f, "utf8");
+      for (const name of CHOOSERS) {
+        const i = src.indexOf(`export function ${name}(`);
+        if (i < 0) continue;
+        // 그 함수 안에 <Pick 이 있어야 한다
+        const next = src.indexOf("\nexport ", i + 10);
+        const body = src.slice(i, next < 0 ? undefined : next);
+        if (!body.includes("<Pick")) bad.push(`${f.split("/ui/src/")[1]}  ${name}`);
+      }
+    }
+    assert.deepEqual(bad, [], `Pick 을 안 쓰는 고르기 부품:\n${bad.join("\n")}`);
+  });
+
+  it("부품마다 어디 놓이는지가 적혀 있다", () => {
+    // 파란 패널용으로 만든 부품을 흰 화면에 옮겼더니 배경과 같은 색이 되어
+    // 사라진 적이 있다. 놓이는 면을 안 적어서 옮길 때 아무도 몰랐다.
+    const pick = readFileSync(new URL("../ui/system/pick.tsx", import.meta.url).pathname, "utf8");
+    assert.ok(pick.includes("놓이는 면"), "pick.tsx 에 놓이는 면이 안 적혀 있다");
+  });
+});

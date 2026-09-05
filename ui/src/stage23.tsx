@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { cardStyle, Star } from "./selectors";
 import { pickStyle } from "./shell";
+import { Pick } from "../system/pick";
 import { SlideArt } from "./outline/art";
 import aiArt from "./art/src-ai.png";
 import noneArt from "./art/src-none.png";
@@ -341,39 +342,26 @@ export function ImageSourceChoice({
 }: {
   items: Dict[]; value: string[]; onChange: (v: string[]) => void; recommended: string[];
 }) {
-  const on = (id: string) => (value || []).includes(id);
-  const toggle = (id: string) => {
-    const cur = value || [];
-    if (id === "none") return onChange(on("none") ? [] : ["none"]);
-    const next = cur.filter((v) => v !== "none");
-    onChange(on(id) ? next.filter((v) => v !== id) : [...next, id]);
-  };
+  const cur = value || [];
+  // "이미지 없음" 은 혼자여야 한다 — 다른 것과 같이 고를 수 없다.
+  const set = (next: string[]) =>
+    onChange(next.includes("none")
+      ? (cur.includes("none") ? next.filter((v) => v !== "none") : ["none"])
+      : next.filter((v) => v !== "none"));
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {items.map((it) => (
-        <button key={it.id} type="button" onClick={() => toggle(it.id)} aria-pressed={on(it.id)}
-                className="overflow-hidden rounded-xl border p-0 text-left transition"
-                style={cardStyle(on(it.id))}>
-          <div className="border-b" style={{ borderColor: "var(--border)", background: "var(--wdb-card-bg)" }}>
-            <img src={SOURCE_ART[it.id] ?? SOURCE_ART.none} alt="" draggable={false}
-                 className="mx-auto h-[84px] w-full object-contain py-2" />
-          </div>
-          <div className="p-4">
-            <div className="flex items-center t-card">
-              <span className="truncate">{label(it)}</span>
-              {recommended.includes(it.id) ? <Star /> : null}
-            </div>
-            {desc(it) ? (
-              <div className="t-sub mt-2 line-clamp-3" style={{ color: "var(--muted)" }}>
-                {desc(it)}
-              </div>
-            ) : null}
-          </div>
-        </button>
-      ))}
-    </div>
+    <Pick cols={3} artHeight={112} multi value={cur} onChange={set}
+          ariaLabel="이미지를 어디서 가져올지"
+          items={items.map((it) => ({
+            id: String(it.id),
+            label: label(it),
+            note: desc(it) || undefined,
+            star: recommended.includes(String(it.id)),
+            art: <img src={SOURCE_ART[String(it.id)] ?? SOURCE_ART.none} alt=""
+                      draggable={false} className="h-[84px] w-auto object-contain" />,
+          }))} />
   );
 }
+
 
 /** Generated-image style: show the reference frames, not a field list. */
 export function StrategyChoice({
