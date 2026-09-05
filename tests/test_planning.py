@@ -385,3 +385,55 @@ class OutputFormat(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CopyRules(unittest.TestCase):
+    """planner.md §2.6 카피 · §2.7 숫자 — 화면에 나가는 글의 낱말.
+
+    "출장 동선 여섯 자리를 위한 PLATINUM ELITE" 가 규칙을 통과했던 적이 있다.
+    골자([목적]을 위한 [실행안])는 지켰는데 아무도 그렇게 말하지 않는 말이었다.
+    골자는 그대로 두고 낱말을 본다.
+    """
+
+    def test_골자는_여전히_필요하다(self):
+        # 카피 규칙을 넣으면서 골자를 없애지 않았는지. 한 번 없앴다가 되돌렸다.
+        errs = plan_spec.check_title({"title": "출장 1번에 6번 꺼내는 카드"},
+                                     plan_spec.FRAMES["intro"])
+        self.assertTrue(any("E-TITLE" in e and "목적" in e for e in errs))
+
+    def test_목차_라벨은_제목이_아니다(self):
+        for bad in ("개요", "결론", "숫자로 보면", "주요 내용"):
+            self.assertTrue(any("목차 항목" in e for e in plan_spec.check_copy(bad, "제목")), bad)
+
+    def test_설명문으로_끝나면_잡는다(self):
+        errs = plan_spec.check_copy("혜택 구성에 대해 알아봅니다", "제목")
+        self.assertTrue(any("설명문" in e for e in errs))
+
+    def test_업계_말을_잡는다(self):
+        errs = plan_spec.check_copy("출장 동선 여섯 자리", "제목")
+        self.assertTrue(any("'동선'" in e for e in errs))
+
+    def test_장_제목만_길이_제한을_받는다(self):
+        long_title = "신입사원 1년 이내 퇴사율 40% 해소를 위한 온보딩 재설계안"
+        self.assertEqual(
+            [e for e in plan_spec.check_copy(long_title, "제목") if "자 —" in e], [])
+        self.assertTrue(any("자 —" in e for e in
+                            plan_spec.check_copy(long_title, "제목", max_len=25)))
+
+    def test_화면_글의_한글_수사를_잡는다(self):
+        for bad in ("나머지 일곱 가지는 무관", "두 곳을 고른다", "여섯 자리"):
+            self.assertTrue(plan_spec.check_screen_numerals(bad, "화면"), bad)
+
+    def test_말버릇과_다른_낱말은_건드리지_않는다(self):
+        # 조사를 봐주다가 "세 장면" 의 '세 장' 을 잡으면 맞는 문장이 막힌다.
+        for ok in ("한 번쯤 들러보세요", "세 장면이 이어진다", "호텔 23곳", "두어 곳"):
+            self.assertEqual(plan_spec.check_screen_numerals(ok, "화면"), [], ok)
+
+    def test_발표자_노트는_대상이_아니다(self):
+        # 말하는 글이라 한글 수사가 맞다. 화면 검사가 script 를 집어가면
+        # 발표자가 "여섯 곳" 이라 말하는 것까지 막힌다.
+        import inspect
+        src = inspect.getsource(outline.run_check)
+        self.assertIn("check_copy(s.title", src)
+        self.assertIn("check_screen_numerals(s.screen", src)
+        self.assertNotIn("s.script", src)

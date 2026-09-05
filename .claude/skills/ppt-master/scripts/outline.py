@@ -45,6 +45,8 @@ import argparse
 import json
 import re
 import sys
+
+from plan_spec import check_copy, check_screen_numerals
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -404,6 +406,15 @@ def run_check(project: Path) -> list[str]:
         if s.image not in IMAGE_USES:
             errs.append(f"E-IMAGE slide {s.n} uses image placement "
                         f"'{s.image}' — one of {', '.join(IMAGE_USES)}")
+
+    # 화면에 나가는 글은 숫자, 발표자 노트는 한글 (planner.md §2.7). 규칙이 한
+    # 곳에만 있으면 두 파일이 갈라지므로 plan_spec 의 것을 그대로 부른다 —
+    # 같은 것을 두 곳에 손으로 적으면 언젠가 어긋난다.
+    # 장 제목도 카피다 — 목차 라벨을 적어두면 그 장은 안 읽힌다 (planner.md §2.6).
+    # 발표자 노트(script)는 말하는 글이라 대상이 아니다.
+    for s in slides:
+        errs += check_copy(s.title, f"slide {s.n} 제목", max_len=25)
+        errs += check_screen_numerals(s.screen, f"slide {s.n} 화면 문구")
 
     known = load_shapes()
     for s in slides:

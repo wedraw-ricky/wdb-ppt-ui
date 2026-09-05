@@ -400,6 +400,31 @@ def _banned_in(text: str) -> list[str]:
 # the 제목 of a proposal asks for a result it has not produced yet.
 PROPOSAL_FRAMES = frozenset({"problem", "hypothesis", "intro", "ir", "teach"})
 
+# `[목적] 을 위한 [실행안]` 골자는 유지한다. 문제는 골자가 아니라 그 자리에
+# 들어가는 말이었다 — "출장 동선 여섯 자리를 위한 PLATINUM ELITE" 는 골자를
+# 지켰지만 아무도 그렇게 말하지 않는다. 그래서 아래 검사는 모양이 아니라
+# 낱말을 본다 (planner.md §2.6).
+
+# 독자가 대화에서 쓰지 않는 말. 제목에 있으면 그 순간 문서 제목이 된다.
+TRADE_WORDS = ("동선", "실행안", "제고", "고도화", "확보 방안", "개선안",
+               "방안", "활성화", "내실화", "선진화")
+
+# 셀 수 있는 값을 한글 수사로 쓴 것. 말은 "여섯 곳" 이라 해도 화면은 `6곳` 이다 —
+# 눈은 숫자를 한 번에 잡고 한글 수사는 읽어야 안다 (planner.md §2.7).
+_KO_NUM = "한|두|세|네|다섯|여섯|일곱|여덟|아홉|열|스무|하나|둘|셋|넷"
+_COUNTER = ("곳|개|가지|번|회|장|명|건|원|배|쪽|단|칸|줄|시간|분|일|달|년|주|자리|"
+            "번째|묶음|갈래|종류|권|대|잔|팀|층|단계")
+# 셈 단위 뒤에는 조사가 붙는 것이 보통이다 — "일곱 가지는", "두 곳을".
+# 조사를 안 봐주면 규칙이 실제 문장에서 거의 안 걸린다. 반대로 아무 글자나
+# 허용하면 "세 장면" 의 '세 장' 을 잘못 잡는다. 조사만 골라 허용한다.
+_PARTICLE = "은|는|이|가|을|를|도|만|의|와|과|로|에|서|씩|뿐|째|밖에|부터|까지"
+_KO_COUNT_RE = re.compile(
+    rf"(?<![가-힣])({_KO_NUM})\s*({_COUNTER})(?:{_PARTICLE})?(?![가-힣])")
+
+# 세고 있지 않은 말버릇은 그대로 둔다. "한 번쯤 들러보세요" 는 수가 아니다.
+_IDIOM_RE = re.compile(r"한\s*번(?:쯤|은|씩|만|더)|두어|한두|서너|대여섯|"
+                       r"몇\s*가지|한\s*가지도|여러\s*번")
+
 # `[목적] 을 위한 [실행안]` — the proposal 제목 shape (planner.md §2.5).
 _PURPOSE_RE = re.compile(r"(.+?)\s*(?:을|를)\s*위(?:한|해)\s*(.+)")
 
@@ -412,6 +437,76 @@ BROAD_PURPOSE = (
 )
 
 
+# 그 장이 무엇인지가 아니라 문서의 목차 항목을 적은 제목. 목차는 목차 자리에
+# 있으면 되고, 제목 자리에는 독자가 그 장에서 알게 되는 것이 와야 한다.
+LABEL_TITLES = (
+    "개요", "배경", "현황", "결론", "요약", "정리", "마무리", "목차", "소개",
+    "주요 내용", "세부 내용", "기타", "참고", "부록", "숫자로 보면", "한눈에 보기",
+)
+
+# 설명문 어미로 끝나는 제목 — 제목은 문장을 요약하는 자리가 아니다.
+_EXPLAIN_TAIL_RE = re.compile(
+    r"(?:에 대(?:해|하여)\s*(?:알아봅니다|살펴봅니다|설명합니다)|"
+    r"로 이(?:뤄|루어)집니다|를 설명합니다|를 소개합니다|에 대한 안내)$")
+
+def check_copy(title: str, where: str, max_len: Optional[int] = None) -> list[str]:
+    """제목의 낱말과 문장 (planner.md §2.6).
+
+    골자는 §2.5 가 본다. 여기는 그 골자에 들어간 말이 독자의 말인지를 본다 —
+    라벨을 적어놓지 않았는지, 설명문으로 끝나지 않는지, 업계 말이 없는지,
+    구체적인 것이 하나라도 있는지.
+    """
+    title = (title or "").strip()
+    if not title:
+        return []
+    errs = []
+    bare = re.sub(r"\s", "", title)
+    for lab in LABEL_TITLES:
+        if bare == re.sub(r"\s", "", lab):
+            errs.append(f"E-COPY {where}이 '{title}' — 목차 항목이지 제목이 아니다. "
+                        f"그 장에서 독자가 알게 되는 것을 쓴다 "
+                        f"(예: '숫자로 보면' → '호텔 23곳, 주차장 17곳')")
+            break
+    if _EXPLAIN_TAIL_RE.search(title):
+        errs.append(f"E-COPY {where}이 설명문으로 끝난다 — '{title}'. "
+                    f"제목은 내용을 요약하는 자리가 아니라 독자를 붙드는 자리다")
+    for w in TRADE_WORDS:
+        if w in title:
+            errs.append(f"E-COPY {where}의 '{w}' — 독자가 대화에서 쓰지 않는 말이다. "
+                        f"그 사람이 친구에게 설명하듯 바꾼다 (planner.md §2.6)")
+    # 길이 제한은 장 제목에만 건다. 문서 제목은 표지와 파일 목록에서 읽히는
+    # 것이라 한 줄에 갇히지 않는다 — "신입사원 1년 이내 퇴사율 40% 해소를 위한
+    # 온보딩 재설계안" 은 26자지만 좋은 기획서 제목이다.
+    if max_len and len(bare) > max_len:
+        errs.append(f"E-COPY {where}이 {len(bare)}자 — {max_len}자 안으로. "
+                    f"화면에서 두 줄이 되면 제목이 아니라 문단이다")
+    # "구체적인 것을 앞에 둔다" 는 판단이 섞이므로 검사로 막지 않는다 — 맞는
+    # 제목까지 막는 검사는 결국 아무도 안 본다. 규칙은 planner.md §2.6 에 두고,
+    # 여기서는 기계가 확실히 아는 것만 잡는다.
+    errs += check_screen_numerals(title, where)
+    return errs
+
+
+def check_screen_numerals(text: str, where: str) -> list[str]:
+    """화면에 나가는 글의 숫자 표기 (planner.md §2.7).
+
+    말은 "여섯 곳" 이라 하지만 자료는 보는 것이다. 눈은 `6곳` 을 한 번에 잡고
+    `여섯 곳` 은 읽어야 안다. 그래서 제목과 screen 은 숫자, script 는 한글이다 —
+    발표자는 화면의 `6곳` 을 보고 입으로 "여섯 곳" 이라 말하면 된다.
+
+    말버릇("한 번쯤", "두어 곳")은 수를 세고 있지 않으므로 건드리지 않는다.
+    """
+    errs = []
+    for m in _KO_COUNT_RE.finditer(text or ""):
+        span = m.group(0)
+        head = max(0, m.start() - 3)
+        if _IDIOM_RE.search(text[head:m.end() + 3]):
+            continue
+        errs.append(f"E-NUM {where}의 '{span}' — 화면에 나가는 글에서 셀 수 있는 "
+                    f"값은 숫자로 쓴다. 말할 때만 한글로 읽는다 (planner.md §2.7)")
+    return errs
+
+
 def check_title(meta: dict, frame: Optional[Frame] = None) -> list[str]:
     """The 제목 rule, by document kind.
 
@@ -421,7 +516,8 @@ def check_title(meta: dict, frame: Optional[Frame] = None) -> list[str]:
     purpose in its 제목 at all — which is the one thing a decision-maker reads.
     """
     title = (meta.get("title") or "").strip()
-    is_proposal = frame is None or frame.key in PROPOSAL_FRAMES
+    key = frame.key if frame else None
+    is_proposal = frame is None or key in PROPOSAL_FRAMES
     if not title or title.startswith("["):
         shape = ("[목적] 을 위한 [실행안]" if is_proposal
                  else "[핵심 수단] + [결과 수치] 로 12~18자")
@@ -434,6 +530,8 @@ def check_title(meta: dict, frame: Optional[Frame] = None) -> list[str]:
     for w in _banned_in(title):
         errs.append(f"E-TITLE 제목의 '{w}' — 최상위·추상 수식어는 삭제하거나 "
                     f"검증 가능한 구체어로 바꾼다")
+
+    errs += check_copy(title, "제목")
 
     if not is_proposal:
         length = len(re.sub(r"\s", "", title))
