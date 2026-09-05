@@ -4251,9 +4251,47 @@ class SVGQualityChecker:
 
         print()
 
+    def deck_level_counts(self) -> Tuple[int, int]:
+        """Count deck-wide issues, separately from the per-page ones.
+
+        These are the issues a truncated read hides. They print after every
+        per-file line, so reading only the head of the output shows pages
+        that passed and never reaches the deck-wide verdict.
+        """
+        errors = 0
+        warnings = 0
+        for bucket in (self._template_issues, self._animation_issues,
+                       self._illustration_issues, self._pptx_structure_issues):
+            for item in bucket:
+                if item[0] == 'error':
+                    errors += 1
+                elif item[0] == 'warning':
+                    warnings += 1
+        return errors, warnings
+
+    def verdict_line(self) -> str:
+        """One line carrying the whole outcome, deck-wide errors included."""
+        deck_errors, _deck_warnings = self.deck_level_counts()
+        total_errors = self.summary['errors']
+        page_errors = max(total_errors - deck_errors, 0)
+        state = 'FAIL' if total_errors else 'PASS'
+        return (
+            f"[VERDICT] {state} | errors: {total_errors} "
+            f"(deck-level {deck_errors}, page-level {page_errors}) | "
+            f"warnings: {self.summary['warnings']} | "
+            f"files: {self.summary['total']}"
+        )
+
     def print_summary(self):
         """Print check summary"""
         self._apply_aggregated_issue_counts()
+
+        # The verdict goes first, and to stderr as well. A pipe through
+        # head/grep only takes stdout, so the stderr copy survives any
+        # truncation and a pass can no longer be declared off a partial read.
+        verdict = self.verdict_line()
+        print(verdict)
+        print(verdict, file=sys.stderr)
 
         print("=" * 80)
         print("[SUMMARY] Check Summary")
@@ -4294,6 +4332,9 @@ class SVGQualityChecker:
             print(f"  2. viewBox issues: root viewBox is the canvas authority (see references/canvas-formats.md)")
             print(f"  3. foreignObject: Use <text> + <tspan> for manual line breaks")
             print(f"  4. Font issues: use PPT-safe exported typefaces (e.g. Microsoft YaHei / Arial / Consolas)")
+
+        # Repeated last so a tail read reaches it too.
+        print(f"\n{self.verdict_line()}")
 
     def _print_animation_summary(self):
         """Print animations.json validation issues if present."""

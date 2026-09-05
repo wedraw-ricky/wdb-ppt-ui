@@ -206,6 +206,170 @@ class SlideTitles(unittest.TestCase):
         self.assertEqual([s.title for s in slides if s.role == "body"], ["현상"])
 
 
+class PlanningChain(unittest.TestCase):
+    """교안 63·65·66 — 클라이언트 블록만으로는 기획이 끝나지 않는다."""
+
+    def frame(self):
+        return plan_spec.FRAMES["problem"]
+
+    def test_컨셉과_플래너_블록까지_이어진다(self):
+        names = self.frame().sections
+        for name in ("컨셉", "해결책", "실행 계획", "리스크 대책"):
+            self.assertIn(name, names)
+
+    def test_클라이언트_블록_여덟_절이_앞에_그대로_있다(self):
+        self.assertEqual(
+            self.frame().sections[:8],
+            ("현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과", "과제"))
+
+    def test_제안이_시작되는_자리는_그대로_과제다(self):
+        # 뒤에 절이 붙어도 분석과 제안의 경계는 움직이지 않는다 (planner.md §4.4).
+        self.assertEqual(self.frame().action, "과제")
+
+
+class DocumentShape(unittest.TestCase):
+    """교안 121 — 사람이 받는 문서는 골격이 아니라 여섯 항목이다."""
+
+    def plan(self, sections, frame="problem"):
+        return render_plan_doc.Plan(
+            title="제목", governing="", meta={}, sections=sections,
+            frame=plan_spec.FRAMES[frame], intake={}, appendix=[])
+
+    def filled(self, status="확정"):
+        return [plan_spec.Section(name=n, status=status, body=f"{n} 본문")
+                for n in plan_spec.FRAMES["problem"].sections]
+
+    def test_열두_절이_다섯_항목으로_묶인다(self):
+        items = render_plan_doc.doc_items(self.plan(self.filled()))
+        self.assertEqual([i.name for i in items],
+                         ["목적", "개요", "내용 및 계획", "리스크 대책", "기대효과"])
+
+    def test_어떤_절도_문서에서_사라지지_않는다(self):
+        sections = self.filled()
+        items = render_plan_doc.doc_items(self.plan(sections))
+        placed = [s.name for i in items for s in i.sections]
+        self.assertCountEqual(placed, [s.name for s in sections])
+
+    def test_표에_없는_절도_버려지지_않고_뒤에_붙는다(self):
+        sections = self.filled() + [
+            plan_spec.Section(name="새 절", status="확정", body="본문")]
+        items = render_plan_doc.doc_items(self.plan(sections))
+        self.assertIn("새 절", [s.name for i in items for s in i.sections])
+
+    def test_항목은_가장_덜_닫힌_절만큼만_닫힌다(self):
+        sections = self.filled()
+        for sec in sections:
+            if sec.name == "영향":
+                sec.status = "확인 필요"
+        items = render_plan_doc.doc_items(self.plan(sections))
+        목적 = next(i for i in items if i.name == "목적")
+        self.assertEqual(목적.status, "확인 필요")
+
+    def test_짧은_길_골격은_예전대로_절마다_한_항목(self):
+        # 교육·강의형은 기획서를 쓰는 일이 아니라 묶을 항목도 없다.
+        sections = [plan_spec.Section(name=n, status="확정", body="본문")
+                    for n in plan_spec.FRAMES["teach"].sections]
+        items = render_plan_doc.doc_items(self.plan(sections, frame="teach"))
+        self.assertEqual(len(items), len(sections))
+
+    def test_성과_보고서도_읽는_항목으로_묶인다(self):
+        sections = [plan_spec.Section(name=n, status="확정", body="본문")
+                    for n in plan_spec.FRAMES["report"].sections]
+        items = render_plan_doc.doc_items(self.plan(sections, frame="report"))
+        self.assertEqual([i.name for i in items],
+                         ["개요", "추진 내용", "결과", "한계", "향후 계획"])
+
+
+class IntakeChain(unittest.TestCase):
+    """인터뷰 화면의 목적 카드가 그리는 사슬 = 실제로 나오는 사슬.
+
+    결정 기록(DESIGN.md, 2026-09-04)이 "목적 카드는 그 목적이 만들어내는 절
+    사슬을 그린다" 고 정했다. 그래서 사슬이 화면과 코드 양쪽에 있고, 골격을
+    8절에서 12절로 늘렸을 때 화면만 그대로 남아 더 짧은 문서를 약속했다.
+
+    오늘만 네 번째로 만난 모양이라 — 같은 것이 두 곳에 손으로 적혀 있는 것 —
+    여기서도 대조한다."""
+
+    INTAKE = Path(__file__).resolve().parent.parent / "ui/src/intake.tsx"
+
+    # 카드 id → 그 카드가 그리는 골격. `split` 카드는 지시수명 기본값인
+    # problem 사슬을 그린다 (plan_spec.ASSIGNMENT_TO_FRAME).
+    CARD_FRAME = {
+        "사내 예산 · 의사결정 승인": "problem",
+        "전략 제안": "problem",
+        "성과 보고": "report",
+        "회사 · 서비스 · 프로그램 소개 / 제안서": "intro",
+        "교육 · 강의": "teach",
+        "IR 투자 유치": "ir",
+    }
+
+    def cards(self):
+        """intake.tsx 의 목적 카드에서 id 와 사슬을 그대로 읽는다."""
+        import re
+        text = self.INTAKE.read_text(encoding="utf-8")
+        block = re.search(r"const PURPOSES:.*?\n\];", text, re.S)
+        self.assertIsNotNone(block, "intake.tsx 에서 PURPOSES 를 못 찾았다")
+        out = {}
+        for card in re.findall(r"\{\s*\n?\s*id:.*?\n  \}", block.group(0), re.S):
+            cid = re.search(r'id:\s*"([^"]+)"', card)
+            chain = re.search(r"chain:\s*\[(.*?)\]", card, re.S)
+            if cid and chain:
+                out[cid.group(1)] = re.findall(r'"([^"]+)"', chain.group(1))
+        return out
+
+    def test_카드를_읽을_수_있다(self):
+        # 정규식이 조용히 빈 사전을 주면 아래 검사가 통과해버린다.
+        self.assertEqual(sorted(self.cards()), sorted(self.CARD_FRAME))
+
+    def test_카드가_그리는_절_수가_실제와_같다(self):
+        for cid, chain in self.cards().items():
+            frame = plan_spec.FRAMES[self.CARD_FRAME[cid]]
+            self.assertEqual(
+                len(chain), len(frame.sections),
+                f"'{cid}' 카드는 {len(chain)}절을 그리는데 실제는 "
+                f"{len(frame.sections)}절이다")
+
+    def test_카드의_절_이름이_실제_이름이거나_그_줄임말이다(self):
+        # 화면은 좁으니 줄여 쓸 수 있다. 다만 없는 이름을 부르면 안 된다.
+        for cid, chain in self.cards().items():
+            real = plan_spec.FRAMES[self.CARD_FRAME[cid]].sections
+            for shown, actual in zip(chain, real):
+                self.assertTrue(
+                    actual.startswith(shown),
+                    f"'{cid}' 카드가 '{shown}' 이라고 쓰는데 실제 절은 '{actual}'")
+
+
+class Route(unittest.TestCase):
+    """어느 골격이 기획부터 하는 일이고 어느 골격이 아닌지 (대표 2026-09-04)."""
+
+    def test_기획부터_하는_일은_풀코스다(self):
+        for key in ("problem", "hypothesis", "report"):
+            self.assertEqual(plan_spec.FRAMES[key].route, "full", key)
+
+    def test_내용이_이미_정해진_일은_짧은_길이다(self):
+        for key in ("intro", "teach", "ir"):
+            self.assertEqual(plan_spec.FRAMES[key].route, "short", key)
+
+    def test_풀코스만_실행_계획을_진다(self):
+        # 리스크를 부르는 이름은 골격마다 다르다(problem·report 는 `리스크 대책`,
+        # hypothesis 는 `리스크`). 길을 가르는 것은 실행 계획이 있느냐다.
+        for frame in plan_spec.FRAMES.values():
+            self.assertEqual("실행 계획" in frame.sections,
+                             frame.route == "full", frame.key)
+
+    def test_풀코스는_어떤_이름으로든_리스크를_진다(self):
+        for frame in plan_spec.FRAMES.values():
+            if frame.route != "full":
+                continue
+            self.assertTrue(any(s.startswith("리스크") for s in frame.sections),
+                            frame.key)
+
+    def test_풀코스만_문서_항목으로_묶인다(self):
+        for frame in plan_spec.FRAMES.values():
+            grouped = frame.key in render_plan_doc.DOC_SHAPE
+            self.assertEqual(grouped, frame.route == "full", frame.key)
+
+
 class OutputFormat(unittest.TestCase):
     def test_a_report_asks_for_word(self):
         self.assertEqual(render_plan_doc.resolve_format("auto", {"doc_kind": "보고서"}), "both")
@@ -221,3 +385,83 @@ class OutputFormat(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CopyRules(unittest.TestCase):
+    """planner.md §2.6 카피 · §2.7 숫자 — 화면에 나가는 글의 낱말.
+
+    "출장 동선 여섯 자리를 위한 PLATINUM ELITE" 가 규칙을 통과했던 적이 있다.
+    골자([목적]을 위한 [실행안])는 지켰는데 아무도 그렇게 말하지 않는 말이었다.
+    골자는 그대로 두고 낱말을 본다.
+    """
+
+    def test_골자는_여전히_필요하다(self):
+        # 카피 규칙을 넣으면서 골자를 없애지 않았는지. 한 번 없앴다가 되돌렸다.
+        errs = plan_spec.check_title({"title": "출장 1번에 6번 꺼내는 카드"},
+                                     plan_spec.FRAMES["intro"])
+        self.assertTrue(any("E-TITLE" in e and "목적" in e for e in errs))
+
+    def test_목차_라벨은_제목이_아니다(self):
+        for bad in ("개요", "결론", "숫자로 보면", "주요 내용"):
+            self.assertTrue(any("목차 항목" in e for e in plan_spec.check_copy(bad, "제목")), bad)
+
+    def test_설명문으로_끝나면_잡는다(self):
+        errs = plan_spec.check_copy("혜택 구성에 대해 알아봅니다", "제목")
+        self.assertTrue(any("설명문" in e for e in errs))
+
+    def test_업계_말을_잡는다(self):
+        errs = plan_spec.check_copy("출장 동선 여섯 자리", "제목")
+        self.assertTrue(any("'동선'" in e for e in errs))
+
+    def test_장_제목만_길이_제한을_받는다(self):
+        long_title = "신입사원 1년 이내 퇴사율 40% 해소를 위한 온보딩 재설계안"
+        self.assertEqual(
+            [e for e in plan_spec.check_copy(long_title, "제목") if "자 —" in e], [])
+        self.assertTrue(any("자 —" in e for e in
+                            plan_spec.check_copy(long_title, "제목", max_len=25)))
+
+    def test_화면_글의_한글_수사를_잡는다(self):
+        for bad in ("나머지 일곱 가지는 무관", "두 곳을 고른다", "여섯 자리"):
+            self.assertTrue(plan_spec.check_screen_numerals(bad, "화면"), bad)
+
+    def test_말버릇과_다른_낱말은_건드리지_않는다(self):
+        # 조사를 봐주다가 "세 장면" 의 '세 장' 을 잡으면 맞는 문장이 막힌다.
+        for ok in ("한 번쯤 들러보세요", "세 장면이 이어진다", "호텔 23곳", "두어 곳"):
+            self.assertEqual(plan_spec.check_screen_numerals(ok, "화면"), [], ok)
+
+    def test_발표자_노트는_대상이_아니다(self):
+        # 말하는 글이라 한글 수사가 맞다. 화면 검사가 script 를 집어가면
+        # 발표자가 "여섯 곳" 이라 말하는 것까지 막힌다.
+        import inspect
+        src = inspect.getsource(outline.run_check)
+        self.assertIn("check_copy(s.title", src)
+        self.assertIn("check_screen_numerals(s.screen", src)
+        self.assertNotIn("s.script", src)
+
+
+class ClosingSlide(unittest.TestCase):
+    """planner.md §2.8 — 이야기는 닫혀야 끝난다.
+
+    구조 자체에 닫는 장이 없었다. 마지막 절이 내용 절이라, 어떤 덱이든 마지막
+    장을 본 사람이 무엇을 하면 되는지 모른 채 나갔다.
+    """
+
+    def _slides(self, frame_key="intro"):
+        frame = plan_spec.FRAMES[frame_key]
+        secs = [plan_spec.Section(name=n, heading=n, body="본문 한 줄", status="확정")
+                for n in frame.sections]
+        return outline.build_slides(frame, secs, outline.FLOW_DEFAULTS[frame_key][0])
+
+    def test_뼈대를_세우면_닫는_장이_생긴다(self):
+        for key in ("intro", "problem", "report", "teach", "ir", "hypothesis"):
+            slides = self._slides(key)
+            self.assertEqual(slides[-1].role, "closing", key)
+
+    def test_여는_장과_닫는_장은_한_쌍이다(self):
+        slides = self._slides()
+        self.assertEqual(slides[0].role, "cover")
+        self.assertEqual(slides[-1].role, "closing")
+
+    def test_닫는_장은_한_번만(self):
+        slides = self._slides()
+        self.assertEqual(sum(1 for s in slides if s.role == "closing"), 1)

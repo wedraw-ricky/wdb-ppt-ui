@@ -63,6 +63,7 @@ class Plan:
     """Everything the renderers need, read once from the project."""
 
     title: str
+    governing: str
     meta: dict
     sections: list[Section]
     frame: Optional[Frame]
@@ -96,6 +97,7 @@ def build_plan(project: Path) -> Plan:
               f"plan_spec.md — rendering the sections as written", file=sys.stderr)
     return Plan(
         title=heading.group(1).strip() if heading else DOC_SUFFIX,
+        governing=str(meta.get("governing", "")).strip(),
         meta=meta,
         sections=sections,
         frame=frame,
@@ -128,6 +130,24 @@ def _stamp_date(stamp: str) -> str:
         return datetime.now().strftime("%Y-%m-%d")
 
 
+# A `source:` line does two different jobs. `plan_spec.py --check` reads it to
+# confirm a fact-required section is grounded, and for that a repo-relative path
+# is exactly right. A reader of the finished report is a different audience:
+# "sources/source.md §Ⅱ" tells them nothing and reads as a leak from inside the
+# machine. Only a citation a person could follow is printed.
+_INTERNAL_SOURCE = re.compile(
+    r"(^|[\s(])(?:sources|analysis|exports|projects|templates)/|\.(?:md|json|csv|txt|ya?ml)\b",
+    re.I)
+
+
+def readable_source(source: str) -> str:
+    """Return the citation to print, or "" when it only names a working file."""
+    text = (source or "").strip()
+    if not text or _INTERNAL_SOURCE.search(text):
+        return ""
+    return text
+
+
 def _empty_note(plan: Plan, section: Section) -> str:
     """Why a section is blank — the frame's own reason, not a guess."""
     if plan.frame is not None and section.name in plan.frame.fact_required:
@@ -142,6 +162,83 @@ def pending_sections(plan: Plan) -> list[Section]:
 # ---- Markdown ---------------------------------------------------------------
 
 
+# 교안 121: the document a reader receives is not the planning chain. Planning
+# runs 12 blocks; the 기획서 shows six items. The renderer groups — it never
+# condenses, because report-format.md §1 gives the sentence to the planner.
+# A frame absent from this table is rendered one section per item, as before.
+DOC_SHAPE: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "problem": (
+        ("목적", ("배경", "현상", "영향", "원인", "목적 검증")),
+        ("개요", ("목표", "과제")),
+        ("내용 및 계획", ("컨셉", "해결책", "실행 계획")),
+        ("리스크 대책", ("리스크 대책",)),
+        ("기대효과", ("기대효과",)),
+    ),
+    # 가설 검증형에도 교안이 정해준 양식이 없다. 왜(가설·근거) → 무엇을 어떻게
+    # (검증 방법·다음 단계) → 계획 → 리스크 → 얻는 것 순으로 묶었으며,
+    # 항목 이름은 대표 확인 대기 중이다.
+    "hypothesis": (
+        ("목적", ("가설", "착안 근거")),
+        ("개요", ("검증 방법", "다음 단계")),
+        ("내용 및 계획", ("실행 계획",)),
+        ("리스크 대책", ("리스크",)),
+        ("기대효과", ("기회 크기", "예상 결과")),
+    ),
+    # 성과 보고서에는 교안이 정해준 양식이 없다. 한 일 → 나온 결과 → 다음으로
+    # 읽히도록 묶은 것이며, 항목 이름은 대표 확인 대기 중이다.
+    "report": (
+        ("개요", ("하기로 한 것",)),
+        ("추진 내용", ("한 것",)),
+        ("결과", ("결과", "결과 해석")),
+        ("한계", ("한계",)),
+        ("향후 계획", ("다음", "실행 계획", "리스크 대책")),
+    ),
+}
+
+# 확인 필요 outranks 초안 outranks 확정: an item is only as settled as its
+# least settled part, or the badge tells the reader the document is closed
+# when a piece of it is still open.
+_STATUS_RANK = {"확정": 0, "초안": 1, "확인 필요": 2}
+
+
+@dataclass
+class DocItem:
+    """One numbered item of the document, carrying the sections placed under it."""
+
+    name: str
+    status: str
+    sections: list[Section]
+
+
+def doc_items(plan: Plan) -> list[DocItem]:
+    # 묶을지 말지는 갈래가 정한다 (planner.md §0.1). 표에 있느냐로만 판단하면
+    # 갈래는 이름표일 뿐 아무것도 결정하지 않는다.
+    shape = (DOC_SHAPE.get(plan.frame.key)
+             if plan.frame and plan.frame.route == "full" else None)
+    if not shape:
+        return [DocItem(s.heading or s.name, s.status, [s]) for s in plan.sections]
+
+    by_name = {s.name: s for s in plan.sections}
+    placed: set[str] = set()
+    items: list[DocItem] = []
+    for name, members in shape:
+        secs = [by_name[m] for m in members if m in by_name]
+        if not secs:
+            continue
+        placed.update(s.name for s in secs)
+        status = max((s.status for s in secs),
+                     key=lambda v: _STATUS_RANK.get(v, 1))
+        items.append(DocItem(name, status, secs))
+
+    # A section the table forgot is appended rather than dropped. Losing a
+    # written section on the way to the reader is the one failure this
+    # grouping must not have.
+    for sec in plan.sections:
+        if sec.name not in placed:
+            items.append(DocItem(sec.heading or sec.name, sec.status, [sec]))
+    return items
+
+
 def render_markdown(plan: Plan) -> str:
     out: list[str] = [f"# {plan.title}", ""]
 
@@ -151,16 +248,25 @@ def render_markdown(plan: Plan) -> str:
         out += [f"| {k} | {v} |" for k, v in rows]
         out.append("")
 
-    for i, sec in enumerate(plan.sections, 1):
-        out += [f"## {i}. {sec.heading or sec.name}", ""]
-        if sec.status != "확정":
-            out += [f"> **{sec.status}**", ""]
-        if sec.body:
-            out += [strip_markup(sec.body), ""]
-        else:
-            out += [f"_{_empty_note(plan, sec)}_", ""]
-        if sec.source:
-            out += [f"근거: `{sec.source}`", ""]
+    # The governing message is what a reader who reads nothing else takes away.
+    # It sits under the title, before the chain, and is written to shape by the
+    # planner (report-format.md §2.2) — the renderer only places it.
+    if plan.governing:
+        out += [f"> {line}" for line in plan.governing.splitlines() if line.strip()]
+        out.append("")
+
+    for i, item in enumerate(doc_items(plan), 1):
+        out += [f"## {i}. {item.name}", ""]
+        if item.status != "확정":
+            out += [f"> **{item.status}**", ""]
+        for sec in item.sections:
+            if sec.body:
+                out += [strip_markup(sec.body), ""]
+            else:
+                out += [f"_{_empty_note(plan, sec)}_", ""]
+            cite = readable_source(sec.source)
+            if cite:
+                out += [f"근거: {cite}", ""]
 
     pending = pending_sections(plan)
     if pending:
@@ -190,29 +296,34 @@ def render_docx(plan: Plan, out_path: Path, form_name: str) -> None:
         ) from exc
 
     writer.paint_ground()
-    nav = " → ".join(report_form.ROMAN[i] for i in range(len(plan.sections)))
+    items = doc_items(plan)
+    nav = " → ".join(report_form.ROMAN[i] for i in range(len(items)))
     # The header names the document's kind, not its title — the title is long and
     # the section navigator sits on the same line.
     label = plan.frame.label.rstrip("형") if plan.frame else ""
     writer.write_chrome(plan.intake.get("department") or "기획", label,
                         f"SECTION: {nav}" if nav else "")
     writer.write_title(plan.title)
+    if plan.governing:
+        writer.write_governing(plan.governing)
 
-    for i, sec in enumerate(plan.sections):
-        # The frame's section name is pipeline vocabulary — '하기로 한 것' is how
-        # the chain is checked, never how a reader is addressed. The document
-        # heading is the 소제목 the author wrote.
-        writer.write_section(i, sec.heading or sec.name, sec.status)
-        blocks = report_form.parse_body(sec.body) if sec.body else []
-        if not blocks:
-            writer.write_line("detail", _empty_note(plan, sec))
-        for level, payload in blocks:
-            if level == "table":
-                writer.write_table(payload)
-            else:
-                writer.write_line(level, payload)
-        if sec.source:
-            writer.write_line("note", f"근거: {sec.source}")
+    for i, item in enumerate(items):
+        # The item name is what the reader is addressed with. The frame's own
+        # section names — '하기로 한 것', '목적 검증' — are how the chain is
+        # checked upstream and never reach the page.
+        writer.write_section(i, item.name, item.status)
+        for sec in item.sections:
+            blocks = report_form.parse_body(sec.body) if sec.body else []
+            if not blocks:
+                writer.write_line("detail", _empty_note(plan, sec))
+            for level, payload in blocks:
+                if level == "table":
+                    writer.write_table(payload)
+                else:
+                    writer.write_line(level, payload)
+            cite = readable_source(sec.source)
+            if cite:
+                writer.write_line("note", f"근거: {cite}")
 
     pending = pending_sections(plan)
     if pending:

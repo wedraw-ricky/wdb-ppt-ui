@@ -43,9 +43,25 @@ export async function getJson(path: string): Promise<any> {
 }
 
 export function firstCandidate(block: any): any {
-  if (!block || !Array.isArray(block.candidates) || !block.candidates.length) return null;
-  const i = Number(block.selected) || 0;
-  return block.candidates[i] || block.candidates[0];
+  if (!block) return null;
+  if (Array.isArray(block.candidates) && block.candidates.length) {
+    const i = Number(block.selected) || 0;
+    return block.candidates[i] || block.candidates[0];
+  }
+  // 후보가 셋이 아니라 고정 한 벌인 경우. 계약(Step 4)이 허용하는 모양이다 —
+  // 이 저장소는 덱 서체를 Pretendard 로 고정하므로 글꼴은 늘 이쪽이다.
+  // 배열만 읽던 시절에는 이 모양이 조용히 null 이 되어, 필수 항목인 글꼴이
+  // 빈 채로 확정까지 갔다. 알아보게 만든다.
+  if (block.heading || block.body || block.palette) return block;
+  return null;
+}
+
+/** 후보 블록이든 맨 값이든 받아 쓴다. `page_count: 6` 처럼 숫자로 쓴 것이
+    `{value}` 만 읽는 쪽을 만나 빈 칸이 됐다 — 계약은 둘 다 쓴다. */
+export function plainValue(block: any): string {
+  if (block === null || block === undefined) return "";
+  if (typeof block === "object") return String(block.value ?? "");
+  return String(block);
 }
 
 /** Build the editable state from the AI's recommendations. */
@@ -64,9 +80,9 @@ export function initialState(rec: Recommendations, catalogs: Dict): Dict {
 
   return {
     canvas,
-    page_count: rec.page_count?.value ?? "",
-    audience: rec.audience?.value ?? "",
-    content_divergence: rec.content_divergence?.value ?? "",
+    page_count: plainValue(rec.page_count),
+    audience: plainValue(rec.audience),
+    content_divergence: plainValue(rec.content_divergence),
     mode: R.mode || "briefing",
     visual_style: R.visual_style || "editorial",
     template: R.template || "free",
@@ -103,6 +119,52 @@ function normalizeTypography(payload: Dict, catalogs: Dict) {
   if (!isFinite(body)) body = defaultBodySize(payload.canvas, payload.delivery_purpose, catalogs);
   t.body_size = roundSize(body);
   t.body_size_unit = "px";
+}
+
+/** Which decision each stage's preview must react to.
+ *
+ * DESIGN.md says the preview shows what is being chosen *right now*, and E-12
+ * happened because that lived only in prose: the stage-1 screen read stage-2
+ * fields, so nothing moved while someone picked a template.
+ *
+ * Keeping it here as data buys the guard for E-10 as well. Every field a stage
+ * payload carries has to be claimed by exactly one stage below, and the model
+ * tests fail when it is not — so a field added to one stage cannot quietly skip
+ * the others' previews.
+ */
+export const PREVIEW_FIELDS: Record<number, readonly string[]> = {
+  1: ["template", "template_adherence", "canvas", "audience",
+      "content_divergence", "mode", "visual_style", "delivery_purpose"],
+  2: ["page_count", "color", "icons", "typography", "formula_policy"],
+  3: ["image_source", "image_usage", "generation_mode", "refine_spec"],
+};
+
+/** The fields a given stage's preview is responsible for. */
+export function previewFieldsFor(stage: number): readonly string[] {
+  return PREVIEW_FIELDS[stage] ?? [];
+}
+
+/** Every field any stage claims — the union the payloads are checked against. */
+export function allPreviewFields(): Set<string> {
+  return new Set(Object.values(PREVIEW_FIELDS).flat());
+}
+
+/** What was already settled, grouped by the stage that asked (E-8).
+ *
+ * The server derives this from `result.json` with the same stage split as
+ * `PREVIEW_FIELDS`; the two are compared in `tests/test_confirm_server.py`.
+ * An empty object means nothing is confirmed yet, which is the ordinary state
+ * at the start of a run — never an error.
+ */
+export async function fetchConfirmed(): Promise<Record<string, Dict>> {
+  try {
+    const r = await fetch("/api/confirmed", { cache: "no-store" });
+    if (!r.ok) return {};
+    const data = await r.json();
+    return data && typeof data === "object" ? data : {};
+  } catch {
+    return {};
+  }
 }
 
 /** Stage 1 = direction anchors only (confirm_ui.md round-trip contract). */
@@ -179,6 +241,34 @@ export async function shutdown(): Promise<void> {
     });
   } catch {
     /* the server closing the socket mid-response is the expected path */
+  }
+}
+
+export interface ProgressNote {
+  note: string;
+  age_seconds: number;
+}
+
+/** What the agent has done so far. Ages, not clock times — the page decides
+    which of these belong to the wait it is currently showing. */
+export async function progressNotes(): Promise<ProgressNote[]> {
+  try {
+    const r = await fetch("/api/progress", { cache: "no-store" });
+    if (!r.ok) return [];
+    const body = await r.json();
+    return Array.isArray(body?.notes) ? body.notes : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Tell the server the page is still open. Resolves false when it is gone. */
+export async function heartbeat(): Promise<boolean> {
+  try {
+    const r = await fetch("/api/heartbeat", { method: "POST", cache: "no-store" });
+    return r.ok;
+  } catch {
+    return false;
   }
 }
 

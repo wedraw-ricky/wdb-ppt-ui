@@ -55,6 +55,22 @@ Every presentation opens on Why. The frame's sections fold into three layers.
 
 **Hard rule**: Present exactly two flows with a one-line reason each. A presentation carries one narrative arc; the user selects one.
 
+### 2.3 The order is free; the conclusion is not
+
+The deck does not follow the document's order. A room decides how an argument
+lands, and that changes with the audience — which is why two flows are offered at
+all. What cannot change is where the argument arrives.
+
+**Hard rule**: the deck reaches the frame's action section — `problem` 과제,
+`hypothesis` 다음 단계, `report` 다음, `intro` 다음 행동, `teach` 실습·적용,
+`ir` 요청. A deck that never gets there ends somewhere the document does not.
+
+**Hard rule**: a concluding slide states no figure the action section does not
+state. The `proposal_alt` slide is exempt — a 2안 reaches the same goal by another
+method ([`planner.md`](./planner.md) §5.2), so its cost and period differ by design.
+
+Both are `E-END` in `outline.py --check`.
+
 ---
 
 ## 3. Slide Count
@@ -94,6 +110,14 @@ Content shape selects the layout. The assignment is written to `shape` and remai
 
 | Signal in the slide body | `shape` |
 |---|---|
+| 목차 · 차례 · 오늘 다룰 것 | `agenda_list` |
+| 장점과 단점 · 찬성과 반대 | `pros_cons_chart` |
+| 계층 · 레이어 · 상위·하위 | `layered_architecture` |
+| 핵심 하나를 여럿이 둘러쌈 | `hub_spoke` |
+| 겹치는 데가 하고 싶은 말 | `venn_diagram` |
+| 표 세 줄 이상 + 수치 셋 이상 | `consulting_table` |
+| 표 세 줄 이상, 수치 없음 | `basic_table` |
+| 달성률(%)이 셋 이상 | `progress_bar_chart` |
 | Three or more figures, mixed units | `kpi_cards` |
 | Ordered steps, sequence words, numbering | `numbered_steps` |
 | Before/after, A/B, two groups | `comparison_columns` |
@@ -101,12 +125,62 @@ Content shape selects the layout. The assignment is written to `shape` and remai
 | Period-and-value pairs across one series | `grouped_bar_chart` |
 | Two states across five to ten items | `dumbbell_chart` |
 | Parts of one whole | `pie_chart` |
-| Tabular grid, three to eight columns | `basic_table` |
 | None of the above | Body layout from the deck template |
 
-**Validation**: Every `shape` value exists in `templates/charts/charts_index.json`. An absent id is an error.
+**표는 세어서 안다.** 표 신호와 달성률 신호는 정규식 하나로 못 잡으므로 줄과
+수치를 세어 판단하고, 다른 신호보다 **먼저** 본다. 칸 안에 수치가 있으면 표만
+그리는 것보다 칸 옆에 작은 막대를 함께 그리는 쪽이 읽힌다.
+
+**닿는 모양이 몇 가지인지가 곧 덱의 다양성이다.** 카탈로그에 76가지가 있는데
+오래 일곱만 배정됐고, 그래서 만들어진 덱이 다 비슷해 보였다. 넓히되 **확실한
+낱말만** 쓴다 — 애매한 신호로 엉뚱한 모양을 고르는 것은 아무 모양도 안 고른
+것보다 나쁘다. `tests/test_gates.py` 가 닿는 가짓수를 세어 열 아래로 떨어지면
+실패한다.
+
+**고르는 화면은 무리로 묶는다.** 글·목록 / 나란히 / 사분면 / 수치 / 그래프 /
+표 / 흐름 / 구조. 스물아홉 가지를 한 줄로 늘어놓으면 고르는 사람이 못 찾는다.
+모든 모양은 `art.tsx` 가 제 도형으로 그린다 — 그리지 않은 모양을 목록에 올리면
+무엇을 골라도 같은 그림이 나오고, 그러면 고른 것이 아니다.
+
+**Order**: a specific signal wins over the figure count. A body carrying ordered steps *and* three figures is a sequence that happens to be measured; reading the count first sent five of one report's seven slides to the same KPI grid.
+
+**"Mixed units" is half the rule.** Three counts in one unit — 428건 / 371건 / 57건 — is a list or a table, not a KPI row; `%p` counts as `%`, and 만원 / 억원 / 천원 all count as money.
+
+**Validation**: Every `shape` value exists in `templates/charts/charts_index.json`. An absent id is an error. Three or more consecutive slides sharing one layout raise `W-SAME` — a warning, never a correction: the layout follows the content, and the skeleton screen is one click from changing it.
 
 **Hard rule**: One strong graphic per slide on 16:9. A4 permits two. Three kinds — chart, diagram, and table — never share one page.
+
+---
+
+### 5.1 Image Placement — a second axis, not a layout name
+
+`shape` says how the *data* is drawn. `image` says how a *photo* takes the page.
+They are different questions, and mixing them breaks the deck: a shape name is
+checked against `charts_index.json` (`E-SHAPE`), so an image word placed there
+is rejected. Keep them apart.
+
+| `image` | 무엇 | Layout Pattern (design_spec_reference) |
+|---|---|---|
+| `none` | 안 씀 — 글과 도형으로만 | — |
+| `full` | 전면 — 사진이 지면을 꽉 채우고 글이 그 위에 | Full-bleed + floating text |
+| `side` | 옆에 — 사진과 설명을 나란히 | Asymmetric split (3:7 / 2:8) |
+| `overlap` | 겹침 — 제목이나 큰 숫자가 사진 가장자리에 걸침 | Figure-text overlap |
+
+**Hard rule**: `full` carries a scrim. A photo filling the canvas leaves text
+unreadable without a darkening layer over it — strategist.md §h calls it
+`scrim` / `overlay` for legibility. A `full` page whose text sits directly on the
+photo is a defect, not a style.
+
+**Hard rule**: `none` is the default. An image is added because the page needs
+one, never to fill space. A deck where most pages carry photos reads as a
+brochure, and the argument stops being visible.
+
+**Default**: the Storyline phase writes `none` on every row. Photos are chosen at
+Step 5, and the person confirms placement on the skeleton screen before that.
+`outline.py --check` raises `E-IMAGE` on any value outside the four.
+
+The value reaches the Executor through `design_spec §IX` as
+`- **Image use**: full — 전면 …`, and the picture itself is listed in §VIII.
 
 ---
 
@@ -151,6 +225,7 @@ generated_at: 2026-09-04T10:00:00
   script: ""
   shape: cover
   source: ""
+  image: full
 
 - n: 2
   layer: why

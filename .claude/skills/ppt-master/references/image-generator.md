@@ -213,7 +213,7 @@ Example opening for a triptych hero:
 
 > **B — corporate-photo + cool-corporate executive headshot, text_policy: none, 600×800**
 >
-> Editorial corporate portrait photograph of one professional executive. The person is centered slightly left of canvas center, photographed from chest-up at eye level, looking confidently toward the camera with a relaxed natural expression — not posed-stiff, not over-smiling. Professionally attired in a contemporary business setting (a tailored blazer, neutral palette clothing). Soft natural light from the upper left, gentle shadow on the right side of the face. Diverse, professionally attired subject, photorealistically rendered, contemporary styling. Background is a softly out-of-focus office context — secondary light gray `#F8F9FA` wall with a subtle hint of primary deep navy `#1E3A5F` in a blurred architectural element. Color grading is cool-corporate — restrained, professional. Shallow depth of field — subject sharp, background gently blurred. Subject's eyes positioned at the upper-third horizontal line. Composed as a 600×800 bio portrait with 10% padding. NO text, name tags, or captions in the image. Color values are rendering guidance only.
+> Editorial corporate portrait photograph of one professional executive. The person is centered slightly left of canvas center, photographed from chest-up at eye level, looking confidently toward the camera with a relaxed natural expression — not posed-stiff, not over-smiling. Professionally attired in a contemporary business setting (a tailored blazer, neutral palette clothing). Soft natural light from the upper left, gentle shadow on the right side of the face. Korean subject, professionally attired, photorealistically rendered, contemporary Korean styling. Background is a softly out-of-focus office context — secondary light gray `#F8F9FA` wall with a subtle hint of primary deep navy `#1E3A5F` in a blurred architectural element. Color grading is cool-corporate — restrained, professional. Shallow depth of field — subject sharp, background gently blurred. Subject's eyes positioned at the upper-third horizontal line. Composed as a 600×800 bio portrait with 10% padding. NO text, name tags, or captions in the image. Color values are rendering guidance only.
 
 > **C — ink-notes + mono-ink big-number stat, text_policy: embedded, 800×500**
 >
@@ -316,7 +316,39 @@ When the image contains people:
 
 > Human figures appear as simplified stylized silhouettes or symbolic representations — no photorealistic faces, no detailed anatomy, no celebrity likeness. Express role/emotion through posture, attire, and simple gestures.
 
-Exception: when the chosen rendering is `corporate-photo`, photorealism is intentional — replace the above with: `Diverse, professionally attired subjects. Editorial photography style, natural composition`.
+Exception: when the chosen rendering is `corporate-photo`, photorealism is intentional — replace the above with: `Korean professionally attired subjects. Editorial photography style, natural composition`.
+
+### 5.2b 사람과 장소는 한국이 기본 (Korean by default)
+
+**Hard rule — 사람이 나오면 한국인이 기본이다.** 이 저장소가 만드는 자료는
+한국어로 쓰이고 한국 청중이 본다. 한국 청중용 자료에 서양 사람이 서 있는 것은
+틀린 것이고, 그 자체가 "AI 가 만든 티" 로 읽힌다.
+
+**Forbidden — `diverse`.** 이 낱말이 문제의 뿌리다. 서구권 자료로 학습한 모델에게
+`diverse subjects` 는 서양인 위주의 혼합을 뜻한다. 다양성을 부정하는 것이 아니라,
+**말하지 않으면 서양이 기본값**이 되기 때문에 말해야 한다는 뜻이다.
+
+**Append to every prompt that contains people**:
+
+> Korean people. East Asian faces and features, Korean styling and hair.
+> Contemporary Korean business or everyday setting.
+
+**장소와 환경도 같다**: 간판·표지·건물·거리 풍경이 나오면 한국이 기본이다.
+
+> Korean urban or interior setting — signage, architecture, and surroundings
+> read as Korea, not as a generic Western city.
+
+**예외는 자료가 정한다.** 해외 지사 소개, 해외 사례, 해외 여행처럼 **자료 자체가
+다른 곳을 다룰 때만** 그곳으로 간다. 그때도 근거는 자료에 있어야 한다 — 짐작으로
+바꾸지 않는다. 아멕스 카드 혜택 자료의 "JW 메리어트 하노이" 처럼 원문이 장소를
+명시하면 그 장소를 그린다.
+
+| 자료 | 사람 | 장소 |
+|---|---|---|
+| 국내 회사 소개 · 사내 보고 · 국내 서비스 | 한국인 | 한국 |
+| 해외 지사 · 해외 사례 · 해외 여행 (원문 근거 있음) | 그곳 사람 | 그곳 |
+| 사람이 필요 없는 도표 · 개념도 | 사람 없음 | — |
+
 
 ### 5.3 Text policy — two-layer ownership
 
@@ -645,6 +677,7 @@ Diagnose the failure category, adjust the **one specific dimension** responsible
 | Garbled letters in supposedly text-free image | `text_policy: none` rule too weak | Strengthen with explicit list: "no letters, no numbers, no words, no signs, no labels, no captions, no watermarks" |
 | SVG text overlay clashes with busy image area | Page design needs negative space the prompt didn't request | Add a composition cue like "leave the {center / left third / lower band} relatively calm for text overlay" — only when the page actually overlays text on top of the image |
 | Subject vague | Reference field too abstract | Rewrite reference with concrete nouns (verbs + objects) |
+| 서양 사람이 나옴 | §5.2b 를 안 붙였거나 프롬프트에 `diverse` 가 남아 있음 | `Korean people` 을 명시하고 `diverse` 를 지운다 — 말하지 않으면 서양이 기본값이다 |
 | Faces too realistic / uncanny | §5.2 rule omitted, or rendering is photo-incompatible | Either append §5.2, or switch rendering to a non-photo family |
 
 **Variant workflow**:

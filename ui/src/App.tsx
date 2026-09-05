@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   Button, Card, Checkbox, CheckboxGroup, Description, Input, Label,
   Switch, TextArea, TextField,
@@ -7,12 +7,21 @@ import * as api from "./api";
 import type { Dict, Recommendations } from "./api";
 import { T, label, desc, candName, candNote } from "./i18n";
 import {
-  AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice, IMAGE_PRESETS,
+  ArtChoice, AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
+  IMAGE_PRESETS,
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
-import { Deriving, DoneArt } from "./states";
-import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
-import { Hero, stageSteps } from "./hero";
+import { Deriving, Disconnected, DoneArt, ErrorArt, LoadingArt } from "./states";
+import { Ask, Jump, Mid, Shell } from "./shell";
+import modeContinuous from "./art/mode-continuous.png";
+import modePlanNo from "./art/mode-plan-no.png";
+import modePlanYes from "./art/mode-plan-yes.png";
+import modeSplit from "./art/mode-split.png";
+import {
+  DeckPreview, HexGrid, ImageSourceChoice, PageCount, PaletteChoice,
+  StrategyChoice, TypeSpecimen,
+} from "./stage23";
+import { AnchorPreview, ImagePreview, SkinPreview, stageSteps } from "./previews";
 import { Intake } from "./intake";
 import { OutlineEditor } from "./outline";
 import {
@@ -21,22 +30,41 @@ import {
 
 /* ---------- small building blocks ------------------------------------- */
 
-function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+/** Which question is on screen. Read by `Section`, written by the footer and
+    the rail — one source, so a jump from the rail and a press of 다음 cannot
+    land on different questions. */
+const StepCtx = createContext<{ current: string; index: (k: string) => number }>(
+  { current: "", index: () => 0 });
+
+const useStep = () => useContext(StepCtx);
+
+/** One decision, one screen.
+
+    Twelve of these stacked made a 4088px scroll: to answer the third question
+    you had to remember the first two were above you and the rest below. Each
+    now waits its turn, in the order the rail already lists — the rail and the
+    form read the same `stageSteps`, so they can never disagree about what is
+    left. */
+/* 한 번에 한 가지만 묻는다. 예전에는 질문이 카드 안 번호 동그라미 옆에
+   들어가 있어서, 화면의 주인공이 질문이 아니라 카드였다. 이제 질문이 곧
+   제목이다. 안내 문구는 첫 질문에서만 — 매 질문마다 같은 말을 반복하면
+   정작 질문이 밀려난다. */
+/* 네 구역을 한 장에 이어 붙인다.
+
+   예전에는 한 번에 한 구역만 보여주고 «다음» 으로 넘겼다. 그러면 앞에서
+   무엇을 골랐는지 다시 보려면 뒤로 가야 하고, 고칠 것을 한꺼번에 말할 수도
+   없다. 계약(SKILL.md Step 4)도 원래 "한 번에 다 보여주고 한 번에 확정" 이
+   기본이고, 단계별 확인은 사용자가 따로 요청할 때만이다.
+
+   맨 위 목록은 이제 남은 것을 세는 자리가 아니라 **바로 가는 자리**다. */
+function Section({ k, title, children }: { k: string; title: string; children: React.ReactNode }) {
+  const { index } = useStep();
+  const first = index(k) === 0;
   return (
-    <Card className="mb-8">
-      <Card.Header className="pb-1">
-        <Card.Title className="flex items-center gap-3 text-xl font-bold">
-          <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-            style={{ background: "var(--wdb-secondary)" }}
-          >
-            {n}
-          </span>
-          {title}
-        </Card.Title>
-      </Card.Header>
-      <Card.Content className="flex flex-col gap-7 pt-2">{children}</Card.Content>
-    </Card>
+    <section id={`sec-${k}`} className={first ? "" : "mt-[var(--s-16)] scroll-mt-[var(--s-6)]"}>
+      <Ask title={title} sub={first ? T.hint : undefined} />
+      <div className="flex flex-col gap-9">{children}</div>
+    </section>
   );
 }
 
@@ -58,7 +86,7 @@ function Candidates({
           className="rounded-xl border p-3 text-left transition"
           style={{
             borderColor: i === selected ? "var(--wdb-primary)" : "var(--border)",
-            boxShadow: i === selected ? "0 0 0 2px rgba(54,103,255,.18)" : "none",
+            boxShadow: i === selected ? "0 0 0 2px var(--accent-ring)" : "none",
             background: "var(--surface)",
           }}
         >
@@ -80,7 +108,71 @@ function Candidates({
 
 type Phase = "loading" | "intake" | "outline" | "form" | "deriving" | "done" | "error";
 
+// Well inside the server's own idle budget (900s by default), and rare
+// enough that a page left open all afternoon costs nothing worth counting.
+const HEARTBEAT_MS = 30_000;
+
+/** Keep the confirm server alive while this page is open, and say so when it
+    is not. Filling in the form makes no requests — a person reads and types for
+    minutes — and the server's idle watchdog cannot tell that from a closed tab,
+    so it used to shut down under a waiting user. The ping restarts its clock;
+    closing the tab stops the ping and the idle timeout goes back to working.
+
+    One missed ping is a hiccup, not a death: the banner waits for two in a row
+    so a momentary blip does not flash an alarm at someone mid-decision. Pings
+    continue after that — a restarted server reconnects on its own. */
+function useServerAlive(): boolean {
+  const [alive, setAlive] = useState(true);
+  useEffect(() => {
+    let stopped = false;
+    let misses = 0;
+    async function ping() {
+      const ok = await api.heartbeat();
+      if (stopped) return;
+      misses = ok ? 0 : misses + 1;
+      setAlive(ok || misses < 2);
+    }
+    ping();
+    const id = setInterval(ping, HEARTBEAT_MS);
+    return () => { stopped = true; clearInterval(id); };
+  }, []);
+  return alive;
+}
+
+/* 맨 위 막대가 몇 %인지. 없는 진행률을 지어내지 않고, 전체 흐름을 여덟 걸음으로
+   보고 지금 몇 번째인지만 적는다 — 인터뷰 · 기획서 · 뼈대 · 1·2·3단계 · 끝. */
+/* 세 단계 안에서 몇 번째 질문인지까지 막대에 반영한다. 단계만 세면 질문
+   여덟 개를 지나는 동안 막대가 한 번도 안 움직여서, 가고 있는지 알 수 없다. */
+const stageProgress = (stageNum: number, at: number, len: number) => {
+  const within = len > 0 ? (at + 1) / len : 1;
+  if (!stageNum) return Math.round(40 + within * 56);
+  return Math.round([54, 68, 82][stageNum - 1] + within * 12);
+};
+
+/* 발표자료·문서가 쓰는 크기. 나머지는 카드뉴스 쪽 형식이라 이 화면에 안 낸다. */
+const DECK_FORMATS = new Set(["ppt169", "ppt43", "a4"]);
+const DECK_CANVAS = (cat: Dict) =>
+  (cat.canvas || []).filter((c: Dict) => DECK_FORMATS.has(String(c.id)));
+
+const derivingProgress = (target: number) =>
+  target === 0 ? 16 : target === 1 ? 48 : target === 2 ? 68 : 82;
+
+const derivingWhere = (target: number) =>
+  target === 0 ? "기획서 만드는 중"
+    : target === 1 ? "디자인 준비 중"
+    : `${target}단계 준비 중`;
+
 export default function App() {
+  const alive = useServerAlive();
+  return (
+    <>
+      {alive ? null : <Disconnected />}
+      <Confirm />
+    </>
+  );
+}
+
+function Confirm() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [waitTarget, setWaitTarget] = useState(2);
   const [mismatchAck, setMismatchAck] = useState(false);
@@ -90,6 +182,10 @@ export default function App() {
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
   const [msg, setMsg] = useState("");
+  // Which question is on screen, held by key so a changing list cannot strand
+  // it. Declared here, above every early return: a hook that only runs in one
+  // phase changes the hook count when the phase changes.
+  const [stepKey, setStepKey] = useState("");
 
   const stageNum = useMemo(() => {
     const s = String(rec.stage || "");
@@ -116,7 +212,11 @@ export default function App() {
       try { outline = await api.readPlanning("outline"); } catch { /* same */ }
       if (outline?.text) {
         const doc = parseOutline(outline.text);
-        if (!metaGet(doc, "confirmed_at")) { setOutlineDoc(doc); setPhase("outline"); return; }
+        // 확정 여부와 무관하게 들고 있는다. 확정된 뼈대는 이 뒤 화면이 장 수를
+        // 아는 유일한 근거라, 안 들고 있으면 "몇 장으로 만들까요" 를 다시 묻게
+        // 된다 — 방금 확정한 사람에게.
+        setOutlineDoc(doc);
+        if (!metaGet(doc, "confirmed_at")) { setPhase("outline"); return; }
       }
       setPhase("form");
     } catch {
@@ -126,6 +226,9 @@ export default function App() {
   useEffect(() => { load(); }, []);
   // 템플릿이나 크기를 다시 고르면 불일치 확인과 그때 띄운 오류 문구를 함께 무효화한다
   useEffect(() => { setMismatchAck(false); setMsg(""); }, [state?.template, state?.canvas]);
+  // A new stage starts at its own first question. Clearing the key is enough —
+  // an unknown key resolves to position 0 below.
+  useEffect(() => { setStepKey(""); }, [stageNum]);
 
   /** After intake, wait for the agent to produce the outline the user edits. */
   async function pollOutline() {
@@ -146,6 +249,11 @@ export default function App() {
       try {
         const s = await api.getJson("/api/session");
         if (Number(s?.recommendation_stage_number || 0) >= target) { await load(); return; }
+        // 후보를 한 번에 다 쓰는 것이 기본이고(계약 Step 4), 그때는 stage 키가
+        // 없어 단계 번호가 0 이다. 그런데 뼈대를 확정하면 3단계 기계를 기다리게
+        // 되어 있어서, 기본 경로가 영원히 "준비 중" 에 머물렀다. 후보가 이미
+        // 쓰여 있고 단계가 안 붙어 있으면 그게 준비된 것이다.
+        if (!s?.recommendation_stage && s?.recommendation_version) { await load(); return; }
       } catch { /* server may be restarting; keep polling */ }
     }
     setMsg(T.errRetry);
@@ -153,20 +261,25 @@ export default function App() {
 
   async function onPrimary() {
     setMsg("");
+    // 쪽수를 안 물었으면 확정한 뼈대의 장 수가 곧 쪽수다. 빈 채로 넘기면
+    // 뒤 단계가 장 수를 모른다.
+    const sent = outlineSlides && !state.page_count
+      ? { ...state, page_count: String(outlineSlides) }
+      : state;
     try {
       if (stageNum === 1) {
         if (canvasMismatch && !mismatchAck) {
           setMsg(T.errCanvasMismatch);
           return;
         }
-        await api.postConfirm(api.stage1Payload(state, cat));
+        await api.postConfirm(api.stage1Payload(sent, cat));
         setWaitTarget(2); setPhase("deriving"); pollNext(2); return;
       }
       if (stageNum === 2) {
-        await api.postConfirm(api.stage2Payload(state, cat));
+        await api.postConfirm(api.stage2Payload(sent, cat));
         setWaitTarget(3); setPhase("deriving"); pollNext(3); return;
       }
-      await api.postConfirm(api.finalPayload(state, cat));
+      await api.postConfirm(api.finalPayload(sent, cat));
       setPhase("done");
       api.shutdown();
     } catch (e: any) {
@@ -209,25 +322,31 @@ export default function App() {
         }}
       />
     );
-  if (phase === "loading") return <Centered>{T.loading}</Centered>;
-  if (phase === "error") return <Centered>{T.loadError}</Centered>;
+  // 고를 것이 없는 화면 넷. 셋 다 같은 틀 안에서 가운데만 바뀐다 — 예전에는
+  // 여기만 머리띠도 없는 맨 화면이라 다른 물건처럼 보였다.
+  if (phase === "loading")
+    return (
+      <Shell where="여는 중" progress={4} wide>
+        <Mid art={<LoadingArt />} title={T.loading} />
+      </Shell>
+    );
+  if (phase === "error")
+    return (
+      <Shell where="자료를 읽지 못함" progress={0} wide>
+        <Mid art={<ErrorArt />} title={T.loadErrorTitle}>{T.loadError}</Mid>
+      </Shell>
+    );
   if (phase === "deriving")
     return (
-      <Centered>
+      <Shell where={derivingWhere(waitTarget)} progress={derivingProgress(waitTarget)} wide>
         <Deriving target={waitTarget} />
-      </Centered>
+      </Shell>
     );
   if (phase === "done")
     return (
-      <Centered>
-        <div className="flex flex-col items-center gap-4 text-center">
-          <DoneArt />
-          <div className="text-2xl font-extrabold" style={{ color: "var(--foreground)" }}>
-            {T.confirmedTitle}
-          </div>
-          <div className="mt-2 text-sm" style={{ color: "var(--muted)" }}>{T.confirmedHint}</div>
-        </div>
-      </Centered>
+      <Shell where="다 정했습니다" progress={100} wide>
+        <Mid art={<DoneArt />} title={T.confirmedTitle}>{T.confirmedHint}</Mid>
+      </Shell>
     );
 
   const R = rec.recommend || {};
@@ -246,26 +365,46 @@ export default function App() {
   const pickedDeck = (cat.templates || []).find((d: Dict) => d.id === state.template);
   const deckFormat = state.template && state.template !== "free" ? pickedDeck?.canvas_format : null;
   const canvasMismatch = Boolean(deckFormat && deckFormat !== state.canvas);
-  const steps = stageSteps(stageNum, state, cat, isPpt);
-  let n = 0;
+  const outlineSlides = outlineDoc && metaGet(outlineDoc, "confirmed_at")
+    ? outlineDoc.rows.length : 0;
+  const steps = stageSteps(stageNum, state, cat, isPpt, outlineSlides);
+
+  // The list can change under us — picking a deck adds or drops a question — so
+  // an unknown key falls back to the first, never to an empty screen.
+  const at = Math.max(0, steps.findIndex((s) => s.key === stepKey));
+  const current = steps[at]?.key ?? "";
+  const stepCtx = { current, index: (k: string) => steps.findIndex((s) => s.key === k) };
+  const goTo = (i: number) => {
+    const next = steps[Math.min(Math.max(i, 0), steps.length - 1)];
+    if (next) setStepKey(next.key);
+  };
+  const isLast = at >= steps.length - 1;
+  const left = steps.filter((s) => s.required && !s.filled).length;
 
   return (
-    <div className="flex h-full">
-      <Hero state={state} cat={cat} stageNum={stageNum} steps={steps}
-              ack={mismatchAck}
-              onFixCanvas={(id) => set("canvas", id)}
-              onAck={() => setMismatchAck((v) => !v)} />
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b px-8 py-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <h1 className="text-xl font-bold">{stageNum ? T.stages[stageNum - 1] : T.title}</h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{T.hint}</p>
-        </header>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
+    <Shell
+      where={stageNum ? `디자인 정하기 · 3단계 중 ${stageNum}` : T.title}
+      progress={stageProgress(stageNum, at, steps.length)}
+      footNote={
+        left
+          ? `아직 ${left}가지 남았습니다 — 그대로 두셔도 추천값으로 만듭니다`
+          : "네 가지 다 정하셨습니다"
+      }
+      footActions={
+        <>
+          {msg ? <span className="t-sub" style={{ color: "var(--danger)" }}>{msg}</span> : null}
+          <Button variant="primary" onPress={onPrimary}>
+            {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
+          </Button>
+        </>
+      }>
+      <Jump steps={steps} />
+      <StepCtx.Provider value={stepCtx}>
           {showAnchors && (
-            <>
-              {cat.templates?.length > 1 && (
-                <Section n={++n} title={T.secTemplate}>
+            <Section k="frame" title="어떤 틀로 만들까요?">
+              <div>
+                <div className="t-sect mb-3">이미 있는 디자인</div>
+
                   <ThumbChoice
                     items={cat.templates} value={state.template}
                     onChange={(v) => set("template", v)} recommended={R.template}
@@ -273,33 +412,28 @@ export default function App() {
                       it.id === "free" ? null
                         : `/api/template_preview/${encodeURIComponent(it.id)}?lang=ko`}
                   />
-                </Section>
-              )}
-              <Section n={++n} title={T.secCanvas}>
-                <RatioChoice items={cat.canvas || []} value={state.canvas}
+              </div>
+              <div>
+                <div className="t-sect mb-3">크기</div>
+
+                {/* 발표자료가 쓰는 크기만 남긴다. 인스타·위챗·샤오홍슈·모먼츠·
+                    스토리·배너는 카드뉴스 형식이라 이 화면과 상관이 없다 —
+                    고를 수 없는 것을 늘어놓으면 고르는 사람이 헤맨다. */}
+                <RatioChoice items={DECK_CANVAS(cat)} value={state.canvas}
                              onChange={(v) => set("canvas", v)} recommended={R.canvas} />
-              </Section>
-              <Section n={++n} title={T.secAudience}>
-                <PresetField
-                  legend="가까운 것을 고르고 필요하면 고쳐 쓰세요"
-                  presets={AUDIENCE_PRESETS} value={state.audience}
-                  onChange={(v) => set("audience", v)} placeholder={T.phAudience} />
-                <PresetField
-                  legend={T.subDivergence}
-                  hint="비워 두면 알아서 균형을 잡습니다"
-                  presets={DIVERGENCE_PRESETS} value={state.content_divergence}
-                  onChange={(v) => set("content_divergence", v)} placeholder={T.phDivergence} />
-                {isPpt && (
-                  <div>
-                    <div className="mb-3 text-base font-semibold">{T.subDelivery}</div>
-                    <DiagramChoice items={cat.delivery_purpose || []}
-                                   value={state.delivery_purpose}
-                                   onChange={(v) => set("delivery_purpose", v)}
-                                   recommended={R.delivery_purpose} />
-                  </div>
-                )}
-              </Section>
-              <Section n={++n} title={T.secStyle}>
+                {/* 고른 크기가 실제로 어떤 비율인지, 그리고 템플릿과 안 맞으면
+                    여기서 막는다. 예전에는 이 경고가 화면 왼쪽 패널에 있어
+                    질문에서 눈을 떼야 보였다. */}
+                <AnchorPreview state={state} cat={cat} ack={mismatchAck}
+                               onFixCanvas={(id) => set("canvas", id)}
+                               onAck={() => setMismatchAck((v) => !v)} />
+              </div>
+            </Section>
+          )}
+
+          {showDesign && (
+            <Section k="look" title="어떤 느낌으로 만들까요?">
+
                 <div>
                   <div className="mb-3 text-base font-semibold">{T.subMode}</div>
                   <DiagramChoice items={cat.modes || []} value={state.mode}
@@ -319,16 +453,9 @@ export default function App() {
                           onChange={(v) => set("template_adherence", v)}
                           recommended={R.template_adherence} />
                 )}
-              </Section>
-            </>
-          )}
+              <div>
+                <div className="t-sect mb-3">색</div>
 
-          {showDesign && (
-            <>
-              <Section n={++n} title={T.secPages}>
-                <PageCount value={state.page_count} onChange={(v) => set("page_count", v)} />
-              </Section>
-              <Section n={++n} title={T.secColor}>
                 <PaletteChoice
                   candidates={rec.color?.candidates || []}
                   selectedIndex={(rec.color?.candidates || []).findIndex(
@@ -341,18 +468,26 @@ export default function App() {
                   }}
                 />
                 <div>
-                  <div className="mb-3 text-[15px] font-semibold">{T.hexOverride}</div>
+                  <div className="mb-3 t-card">{T.hexOverride}</div>
+                  <div className="t-sub mb-3 max-w-[52ch]">
+                    후보에 마음에 드는 게 없으면 여기서 직접 넣으세요. 여섯 자리를
+                    다 바꿔도 되고, 강조색 하나만 바꿔도 됩니다.
+                  </div>
                   <HexGrid palette={state.color?.palette || {}} roles={T.roles}
                            onChange={(role, v) =>
                              setState((s) => ({ ...s,
                                color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))} />
                 </div>
-              </Section>
-              <Section n={++n} title={T.secIcons}>
+              </div>
+              <div>
+                <div className="t-sect mb-3">아이콘</div>
+
                 <IconChoice items={cat.icons || []} value={state.icons}
                             onChange={(v) => set("icons", v)} recommended={R.icons} />
-              </Section>
-              <Section n={++n} title={T.secType}>
+              </div>
+              <div>
+                <div className="t-sect mb-3">글씨 크기</div>
+
                 <TypeSpecimen
                   typography={state.typography || {}}
                   onBody={(v) => setState((s) => {
@@ -367,17 +502,27 @@ export default function App() {
                   onRole={(role, v) => setState((s) => ({ ...s,
                     typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
                 />
-              </Section>
-              <Section n={++n} title={T.secFormula}>
-                <Choice items={cat.formula_policy || []} value={state.formula_policy}
-                        onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
-              </Section>
-            </>
+                <div>
+                  {/* 뼈대에서 고른 그 장들을 지금 색과 글꼴로 다시 그린다.
+                      견본 한 장을 보여주면 "이 색이 내 장에 어떤가" 를 알 수 없다. */}
+                  <div className="t-sect mb-1">확정하신 뼈대가 이 색으로 이렇게 나옵니다</div>
+                  <div className="t-sub mb-3 max-w-[52ch]">
+                    장 모양과 사진 자리는 앞에서 정하신 그대로입니다 — 색과 글꼴만 바뀝니다.
+                  </div>
+                  {outlineDoc?.rows?.length
+                    ? <DeckPreview rows={outlineDoc.rows}
+                                   palette={state.color?.palette || {}}
+                                   typography={state.typography || {}} />
+                    : <SkinPreview state={state} />}
+                </div>
+              </div>
+            </Section>
           )}
 
           {showImages && (
             <>
-              <Section n={++n} title={T.secImages}>
+              <Section k="images" title={T.secImages}>
+
                 <ImageSourceChoice
                   items={cat.image_usage || []} value={state.image_usage}
                   onChange={(v) => set("image_usage", v)}
@@ -405,40 +550,52 @@ export default function App() {
                     </div>
                   </>
                 )}
+                {/* 고른 이미지 방향이 실제로 어떤 그림인지. 옆 패널에 있을 때는
+                    고르는 곳과 보는 곳이 떨어져 있어 대조가 안 됐다. */}
+                <ImagePreview state={state} />
               </Section>
-              <Section n={++n} title={T.secMode}>
-                <Choice items={cat.generation_mode || []} value={state.generation_mode}
-                        onChange={(v) => set("generation_mode", v)} recommended={R.generation_mode} />
-              </Section>
-              <Section n={++n} title={T.secRefine}>
-                <Switch isSelected={state.refine_spec}
-                        onChange={(b: boolean) => set("refine_spec", b)}>
-                  <Switch.Control><Switch.Thumb /></Switch.Control>
-                  <Switch.Content>
-                    <Label>{state.refine_spec ? T.refineOn : T.refineOff}</Label>
-                  </Switch.Content>
-                </Switch>
+              <Section k="finish" title="마무리">
+                <div>
+                  <div className="t-sect mb-3">{T.secFormula}</div>
+
+                <Choice items={cat.formula_policy || []} value={state.formula_policy}
+                        onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
+                </div>
+                <div>
+                  <div className="t-sect mb-3">{T.secMode}</div>
+
+                <ArtChoice
+                  items={(cat.generation_mode || []).map((m: Dict) => ({
+                    id: String(m.id), label: String(m.label_ko || m.id),
+                    note: String(m.desc_ko || m.note_ko || ""),
+                  }))}
+                  value={state.generation_mode}
+                  onChange={(v) => set("generation_mode", v)}
+                  recommended={R.generation_mode}
+                  art={{ continuous: modeContinuous, split: modeSplit }} />
+                </div>
+                <div>
+                  <div className="t-sect mb-3">{T.secRefine}</div>
+
+                {/* 켬/끔 스위치였다. 두 갈래가 어떻게 다른지는 스위치가 말해주지
+                    못해서, 켠 상태의 글을 읽어야만 알 수 있었다. 카드 둘로
+                    바꾸니 고르기 전에 차이가 보인다. */}
+                <ArtChoice
+                  items={[
+                    { id: "yes", label: T.refineOn,
+                      note: "기획서를 먼저 확인하고, 고칠 것을 고친 뒤에 슬라이드를 만듭니다" },
+                    { id: "no", label: T.refineOff,
+                      note: "기획서를 건너뛰고 바로 슬라이드까지 만듭니다" },
+                  ]}
+                  value={state.refine_spec ? "yes" : "no"}
+                  onChange={(v) => set("refine_spec", v === "yes")}
+                  art={{ yes: modePlanYes, no: modePlanNo }} />
+                </div>
               </Section>
             </>
           )}
-        </div>
-
-        <footer className="flex items-center justify-end gap-3 border-t px-6 py-3"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          {msg ? <span className="text-sm" style={{ color: "var(--danger)" }}>{msg}</span> : null}
-          <Button variant="primary" onPress={onPrimary}>
-            {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
-          </Button>
-        </footer>
-      </main>
-    </div>
+      </StepCtx.Provider>
+    </Shell>
   );
 }
 
-function Centered({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid h-full place-items-center p-8 text-sm" style={{ color: "var(--muted)" }}>
-      {children}
-    </div>
-  );
-}

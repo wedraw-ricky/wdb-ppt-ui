@@ -13,11 +13,14 @@
    section chain were decided by the contract upstream (references/storyline.md). */
 
 import { useMemo, useState } from "react";
+import { Shell } from "../shell";
+import { Empty } from "../../system/patterns";
 import { cardStyle } from "../selectors";
 import { SlideArt } from "./art";
 import {
   addRow, checkOutline, deleteRow, deleteWarning, FLOW_LABELS, LAYERS,
-  mergeRows, mergeWarning, metaGet, moveRow, patchRow, ROLE_LABELS, SHAPES,
+  IMAGE_USES, mergeRows, mergeWarning, metaGet, moveRow, patchRow, ROLE_LABELS,
+  SHAPE_GROUPS, SHAPES,
   type Doc, type Layer, type Row,
 } from "./model";
 
@@ -26,139 +29,225 @@ const shapeLabel = (id: string) =>
 
 /* ---- left pane -------------------------------------------------------- */
 
-function Rail({ rows, current, onPick }: {
-  rows: Row[]; current: number; onPick: (i: number) => void;
-}) {
+/* 어디까지 왔나. 장 목록은 오른쪽에 이미 있으므로 여기서 되풀이하지 않는다 —
+   같은 15장을 한 화면에 두 번 적으면 덜 쓸모 있는 쪽이 자리를 차지한다. */
+const JOURNEY = [
+  { id: "intake", label: "무엇을 · 누구에게" },
+  { id: "plan", label: "기획서" },
+  { id: "outline", label: "뼈대" },
+  { id: "design", label: "디자인" },
+];
+
+function Journey({ here }: { here: string }) {
+  const at = JOURNEY.findIndex((s) => s.id === here);
   return (
-    <div className="flex flex-col gap-3">
-      {LAYERS.map((layer) => {
-        const mine = rows
-          .map((r, i) => ({ r, i }))
-          .filter(({ r }) => r.layer === layer.id);
-        return (
-          <div key={layer.id}>
-            <div className="flex items-baseline gap-2">
-              <span className="text-[13px] font-bold">{layer.label}</span>
-              <span className="text-[11px] opacity-70">{layer.note}</span>
-              <span className="ml-auto text-[11px] opacity-70">{mine.length}장</span>
-            </div>
-            <div className="mt-1.5 flex flex-col gap-1 border-l border-white/25 pl-3">
-              {mine.length === 0 ? (
-                <div className="text-[12px] opacity-60">아직 없습니다</div>
-              ) : mine.map(({ r, i }) => (
-                <button key={i} type="button" onClick={() => onPick(i)}
-                        className="truncate rounded px-1.5 py-0.5 text-left text-[12px] transition"
-                        style={{ background: i === current ? "rgba(255,255,255,.18)" : "transparent",
-                                 opacity: i === current ? 1 : 0.82 }}>
-                  {r.n}. {r.title.trim() || "제목 미정"}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+      {JOURNEY.map((s, i) => (
+        <li key={s.id} className="flex items-center gap-2">
+          {/* 지난 곳은 ✓ 로, 지금 있는 곳은 굵기로 안다. 흐리게 하지 않는다 —
+              파란 바탕에서 흰 글씨는 4.62:1 라 조금만 흐려도 안 읽힌다. */}
+          <span className={i === at ? "font-bold" : "font-normal"}>
+            {i < at ? "✓ " : ""}{s.label}
+          </span>
+          {i < JOURNEY.length - 1 ? (
+            <span aria-hidden="true" style={{ opacity: 0.35 }}>›</span>
+          ) : null}
+        </li>
+      ))}
+    </ol>
   );
 }
 
-function Preview({ row }: { row: Row | undefined }) {
+/* 고른 장 하나를 크게. 이 화면의 약속이 "고르는 걸 그려서 보여준다" 이므로,
+   그림이 가장 큰 자리를 갖는다 — 목록 아래로 밀리면 노트북에서는 안 보인다. */
+function Detail({ row }: { row: Row | undefined }) {
   if (!row) return null;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="text-xs opacity-80">
-        {row.n}번째 장 · {ROLE_LABELS[row.role] || row.role} · {shapeLabel(row.shape)}
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline gap-2">
+        <span className="text-[13px] font-bold">{row.n}번째 장</span>
+        <span className="text-[12px]" style={{ color: "var(--muted)" }}>
+          {shapeLabel(row.shape)}
+        </span>
       </div>
-      <div className="overflow-hidden rounded-lg bg-white/95 p-2">
-        <SlideArt shape={row.shape} />
+      <div className="overflow-hidden rounded-lg border"
+           style={{ borderColor: "var(--border)" }}>
+        <SlideArt shape={row.shape} image={row.image} />
       </div>
-      <div className="text-[13px] font-semibold">{row.title.trim() || "제목 미정"}</div>
+      <div className="text-[15px] font-bold leading-snug">
+        {row.title.trim() || "제목 미정"}
+      </div>
       {row.screen.trim() ? (
-        <div className="whitespace-pre-line text-[12px] leading-relaxed opacity-85">
-          {row.screen}
-        </div>
+        <div className="whitespace-pre-line text-[13px] leading-relaxed"
+             style={{ color: "var(--muted)" }}>{row.screen}</div>
       ) : (
-        <div className="text-[12px] opacity-70">화면에 넣을 내용은 아직 비어 있습니다</div>
+        <div className="text-[13px]" style={{ color: "var(--muted)" }}>
+          화면에 넣을 내용은 아직 비어 있습니다
+        </div>
       )}
     </div>
   );
 }
 
+/** 이 장에서 사람이 봐야 할 것. 이 화면이 가진 데이터로만 판단한다.
+    `checkOutline` 은 덱 전체 문제만 내고 장별 신호는 주지 않으므로, 없는 것을
+    지어내면 "확인 필요" 라는 말이 곧 의미를 잃는다. */
+function needsLook(row: Row): string {
+  if (!row.title.trim()) return "제목이 비어 있습니다";
+  if (!row.screen.trim()) return "화면에 넣을 내용이 비어 있습니다";
+  return "";
+}
+
+/* 왜 이 장이 여기 이렇게 있는가.
+
+   이것이 다른 도구와 갈리는 자리다. Gamma 는 "생성" 뒤에 근거를 숨기고, 그래서
+   발표장에서 "이 수치 어디서 나온 겁니까" 를 받으면 답을 못 한다. 우리는 답할
+   수 있다 — 기획서 어느 절에서 왔고, 골든서클 어느 층이며, 왜 이 모양인지가
+   전부 데이터에 있다. 지어내는 것이 하나도 없다.
+
+   같은 내용이 발표자 노트로도 나가야 회의실까지 따라간다. */
+function Why({ row }: { row: Row }) {
+  const section = row.source.split("#").pop() || "";
+  const layer = LAYERS.find((l) => l.id === row.layer);
+  const shape = SHAPES.find((s) => s.id === row.shape);
+  const role = row.role !== "body" ? (ROLE_LABELS[row.role] || row.role) : "";
+
+  const lines: { k: string; v: string }[] = [];
+  if (section) lines.push({ k: "기획서에서", v: `«${section}» 절이 이 장이 됐습니다` });
+  if (layer) lines.push({ k: "이야기의 자리", v: `${layer.label} — ${layer.note}` });
+  if (shape) lines.push({ k: "이 모양인 이유", v: `${shape.label} · ${shape.note}` });
+  if (role) lines.push({ k: "역할", v: role });
+  const use = IMAGE_USES.find((u) => u.id === row.image);
+  if (use && use.id !== "none")
+    lines.push({ k: "사진 쓰는 법", v: `${use.label} · ${use.note}` });
+  if (!lines.length) return null;
+
+  return (
+    <section className="flex flex-col gap-2.5">
+      <h3 className="text-[13px] font-bold">왜 이 장인가</h3>
+      <dl className="m-0 flex flex-col gap-2 border-l-2 pl-3"
+          style={{ borderColor: "var(--wdb-primary)" }}>
+        {lines.map((l) => (
+          <div key={l.k}>
+            <dt className="text-[11px]" style={{ color: "var(--muted)" }}>{l.k}</dt>
+            <dd className="m-0 text-[13px] leading-snug">{l.v}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="m-0 text-[12px]" style={{ color: "var(--muted)" }}>
+        이 설명은 발표자 노트로도 함께 나갑니다 — 발표장에서 근거를 물으면 여기 있습니다.
+      </p>
+    </section>
+  );
+}
+
 /* ---- row -------------------------------------------------------------- */
 
-function RowCard({
-  row, index, total, open, picked, onOpen, onPick, onMove, onDelete, children,
+/* 한 장 = 스토리보드의 한 컷.
+
+   줄로 늘어놓으면 순서는 읽히지만 흐름이 안 읽힌다 — 이 화면이 묻는 것은
+   "이 순서로 이야기할까요" 이므로 여러 장이 한눈에 들어와야 한다. 그래서 컷을
+   격자로 놓고 그림을 카드 너비만큼 키운다 — `art.tsx` 는 이미 레이아웃 14종을
+   제 도형으로 그리고 있었고, 104px 로 줄여 쓰느라 그 노력이 안 보였다.
+
+   글자로는 절 이름 하나만 쓴다. 모양은 그림이 이미 말하고, 역할은 표지 · 1안 ·
+   2안일 때만 — 본문일 때는 적어도 아는 것이 늘지 않는다.
+
+   접근성 세 가지가 여기 걸려 있다:
+   ① 경계선은 `--border-strong` — 기본 `--border` 는 흰 바탕에서 1.25:1 이라
+      저시력 사용자에게 카드가 안 보인다.
+   ② 고른 장은 색만으로 알리지 않는다. 굵은 테두리와 왼쪽 세로 막대가 형태로도
+      말한다 (WCAG 1.4.1).
+   ③ 옮기고 지우는 단추를 마우스오버 뒤에 숨기지 않는다. 숨기면 마우스 쓰는
+      사람에게만 깔끔해지고 키보드·터치·스크린리더에서는 기능이 사라진다.
+      개수는 크기와 명도로 줄인다. */
+function ChapterCard({
+  row, index, total, selected, picked, onOpen, onPick, onMove, onDelete,
 }: {
-  row: Row; index: number; total: number; open: boolean; picked: boolean;
+  row: Row; index: number; total: number; selected: boolean; picked: boolean;
   onOpen: () => void; onPick: () => void;
   onMove: (to: number) => void; onDelete: () => void;
-  children: React.ReactNode;
 }) {
+  const roleBadge = row.role !== "body" ? (ROLE_LABELS[row.role] || row.role) : "";
+  const look = needsLook(row);
+  const source = row.source.split("#").pop() || "";
+  const sourceLabel = source && source !== row.title.trim() ? source : "";
   return (
-    <div className="rounded-xl border transition" style={cardStyle(open || picked)}>
-      <div className="flex items-stretch gap-3 p-3">
-        <div className="flex flex-col items-center justify-center gap-1.5 pl-1">
-          <span className="cursor-grab select-none text-[13px] leading-none opacity-45"
-                aria-hidden="true">⋮⋮</span>
-          <input type="checkbox" checked={picked} onChange={onPick}
-                 aria-label={`${row.n}번째 장 선택`} />
-        </div>
+    <div className="relative flex flex-col gap-2 rounded-lg p-2 transition"
+         style={{
+           // 확인 필요는 색만이 아니라 점선으로도 말한다 (WCAG 1.4.1).
+           border: selected
+             ? "2px solid var(--wdb-primary)"
+             : look
+               ? "1px dashed var(--warning)"
+               : "1px solid var(--border-strong)",
+           padding: selected ? 7 : 8,
+           background: "var(--surface)",
+         }}>
+      {selected ? (
+        <span aria-hidden="true" className="absolute rounded-full"
+              style={{ left: -4, top: 12, bottom: 12, width: 5,
+                       background: "var(--wdb-primary)" }} />
+      ) : null}
 
-        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full
-                         text-[11px] font-bold text-white"
-              style={{ background: "var(--wdb-secondary)" }}>
-          {row.n}
-        </span>
+      <button type="button" onClick={onOpen} aria-pressed={selected}
+              className="overflow-hidden rounded-md text-left"
+              style={{ border: "1px solid var(--border-strong)" }}
+              aria-label={`${row.n}번째 장 ${row.title.trim() || "제목 미정"} 고르기`}>
+        <SlideArt shape={row.shape} image={row.image} />
+      </button>
 
-        <button type="button" onClick={onOpen}
-                className="w-[104px] shrink-0 overflow-hidden rounded-md border"
-                style={{ borderColor: "var(--border)" }}
-                aria-label={`${row.n}번째 장 펼치기`}>
-          <SlideArt shape={row.shape} />
-        </button>
+      <span aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-3.5 grid h-5 w-5
+                       place-items-center rounded text-[10px] font-bold text-white"
+            style={{ background: "var(--wdb-secondary)" }}>{row.n}</span>
 
-        <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[15px] font-semibold">
-              {row.title.trim() || "제목 미정"}
+      <div className="flex min-w-0 flex-col gap-0.5 px-0.5">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-[14px] font-semibold leading-snug">
+            {row.title.trim() || "제목 미정"}
+          </span>
+          {row.edited ? (
+            <span className="shrink-0 rounded px-1.5 text-[10px] font-semibold"
+                  style={{ background: "var(--wdb-cyan)", color: "var(--wdb-charcoal)" }}>
+              고침
             </span>
-            {row.edited ? (
-              <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                    style={{ background: "var(--wdb-cyan)", color: "var(--wdb-charcoal)" }}>
-                고침
+          ) : null}
+        </div>
+        {roleBadge || sourceLabel ? (
+          <div className="flex items-center gap-1.5 text-[12px]"
+               style={{ color: "var(--muted)" }}>
+            {roleBadge ? (
+              <span className="rounded px-1.5 font-semibold"
+                    style={{ background: "var(--wdb-card-bg)", color: "var(--wdb-secondary)" }}>
+                {roleBadge}
               </span>
             ) : null}
+            {sourceLabel ? <span className="truncate">{sourceLabel}</span> : null}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]"
-               style={{ color: "var(--muted)" }}>
-            <span>{ROLE_LABELS[row.role] || row.role}</span>
-            <span aria-hidden="true">·</span>
-            <span>{shapeLabel(row.shape)}</span>
-            {row.source.trim() ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="truncate">{row.source.split("#").pop()}</span>
-              </>
-            ) : null}
-          </div>
-          {!open && row.screen.trim() ? (
-            <div className="mt-1.5 line-clamp-2 whitespace-pre-line text-[12px] leading-relaxed"
-                 style={{ color: "var(--muted)" }}>
-              {row.screen}
-            </div>
-          ) : null}
-        </button>
-
-        <div className="flex shrink-0 flex-col items-end justify-between gap-1">
-          <div className="flex gap-1">
-            <IconBtn label="위로" disabled={index === 0} onClick={() => onMove(index - 1)}>↑</IconBtn>
-            <IconBtn label="아래로" disabled={index === total - 1}
-                     onClick={() => onMove(index + 1)}>↓</IconBtn>
-          </div>
-          <IconBtn label="이 장 지우기" onClick={onDelete}>✕</IconBtn>
-        </div>
+        ) : null}
+        {look ? (
+          <span className="text-[12px] font-semibold" style={{ color: "var(--warning)" }}>
+            확인 필요 — {look}
+          </span>
+        ) : null}
       </div>
-      {open ? <div className="border-t px-3 pb-4 pt-4"
-                   style={{ borderColor: "var(--border)" }}>{children}</div> : null}
+
+      <div className="flex items-center gap-1 px-0.5">
+        <label className="mr-auto flex min-h-[24px] cursor-pointer items-center gap-1.5
+                          pr-2 text-[12px]"
+               style={{ color: "var(--muted)" }}>
+          <input type="checkbox" checked={picked} onChange={onPick}
+                 className="h-[18px] w-[18px]"
+                 aria-label={`${row.n}번째 장을 합치기 대상으로 선택`} />
+          합치기
+        </label>
+        <IconBtn label={`${row.n}번째 장을 앞으로`} disabled={index === 0}
+                 onClick={() => onMove(index - 1)}>←</IconBtn>
+        <IconBtn label={`${row.n}번째 장을 뒤로`} disabled={index === total - 1}
+                 onClick={() => onMove(index + 1)}>→</IconBtn>
+        <IconBtn label={`${row.n}번째 장 지우기`} onClick={onDelete}>✕</IconBtn>
+      </div>
     </div>
   );
 }
@@ -169,15 +258,18 @@ function IconBtn({ children, label, onClick, disabled }: {
   return (
     <button type="button" onClick={onClick} disabled={disabled} aria-label={label}
             title={label}
-            className="grid h-6 w-6 place-items-center rounded border text-[12px] transition disabled:opacity-30"
-            style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+            className="grid h-6 w-6 place-items-center rounded text-[12px] transition disabled:opacity-30"
+            style={{ border: "1px solid var(--border-strong)", color: "var(--muted)" }}>
       {children}
     </button>
   );
 }
 
+/* 입력칸은 눌린 면으로 말한다 — 선을 두 번 긋지 않는다 (tokens.css §2).
+   예전에는 흰 바탕에 --border 로 테두리를 그었는데, 그 선이 1.15:1 이라
+   조작 요소 경계로는 안 보였고(WCAG 1.4.11) 화면의 다른 입력칸과도 달랐다. */
 const fieldStyle = {
-  borderColor: "var(--border)", background: "var(--surface)",
+  borderColor: "var(--field-border)", background: "var(--field-background)",
   color: "var(--foreground)",
 } as const;
 
@@ -192,7 +284,7 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
                style={fieldStyle} />
       </label>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <label className="flex flex-col gap-1.5">
           <span className="text-[13px] font-semibold">화면에 보이는 글</span>
           <span className="-mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
@@ -216,10 +308,42 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
       </div>
 
       <div>
-        <div className="text-[13px] font-semibold">이 장은 어떤 모양으로 만들까요?</div>
-        <div className="mt-2 grid gap-2.5"
+        <div className="text-[13px] font-semibold">이 장에 사진을 쓸까요?</div>
+        <div className="mt-2 grid gap-2"
+             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(112px, 1fr))" }}>
+          {IMAGE_USES.map((u) => (
+            <button key={u.id} type="button" aria-pressed={row.image === u.id}
+                    onClick={() => onPatch({ image: u.id })}
+                    className="rounded-lg p-2 text-left transition"
+                    style={{
+                      border: row.image === u.id
+                        ? "2px solid var(--wdb-primary)"
+                        : "1px solid var(--border-strong)",
+                      padding: row.image === u.id ? 7 : 8,
+                    }}>
+              <span className="block overflow-hidden rounded"
+                    style={{ border: "1px solid var(--border-strong)" }}>
+                <SlideArt shape="body" image={u.id} />
+              </span>
+              <span className="mt-1.5 block text-[12px] font-semibold">{u.label}</span>
+              <span className="block text-[11px] leading-snug"
+                    style={{ color: "var(--muted)" }}>{u.note}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+          빗금 친 자리에 사진이 들어갑니다. 어떤 사진일지는 다음 단계에서 고릅니다.
+        </p>
+
+        <div className="mt-5 text-[13px] font-semibold">이 장은 어떤 모양으로 만들까요?</div>
+        {SHAPE_GROUPS.map((g) => (
+        <div key={g.id}>
+        <div className="mt-3 text-[11px] font-semibold" style={{ color: "var(--muted)" }}>
+          {g.label}
+        </div>
+        <div className="mt-1.5 grid gap-2.5"
              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}>
-          {SHAPES.map((s) => (
+          {SHAPES.filter((s) => s.group === g.id).map((s) => (
             <button key={s.id} type="button" aria-pressed={row.shape === s.id}
                     onClick={() => onPatch({ shape: s.id })}
                     className="overflow-hidden rounded-lg border p-0 text-left transition"
@@ -237,6 +361,8 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
             </button>
           ))}
         </div>
+        </div>
+        ))}
         {!SHAPES.some((s) => s.id === row.shape) ? (
           <div className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
             지금은 <b>{row.shape}</b> 로 되어 있습니다. 위에서 고르면 바뀝니다.
@@ -244,7 +370,7 @@ function Editor({ row, onPatch }: { row: Row; onPatch: (p: Partial<Row>) => void
         ) : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <div>
           <div className="text-[13px] font-semibold">이야기의 어느 대목인가요?</div>
           <div className="mt-2 flex gap-2">
@@ -297,11 +423,16 @@ export function OutlineEditor({ doc, onConfirm }: {
   const [dragging, setDragging] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // 확인할 곳만 걸러 보기 · 층을 접고 전부 펼쳐 보기. 22장이 넘어가면
+  // 층별 목록만으로는 훑을 수가 없다.
+  const [onlyLook, setOnlyLook] = useState(false);
+  const [flat, setFlat] = useState(false);
   const [msg, setMsg] = useState("");
 
   const issues = useMemo(() => checkOutline({ ...doc, rows }), [doc, rows]);
   const blocked = issues.filter((i) => i.tone === "block");
   const flow = metaGet(doc, "flow");
+  const lookCount = rows.filter((r) => needsLook(r)).length;
   const current = open >= 0 ? open : 0;
 
   /** Every mutation runs through here so the selection and the open row cannot
@@ -343,41 +474,73 @@ export function OutlineEditor({ doc, onConfirm }: {
   }
 
   return (
-    <div className="flex h-full">
-      <aside className="wdb-hero hidden w-[34%] max-w-[480px] min-w-[340px] flex-col gap-6
-                        overflow-y-auto p-7 lg:flex">
-        <div className="flex items-center gap-3 border-b border-white/20 pb-4">
-          <div className="grid h-9 w-9 place-items-center rounded-lg border border-white/30
-                          bg-white/15 text-sm font-bold">PM</div>
-          <div>
-            <div className="text-[11px] tracking-widest opacity-80">PPT MASTER</div>
-            <div className="text-sm font-bold">뼈대 정하기</div>
+    <Shell
+      where={`뼈대 정하기 · ${rows.length}장`}
+      progress={40}
+      wide
+      footNote={
+        <span style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
+          {msg || (picked.length >= 2
+            ? mergeWarning(rows, picked) || "고른 장을 한 장으로 합칩니다"
+            : lookCount
+              ? `모두 ${rows.length}장 · 확인할 곳 ${lookCount}군데 — 그냥 만드셔도 됩니다`
+              : `모두 ${rows.length}장 · 이대로 만드셔도 됩니다`)}
+        </span>
+      }
+      footActions={
+        <>
+          <button type="button" onClick={doMerge} disabled={picked.length < 2}
+                  className="h-[50px] rounded-[14px] px-5 text-[14px] font-semibold transition
+                             disabled:opacity-40"
+                  style={{ background: "var(--sunken)", color: "var(--muted)" }}>
+            선택한 {picked.length || ""}장 합치기
+          </button>
+          <button type="button" onClick={confirm} disabled={busy || blocked.length > 0}
+                  className="h-[50px] rounded-[14px] px-6 text-[15px] font-bold tracking-tight
+                             text-white transition disabled:opacity-40"
+                  style={{ background: "var(--accent)",
+                           boxShadow: "var(--accent-glow)" }}>
+            {busy ? "저장하는 중…" : "이 뼈대로 만들기 →"}
+          </button>
+        </>
+      }>
+      <div className="flex h-full">
+        {/* 장 목록이 화면의 주인이다. 예전에는 왼쪽 420px 를 편집 칸이 늘
+            차지하고 있어서, 고를 것을 보여주는 자리가 그만큼 좁았다. */}
+        <div className="min-w-0 flex-1 overflow-y-auto px-9 pt-8 pb-6">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <h1 className="mr-auto text-[24px] font-extrabold tracking-[-0.03em]">
+              이 순서로 이야기할까요?
+            </h1>
+            <button type="button" onClick={() => setOnlyLook((v) => !v)}
+                    aria-pressed={onlyLook} disabled={lookCount === 0}
+                    className="rounded-lg px-3 py-1.5 text-[13px] font-semibold transition
+                               disabled:opacity-40"
+                    style={onlyLook
+                      ? { background: "var(--warning)", color: "var(--surface)",
+                          border: "1px solid var(--warning)" }
+                      : { border: "1px solid var(--warning)", color: "var(--warning)" }}>
+              확인할 곳만 {lookCount}
+            </button>
+            <div role="group" aria-label="보기 방식"
+                 className="flex overflow-hidden rounded-lg"
+                 style={{ border: "1px solid var(--border-strong)" }}>
+              {[["층별", false], ["전체", true]].map(([label, v]) => (
+                <button key={String(v)} type="button" onClick={() => setFlat(v as boolean)}
+                        aria-pressed={flat === v}
+                        className="px-3 py-1.5 text-[13px] transition"
+                        style={flat === v
+                          ? { background: "var(--accent)", color: "var(--ink-on-accent)", fontWeight: 600 }
+                          : { color: "var(--muted)" }}>
+                  {label as string}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="text-xs opacity-80">고르신 이야기 흐름</div>
-          <div className="text-[13px] font-semibold">
-            {FLOW_LABELS[flow] || flow || "—"}
-          </div>
-          <div className="text-[12px] opacity-75">모두 {rows.length}장</div>
-        </div>
-
-        <Rail rows={rows} current={current} onPick={(i) => setOpen(i)} />
-
-        <Preview row={rows[current]} />
-      </aside>
-
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b px-8 py-5"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <h1 className="text-xl font-bold">이 순서로 이야기할까요?</h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
+          <p className="mb-6 max-w-[52ch] text-[14px] leading-relaxed" style={{ color: "var(--muted)" }}>
             장을 끌어 순서를 바꾸고, 눌러서 안을 고치세요. 여기서 확정한 뼈대가 그대로 슬라이드가 됩니다.
           </p>
-        </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
           {issues.length ? (
             <div className="mb-5 flex flex-col gap-2">
               {issues.map((it) => (
@@ -403,98 +566,137 @@ export function OutlineEditor({ doc, onConfirm }: {
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-2.5">
-            {rows.map((row, i) => {
-              const bandStart = i === 0 || rows[i - 1].layer !== row.layer;
-              const layer = LAYERS.find((l) => l.id === row.layer);
+          {/* 장이 하나도 없을 때. 빈 격자를 그냥 두면 고장인지 원래 그런지
+              모른다 (patterns.tsx ④).
+
+              "확인할 곳만" 을 켜서 아무것도 안 남는 경우는 여기 없다 — 0 이면
+              그 버튼이 꺼져서 누를 수가 없다. 빈 상태를 하나 써 뒀다가 도달할
+              수 없는 것을 확인하고 지웠다. 다 채웠다는 소식은 꺼진 버튼과
+              아래 "이대로 만드셔도 됩니다" 가 이미 말한다. */}
+          {rows.length === 0 ? (
+            <Empty title="아직 장이 없습니다"
+                   action={
+                     <button type="button"
+                             onClick={() => apply(addRow(rows, 0), 0)}
+                             className="rounded-[var(--r-ctl)] px-[var(--s-5)] t-card text-white"
+                             style={{ background: "var(--accent)",
+                                      minHeight: "var(--hit-ctl)" }}>
+                       첫 장 만들기
+                     </button>
+                   }>
+              자료에서 뼈대를 못 뽑았습니다. 직접 한 장 만들어 시작하시거나,
+              채팅으로 돌아가 자료를 다시 넣어주세요.
+            </Empty>
+          ) : null}
+
+          {/* Why · How · What 을 띠로 묶고 그 안에 컷을 늘어놓는다. 15개가 각자
+              테두리를 두르면 정작 묶여야 할 세 덩어리의 경계가 안 보인다. */}
+          <div className="flex flex-col gap-7">
+            {(flat || onlyLook
+              ? [{ id: "", label: "", note: "" } as (typeof LAYERS)[number]]
+              : LAYERS
+            ).map((layer) => {
+              const items = rows
+                .map((row, i) => ({ row, i }))
+                .filter(({ row }) =>
+                  (flat || onlyLook || row.layer === layer.id)
+                  && (!onlyLook || needsLook(row)));
+              // 예전에는 여기서 null 을 돌려줘서 구역이 통째로 사라졌다.
+              // 사라지면 "왜 없지" 를 물을 데가 없다.
+              if (!items.length) return null;
               return (
-                <div key={i}>
-                  {bandStart ? (
-                    <div className={`mb-2.5 flex items-center gap-3 ${i ? "mt-4" : ""}`}>
-                      <span className="text-[13px] font-bold">
-                        {layer?.label || row.layer}
-                      </span>
-                      <span className="text-[12px]" style={{ color: "var(--muted)" }}>
-                        {layer?.note}
-                      </span>
-                      <span className="h-px flex-1" style={{ background: "var(--border)" }} />
-                    </div>
-                  ) : null}
+                <section key={layer.id || "all"} className="flex flex-col gap-3">
+                  <header className="flex items-baseline gap-3"
+                          hidden={flat || onlyLook}>
+                    <h2 className="text-[14px] font-bold">{layer.label}</h2>
+                    <span className="text-[12px]" style={{ color: "var(--muted)" }}>
+                      {layer.note}
+                    </span>
+                    <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+                    <span className="text-[12px] tabular-nums" style={{ color: "var(--muted)" }}>
+                      {items.length}장
+                    </span>
+                  </header>
 
-                  <div
-                    draggable={open !== i}
-                    onDragStart={() => setDragging(i)}
-                    onDragEnd={() => { setDragging(null); setOver(null); }}
-                    onDragOver={(e) => { e.preventDefault(); setOver(i); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (dragging !== null && dragging !== i) move(dragging, i);
-                      setDragging(null); setOver(null);
-                    }}
-                    style={{ opacity: dragging === i ? 0.45 : 1,
-                             borderTop: over === i && dragging !== null && dragging !== i
-                               ? "2px solid var(--wdb-primary)" : "2px solid transparent" }}
-                  >
-                    <RowCard
-                      row={row} index={i} total={rows.length}
-                      open={open === i} picked={picked.includes(i)}
-                      onOpen={() => setOpen(open === i ? -1 : i)}
-                      onPick={() => setPicked((p) =>
-                        p.includes(i) ? p.filter((x) => x !== i) : [...p, i])}
-                      onMove={(to) => move(i, to)}
-                      onDelete={() => { setPendingDelete(i); setMsg(deleteWarning(rows, i)); }}
-                    >
-                      <Editor row={row}
-                              onPatch={(p) => setRows(patchRow(rows, i, p))} />
-                    </RowCard>
-
-                    {pendingDelete === i ? (
-                      <div className="mt-1.5 flex items-center gap-3 rounded-lg border px-4 py-2.5
-                                      text-[13px]"
-                           style={{ borderColor: "var(--danger)", background: "var(--surface)" }}>
-                        <span>{row.n}번째 장을 지울까요?</span>
-                        <button type="button" onClick={() => apply(deleteRow(rows, i))}
-                                className="rounded-md px-3 py-1 text-[12px] font-semibold text-white"
-                                style={{ background: "var(--danger)" }}>지웁니다</button>
-                        <button type="button" onClick={() => { setPendingDelete(-1); setMsg(""); }}
-                                className="rounded-md border px-3 py-1 text-[12px]"
-                                style={{ borderColor: "var(--border)" }}>그대로 둡니다</button>
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                    {items.map(({ row, i }) => (
+                      <div key={i}
+                           draggable
+                           onDragStart={() => setDragging(i)}
+                           onDragEnd={() => { setDragging(null); setOver(null); }}
+                           onDragOver={(e) => { e.preventDefault(); setOver(i); }}
+                           onDrop={(e) => {
+                             e.preventDefault();
+                             if (dragging !== null && dragging !== i) move(dragging, i);
+                             setDragging(null); setOver(null);
+                           }}
+                           style={{
+                             opacity: dragging === i ? 0.4 : 1,
+                             outline: over === i && dragging !== null && dragging !== i
+                               ? "2px solid var(--wdb-primary)" : "none",
+                             outlineOffset: 2, borderRadius: 10,
+                           }}>
+                        <ChapterCard
+                          row={row} index={i} total={rows.length}
+                          selected={current === i} picked={picked.includes(i)}
+                          onOpen={() => setOpen(i)}
+                          onPick={() => setPicked((q) =>
+                            q.includes(i) ? q.filter((x) => x !== i) : [...q, i])}
+                          onMove={(to) => move(i, to)}
+                          onDelete={() => { setPendingDelete(i); setMsg(deleteWarning(rows, i)); }}
+                        />
+                        {pendingDelete === i ? (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg
+                                          border px-3 py-2 text-[12px]"
+                               style={{ borderColor: "var(--danger)", background: "var(--surface)" }}>
+                            <span>{row.n}번째 장을 지울까요?</span>
+                            <button type="button" onClick={() => apply(deleteRow(rows, i))}
+                                    className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-white"
+                                    style={{ background: "var(--danger)" }}>지웁니다</button>
+                            <button type="button"
+                                    onClick={() => { setPendingDelete(-1); setMsg(""); }}
+                                    className="rounded-md border px-2.5 py-1 text-[11px]"
+                                    style={{ borderColor: "var(--border)" }}>그대로 둡니다</button>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
+                    ))}
                   </div>
-                </div>
+                </section>
               );
             })}
           </div>
 
           <button type="button" onClick={() => apply(addRow(rows, rows.length - 1), rows.length)}
-                  className="mt-4 w-full rounded-xl border border-dashed py-3 text-[14px] transition"
-                  style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
+                  className="mt-4 w-full rounded-xl border border-dashed py-3.5 text-[14px]
+                             font-semibold transition"
+                  style={{ borderColor: "var(--line-strong)", color: "var(--muted)" }}>
             + 장 추가
           </button>
         </div>
 
-        <footer className="flex items-center gap-3 border-t px-8 py-4"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-          <button type="button" onClick={doMerge} disabled={picked.length < 2}
-                  className="rounded-lg border px-4 py-2 text-[14px] transition disabled:opacity-40"
-                  style={{ borderColor: "var(--border)" }}>
-            선택한 {picked.length || ""}장 합치기
-          </button>
-          <span className="min-w-0 flex-1 truncate text-[13px]"
-                style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
-            {msg || (picked.length >= 2
-              ? mergeWarning(rows, picked) || "고른 장을 한 장으로 합칩니다"
-              : `모두 ${rows.length}장 · 고치신 장은 다시 만들어도 그대로 둡니다`)}
-          </span>
-          <button type="button" onClick={confirm} disabled={busy || blocked.length > 0}
-                  className="rounded-lg px-5 py-2.5 text-[15px] font-semibold text-white
-                             transition disabled:opacity-40"
-                  style={{ background: "var(--wdb-primary)" }}>
-            {busy ? "저장하는 중…" : "이 뼈대로 만들기 →"}
-          </button>
-        </footer>
-      </main>
-    </div>
+        {/* 고른 장 하나만 여기서 손본다. 늘 붙어 있는 편집 칸이 아니라 고른
+            것을 여는 서랍이라, 목록을 보는 동안은 화면이 목록에 집중한다. */}
+        <aside className="hidden w-[400px] shrink-0 overflow-y-auto border-l px-8 pt-8 pb-6 lg:block"
+               style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+          {rows[current] ? (
+            <>
+              <Detail row={rows[current]} />
+              <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+                <Why row={rows[current]} />
+              </div>
+              <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--border)" }}>
+                <Editor row={rows[current]}
+                        onPatch={(p) => setRows(patchRow(rows, current, p))} />
+              </div>
+            </>
+          ) : (
+            <div className="pt-10 text-center text-[13px]" style={{ color: "var(--faint)" }}>
+              왼쪽에서 장을 하나 고르면 여기서 고칠 수 있습니다
+            </div>
+          )}
+        </aside>
+      </div>
+    </Shell>
   );
 }

@@ -47,6 +47,7 @@ changed. What differs is the *cost* of changing it.
 | SVG / direct-PPTX pipeline — `scripts/`, most `references/`, `templates/`, `workflows/` | Vendored (Hugo He → byungjunjang) | Ours to edit, but it is a large body of working code with conventions of its own |
 | Planning stage — `planner.md` · `storyline.md` · `report-format.md`, `plan_spec.py` · `outline.py` · `render_plan_doc.py` · `report_form.py`, `templates/report_forms/`, SKILL.md Steps 3.5–3.7 | WeDraw | New work; change it whenever the thinking changes |
 | Confirm UI — `ui/`, `static/`, [`DESIGN.md`](DESIGN.md) | WeDraw | Same |
+| Judgment gates — `template_install_preflight.py`, `compare_source_counts` in `_conversion_profile.py`, `deck_level_counts` / `verdict_line` in `svg_quality_checker.py`, `strategist.md` *When the contract is silent* + §e | WeDraw | New work sitting inside vendored files. Keep each one a self-contained function so it stays ours to change and to test |
 | This file, [`AGENTS.md`](AGENTS.md), [`docs/rules/`](docs/rules/), `docs/00-pm` · `01-plan` · `02-design` | WeDraw | Same |
 
 **Hard rule — two kinds of rule, two different bars**:
@@ -122,7 +123,8 @@ Decks and documents are different products and do not share a font rule.
 | Direct-PPTX route | Source fonts preserved unless the selected owner says otherwise |
 | 기획서 · 보고서 `.docx` | The **report form** decides — [`templates/report_forms/*.json`](.claude/skills/ppt-master/templates/report_forms/). `khnp` uses Pretendard, `bok` uses 맑은 고딕 / 한컴바탕. The deck lock does not reach a document |
 
-- Every SVG-authored deck uses **Pretendard** as the fixed font family — do not propose or pick other families unless the user explicitly asks in the current conversation. Hierarchy comes from weight/size, not family switching. Direct-PPTX routes preserve source fonts unless their selected owner says otherwise. Full contract: [`strategist.md §g` install-local font lock](.claude/skills/ppt-master/references/strategist.md).
+- **Font precedence for an SVG-authored deck — one order, three sources**: ① the user names a font in the current conversation ② the Step 3 template declares its own stacks ③ **Pretendard**, the install default. There is no fourth source: at ③ do not propose or shop for other families — hierarchy comes from weight and size, not from a second face. Direct-PPTX routes preserve source fonts unless their selected owner says otherwise. Full contract: [`strategist.md §g` font precedence table](.claude/skills/ppt-master/references/strategist.md).
+- **Whichever font wins, it must be installed where the deck is exported.** PPTX does not embed fonts, so a missing face substitutes silently and the deck ships wrong. `validate_spec.py` warns on the locked `font_family`; `preflight.py` checks Pretendard at setup.
 - Stack: `Pretendard, "Malgun Gothic", sans-serif`; intermediate weights use installed family names (`"Pretendard Medium"`, `"Pretendard SemiBold"`, etc.).
 - Font files are bundled at [`.claude/skills/ppt-master/assets/fonts/Pretendard/`](.claude/skills/ppt-master/assets/fonts/Pretendard/) (SIL OFL) and installed user-level on this machine. PPTX does not embed fonts — decks shared to other machines need Pretendard installed there.
 
@@ -135,7 +137,7 @@ Decks and documents are different products and do not share a font rule.
 
 - This repository is a workflow/skill package, not an app or service scaffold.
 - Do NOT assume generic-project conventions like `.worktrees/` or mandatory branch setup unless the user explicitly requests them.
-- **Tests are scoped, not banned.** The vendored pipeline ships none and stays that way — [`docs/rules/code-style.md §11`](docs/rules/code-style.md) describes what is there, and a suite for it means migrating hundreds of files. WeDraw-authored code (the planning stage and the confirm UI, listed under *What is whose*) may carry lightweight tests where a contract is machine-checkable; two defects that reached a rendered document — a `status:` value silently truncated, and an option line parsed as a footnote — were each a one-line test. They live in [`tests/`](tests/) — `python3 -m unittest discover -s tests` and `node --test --experimental-strip-types tests/*.test.mts`, neither of which installs anything.
+- **Tests are scoped, not banned.** The vendored pipeline ships none and stays that way — [`docs/rules/code-style.md §11`](docs/rules/code-style.md) describes what is there, and a suite for it means migrating hundreds of files. WeDraw-authored code (the planning stage, the confirm UI, and the judgment gates, listed under *What is whose*) may carry lightweight tests where a contract is machine-checkable — a gate added inside a vendored file counts as WeDraw's own function, not as a licence over the file; two defects that reached a rendered document — a `status:` value silently truncated, and an option line parsed as a footnote — were each a one-line test. They live in [`tests/`](tests/) — `python3 -m unittest discover -s tests` and `node --test --experimental-strip-types tests/*.test.mts`, neither of which installs anything.
 - On conflict with a generic coding skill, prioritize the selected repo-local
   execution owner. The main [`ppt-master/SKILL.md`](.claude/skills/ppt-master/SKILL.md)
   has that role only when routing selected the main SVG family or an explicit

@@ -4,6 +4,22 @@
 
 As a top-tier AI presentation strategist, receive source documents, perform content analysis and design planning, and output the **Design Specification & Content Outline** (hereafter `design_spec`).
 
+## When the contract is silent
+
+**Hard rule, outranking every section below**: when two inputs point different ways and no rule here says which leads, do not quietly pick one.
+
+Before writing any locked value:
+
+| Situation | Do |
+|---|---|
+| A rule below settles it | Follow the rule |
+| Nothing settles it, and the choice is **cheap to undo** | Pick the safer side and write the assumption where the user reads it — confirmation screen or chat — prefixed `추정:` |
+| Nothing settles it, and the choice is **expensive to undo** — pages get drawn, a template gets installed, a brand gets locked | **Stop and ask.** Two options, one line each |
+
+The test is "expensive to undo", not "important": a wrong hairline color costs a re-render, a wrong canvas costs the deck.
+
+> Note: every expensive mistake this pipeline has made came from deciding in silence — a canvas that disagreed with a template (eight pages drawn and thrown away), a client CI color that lost to a template skin (wrong brand shipped). Both were one question long.
+
 ## Pipeline Context
 
 | Previous Step | Current | Next Step |
@@ -49,6 +65,29 @@ The design-system items are anchored by the direction layer — `visual_style` g
 ### a. Canvas Format Confirmation
 
 Recommend format based on scenario (see [`canvas-formats.md`](canvas-formats.md)).
+
+> **🚫 Never claim a template will be re-laid out to a different canvas (R-T2).**
+> A template's page structure is fixed to the canvas it was drawn on. On any other
+> canvas the deck inherits its colour, type and rules only, and every page is laid
+> out fresh — the result is a flat document with no slide master. There is no
+> reflow, no automatic re-fit, no "structure kept, size changed".
+>
+> This ban is separate from the install gate, and needed because it bites earlier.
+> `template_install_preflight.py` stops before anything is written, but by then the
+> promise has already been made and the user has planned around it. E-2 is exactly
+> that sequence: a re-layout was promised, eight pages were built on it, and all
+> eight were discarded.
+>
+> **Forbidden — say none of these, in any language:**
+> - "다른 비율로 재배치해 드립니다" / "will re-layout to the new ratio"
+> - "크기만 바꾸고 구조는 그대로 씁니다" / "same structure, different size"
+> - "자동으로 맞춰집니다" / "it adapts automatically"
+>
+> **Say instead**: state the mismatch and offer the two options the gate offers —
+> ① 캔버스를 템플릿 크기에 맞추면 구조까지 쓴다, ② 구조 없이 색·서체만 가져온다.
+> Check the canvas before describing what a template can do; the contract to read
+> is [`canvas-formats.md`](canvas-formats.md) and
+> [`structured-templates.md`](structured-templates.md), not memory.
 
 ### b. Page Count Confirmation
 
@@ -127,6 +166,18 @@ Write the locked value to `spec_lock.md` `- visual_style:` and the rationale to 
 
 > Step 3 already collapses brand and layout inputs into one fused `design_spec.md`; this layer reads from that single source and does not need to re-resolve brand vs layout precedence.
 
+**Hard rule — when both a client CI and a template skin are truth, the CI wins.**
+
+| Situation | `primary` of candidate 1 | Where the template skin goes |
+|---|---|---|
+| Named organization + its CI color present (conversation, `intake.json`, or the source material) | the CI color | candidate 2, kept intact — never dropped |
+| The loaded template *is* that organization's own brand preset | the template's color (they are the same brand) | it already leads |
+| No organization or no CI color | as recommended below | as recommended below |
+
+An organization counts as "named with a CI color" when both the name and a concrete color reach the Strategist — a HEX, a Pantone/CMYK value, or a logo whose color was read off it. Label a derived color (CMYK → RGB, sampled from a logo image) `추정:` in the candidate description. Never silently pick one side when the two disagree — that is *When the contract is silent* (top of this file).
+
+> Note: "User / template colors are truth" says nothing about which of the two leads; reading it as "the template skin leads" once shipped a client deck in the studio's own colors.
+
 Proactively provide a color scheme (HEX values) based on content characteristics and industry.
 
 **Industry color quick reference** (full 14-industry list in `scripts/config.py` under `INDUSTRY_COLORS`):
@@ -188,9 +239,28 @@ See [`../templates/icons/README.md`](../templates/icons/README.md) for the curre
 
 ### g. Typography Plan Confirmation (Font + Size)
 
-🚧 **GATE — read the locked style's type character first**: `read_file` the visual-style file locked at §d Layer 2 (`visual-styles/<visual_style>.md`) and pull its **§2 Typography character** (you only read the catalog index there; the per-style character lives in the file). Both combinations below MUST realize it, and the **title carries the personality** — the CJK body may stay a neutral pre-installed sans, but the title leads with the character the style asks for (e.g. `ink-wash` → calligraphic `KaiTi` / `FangSong`; `brutalist` / `memphis` / `vintage-poster` / `zine` → display `SimHei` / `Impact`; `editorial` / `data-journalism` / `photo-editorial` → serif `Georgia` / `Cambria` / `SimSun`; `dark-tech` / `blueprint` → clean sans + `Consolas` mono; `swiss-minimal` / `soft-rounded` → grotesque / friendly sans). For `visual_style: custom`, realize its `visual_style_behavior` character instead. Letting the title default to a neutral sans when the style asks for character is the failure mode to avoid.
+🚧 **GATE — applies at font-precedence rank 1 and 2 only** (see the table
+immediately below; at rank 3 the family is Pretendard and character comes from
+weight and size, never from a second face). When a font is genuinely being
+chosen: `read_file` the visual-style file locked at §d Layer 2 (`visual-styles/<visual_style>.md`) and pull its **§2 Typography character** (you only read the catalog index there; the per-style character lives in the file). Both combinations below MUST realize it, and the **title carries the personality** — the CJK body may stay a neutral pre-installed sans, but the title leads with the character the style asks for (e.g. `ink-wash` → calligraphic `KaiTi` / `FangSong`; `brutalist` / `memphis` / `vintage-poster` / `zine` → display `SimHei` / `Impact`; `editorial` / `data-journalism` / `photo-editorial` → serif `Georgia` / `Cambria` / `SimSun`; `dark-tech` / `blueprint` → clean sans + `Consolas` mono; `swiss-minimal` / `soft-rounded` → grotesque / friendly sans). For `visual_style: custom`, realize its `visual_style_behavior` character instead. Letting the title default to a neutral sans when the style asks for character is the failure mode to avoid.
 
-> **🔒 Install-local font lock — Pretendard (standing user preference on this machine).** Typography is **fixed to the Pretendard family** for every deck. This supersedes the two-combination mandate below: do NOT propose alternative families — present one Pretendard plan (weight roles + size ramp) at the confirmation stage. Deviate only when the user explicitly names another font in the current conversation, or a Step 3 template declares its own stacks (template precedence). Everything below in this section then serves only as background/fallback guidance.
+> **🔒 Font precedence — one rule, three sources.** There is exactly one order,
+> and it decides every deck. Read it before anything else in this section.
+>
+> | Rank | Source | When it wins |
+> |---|---|---|
+> | 1 | **The user, in this conversation** | They name a font. Nothing overrides this |
+> | 2 | **The template loaded at Step 3** | It declares `title` / `body` stacks in `<project_path>/templates/design_spec.md §III Typography` / §IV |
+> | 3 | **Pretendard — the install default** | Neither of the above. Present one Pretendard plan (weight roles + size ramp), not a family choice |
+>
+> **Hard rule**: never invent a fourth source. Do not propose alternative families
+> when rank 3 applies — the two-combination mandate further down is *background for
+> rank 1 and 2 only*, and never a reason to shop for a face on your own.
+>
+> **Hard rule**: whichever rank wins, the chosen family must be installed on the
+> machine that exports. PPTX does not embed fonts, so a missing face substitutes
+> silently and the whole deck ships wrong. `validate_spec.py` warns on the locked
+> `font_family`; say so in the Design Spec when the deck will be opened elsewhere.
 > - **Stack**: `Pretendard, "Malgun Gothic", sans-serif` (tail is preview/fallback only; converter exports Pretendard for both Latin and EA slots — it is registered in `DUAL_SCRIPT_FONTS`).
 > - **Weights**: `Pretendard` + `font-weight` covers Regular(400)/Bold(700). Intermediate cuts are separate installed family names — `"Pretendard Light"`, `"Pretendard Medium"`, `"Pretendard SemiBold"`, `"Pretendard ExtraBold"` (author them as the font-family with normal weight).
 > - **Style character (§2 GATE)** is realized through weight span (e.g. ExtraBold title / Light body), size ramp, letter-spacing, casing, and color — never by switching families.
@@ -218,9 +288,9 @@ See [`../templates/icons/README.md`](../templates/icons/README.md) for the curre
 - `"Times New Roman"` ↔ `Times`
 - `Georgia` ↔ `Cambria`
 
-**Mandatory**: propose **two** combinations to the user — one concord (safe), one contrast (with tension). Do not default to "title = body, same font" without explicit user request. Pick each family by subject fit and the locked `visual_style`'s **§2 character** (read at the GATE above) — there is **no default family**; type should follow the deck's content and aesthetic, not fall back to one safe face.
+**Applies at rank 1 and 2 only** (see the precedence table at the top of §g). When the user has named a font or a template declares stacks, propose **two** combinations — one concord (safe), one contrast (with tension). Do not default to "title = body, same font" without explicit user request. Pick each family by subject fit and the locked `visual_style`'s **§2 character** (read at the GATE above). **At rank 3 this section does not apply**: Pretendard is the family and hierarchy comes from weight and size, not from a second face.
 
-> **Template precedence**: when a template was loaded at Step 3 via an explicit path and declares `title` / `body` font stacks in `<project_path>/templates/design_spec.md §III Typography` / §IV (or whichever heading the fused spec uses), lock those directly and skip the two-combination presentation. Same precedence as e. — user override > template values.
+> **Template precedence** is rank 2 in the table at the top of §g. Lock the declared stacks directly and skip the two-combination presentation.
 
 **Cross-platform pre-installed reference**:
 

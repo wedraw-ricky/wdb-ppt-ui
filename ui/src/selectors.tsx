@@ -6,6 +6,8 @@
    Only where no asset exists (canvas proportions, narrative shape) do we draw. */
 
 import { useEffect, useState } from "react";
+import { pickStyle } from "./shell";
+import { Pick } from "../system/pick";
 import { Description, Label, Radio, RadioGroup, TextArea, TextField } from "@heroui/react";
 import type { Dict } from "./api";
 import { T, label, desc } from "./i18n";
@@ -21,11 +23,11 @@ export function Star() {
   );
 }
 
-export const cardStyle = (on: boolean) => ({
-  borderColor: on ? "var(--wdb-primary)" : "var(--border)",
-  boxShadow: on ? "0 0 0 2px rgba(54,103,255,.18)" : "none",
-  background: "var(--surface)",
-});
+/* 고르는 카드는 화면마다 같아야 한다. 예전에는 이것과 shell 의 pickStyle 두
+   가지가 굴러다녀서, 같은 앱 안에서 어떤 카드는 그림자가 있고 어떤 카드는
+   없었다. 이름은 남기되 한 곳을 보게 한다 — 부르는 자리를 다 고치는 것보다
+   안전하고, 다음에 또 갈라지지 않는다. */
+export const cardStyle = pickStyle;
 
 /* ---- 1. thumbnail grid (template / visual style) ---------------------- */
 
@@ -37,46 +39,21 @@ export function ThumbChoice({
   tags?: Record<string, string>; cols?: number;
 }) {
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
-      {items.map((it) => {
-        const src = srcFor(it);
-        const on = value === it.id;
-        return (
-          <button key={it.id} type="button" onClick={() => onChange(it.id)}
-                  aria-pressed={on}
-                  className="overflow-hidden rounded-xl border p-0 text-left transition"
-                  style={cardStyle(on)}>
-            <div className="aspect-video w-full overflow-hidden border-b"
-                 style={{ borderColor: "var(--border)", background: "var(--wdb-card-bg)" }}>
-              {src ? (
-                <img src={src} alt="" loading="lazy"
-                     className="h-full w-full object-cover object-top" />
-              ) : (
-                <div className="grid h-full place-items-center text-xs" style={{ color: "var(--muted)" }}>
-                  빈 화면에서 시작
-                </div>
-              )}
-            </div>
-            <div className="p-3">
-              <div className="flex items-center text-[15px] font-semibold">
-                <span className="truncate">{label(it)}</span>
-                {recommended === it.id ? <Star /> : null}
-              </div>
-              {tags?.[it.id] ? (
-                <div className="mt-1 text-[13px] font-medium" style={{ color: "var(--wdb-secondary)" }}>
-                  {tags[it.id]}
-                </div>
-              ) : null}
-              {desc(it) ? (
-                <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
-                  {desc(it)}
-                </div>
-              ) : null}
-            </div>
-          </button>
-        );
-      })}
-    </div>
+    <Pick cols={(cols as 2 | 3 | 4)} artHeight={148} value={value} onChange={onChange}
+          ariaLabel="시안 고르기"
+          items={items.map((it) => {
+            const src = srcFor(it);
+            return {
+              id: String(it.id),
+              label: label(it),
+              star: recommended === it.id,
+              note: [tags?.[String(it.id)], desc(it)].filter(Boolean).join(" — ") || undefined,
+              art: src
+                ? <img src={src} alt="" loading="lazy"
+                       className="h-full w-full object-cover object-top" />
+                : <span className="t-sub">빈 화면에서 시작</span>,
+            };
+          })} />
   );
 }
 
@@ -87,40 +64,38 @@ const parseDim = (dim?: string): [number, number] => {
   return m ? [Number(m[1]), Number(m[2])] : [16, 9];
 };
 
-/** Draw each canvas at its true aspect ratio — the shape IS the information. */
+/* 크기 고르기. 비율 자체가 정보라 그 비율대로 그린다.
+
+   예전에는 150px 짜리 좁은 칸에 회색 네모 조각을 얹어 놓아서, 뼈대 화면의
+   스토리보드 카드와 말이 달랐다. 같은 앱에서 "장 하나" 를 보여주는 방식은
+   하나여야 한다 — 카드가 넓게 서고, 그 안에 실제 비율이 크게 들어간다. */
 export function RatioChoice({
   items, value, onChange, recommended,
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
-  const BOX = 76;
+  const BOX = 104;
   return (
-    <div className="flex flex-wrap gap-4">
-      {items.map((it) => {
-        const [w, h] = parseDim(it.dim);
-        const scale = BOX / Math.max(w, h);
-        const on = value === it.id;
-        return (
-          <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="flex w-[150px] flex-col items-center gap-2 rounded-xl border p-4 transition"
-                  style={cardStyle(on)}>
-            <div className="grid h-[80px] w-full place-items-center">
-              <div className="rounded-[3px] border-2"
-                   style={{
-                     width: Math.max(10, w * scale), height: Math.max(10, h * scale),
-                     borderColor: on ? "var(--wdb-primary)" : "var(--border)",
-                     background: on ? "rgba(54,103,255,.10)" : "var(--wdb-card-bg)",
-                   }} />
-            </div>
-            <div className="w-full text-center">
-              <div className="flex items-center justify-center text-[14px] font-semibold">
-                <span className="truncate">{label(it)}</span>
-              </div>
-              <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>{it.dim}</div>
-              {recommended === it.id ? <div className="mt-1"><Star /></div> : null}
-            </div>
-          </button>
-        );
-      })}
-    </div>
+    <Pick cols={3} artHeight={136} value={value} onChange={onChange}
+          ariaLabel="크기 고르기"
+          items={items.map((it) => {
+            const [w, h] = parseDim(it.dim);
+            const scale = BOX / Math.max(w, h);
+            const on = value === it.id;
+            return {
+              id: String(it.id),
+              label: label(it),
+              star: recommended === it.id,
+              note: String(it.dim),
+              // 비율 자체가 정보다 — 그 비율대로 그린다
+              art: (
+                <div className="rounded-[4px]"
+                     style={{
+                       width: Math.max(14, w * scale), height: Math.max(14, h * scale),
+                       background: "var(--surface)",
+                       border: `var(--w-on) solid ${on ? "var(--accent)" : "var(--line-strong)"}`,
+                     }} />
+              ),
+            };
+          })} />
   );
 }
 
@@ -164,11 +139,15 @@ function Chips({
         const on = active === p.id;
         return (
           <button key={p.id} type="button" onClick={() => onPick(p)} aria-pressed={on}
-                  className="rounded-full border px-4 py-2 text-[15px] font-medium transition"
+                  className="rounded-[var(--r-pill)] border px-4 py-2 t-body transition"
                   style={{
-                    borderColor: on ? "var(--wdb-primary)" : "var(--border)",
-                    background: on ? "rgba(54,103,255,.10)" : "var(--surface)",
-                    color: on ? "var(--wdb-primary)" : "var(--foreground)",
+                    // 누르는 것이므로 경계가 보여야 한다 (WCAG 1.4.11 — 3:1).
+                    // --border 는 1.15:1 이라 칸막이용이고 조작 요소에는 못 쓴다.
+                    minHeight: "var(--hit-min)",
+                    borderWidth: on ? "var(--w-on)" : "var(--w-hair)",
+                    borderColor: on ? "var(--accent)" : "var(--line-strong)",
+                    background: on ? "var(--accent-wash)" : "var(--surface)",
+                    color: on ? "var(--accent-ink)" : "var(--foreground)",
                   }}>
             {p.label}
           </button>
@@ -180,10 +159,13 @@ function Chips({
 
 /** Pick a starting point, then edit it — never a blank box. */
 export function PresetField({
-  legend, hint, presets, value, onChange, rows = 2, placeholder,
+  legend, hint, presets, value, onChange, rows = 2, placeholder, ariaLabel,
 }: {
   legend: string; hint?: string; presets: { id: string; label: string; text: string }[];
   value: string; onChange: (v: string) => void; rows?: number; placeholder?: string;
+  /** 눈에 보이는 제목이 이 묶음 밖에 있을 때, 글 상자에 붙일 이름.
+      없으면 화면 낭독기가 "편집" 이라고만 읽고 무슨 칸인지 말해주지 못한다. */
+  ariaLabel?: string;
 }) {
   const active = presets.find((p) => p.text === value)?.id ?? null;
   return (
@@ -193,8 +175,10 @@ export function PresetField({
         {hint ? <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div> : null}
       </div>
       <Chips presets={presets} active={active} onPick={(p) => onChange(p.text)} />
-      <TextField value={value} onChange={onChange}>
-        <TextArea rows={rows} placeholder={placeholder} />
+      {/* 한 줄이 길어지면 눈이 다음 줄 첫 글자를 놓친다. 한글은 45자쯤이 끝이라
+          입력칸도 본문 폭을 그대로 쓰지 않고 읽기 좋은 폭에서 멈춘다. */}
+      <TextField className="max-w-[58ch]" value={value} onChange={onChange}>
+        <TextArea rows={rows} placeholder={placeholder} aria-label={ariaLabel || legend || undefined} />
       </TextField>
     </div>
   );
@@ -274,26 +258,20 @@ export function DiagramChoice({
   items, value, onChange, recommended,
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))" }}>
-      {items.map((it) => {
-        const on = value === it.id;
-        return (
-          <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="rounded-xl border p-4 text-left transition" style={cardStyle(on)}>
-            <svg viewBox="0 0 88 64" className="mb-2 h-14 w-full" aria-hidden="true">
-              {MODE_SHAPES[it.id] ?? <rect x="8" y="8" width="72" height="48" rx="4" fill={N} />}
-            </svg>
-            <div className="flex items-center text-[15px] font-semibold">
-              <span className="truncate">{label(it)}</span>
-              {recommended === it.id ? <Star /> : null}
-            </div>
-            {desc(it) ? (
-              <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
+    <Pick cols={3} artHeight={104} value={value} onChange={onChange}
+          ariaLabel="이야기 방식 고르기"
+          items={items.map((it) => ({
+            id: String(it.id),
+            label: label(it),
+            star: recommended === it.id,
+            note: desc(it) || undefined,
+            art: (
+              <svg viewBox="0 0 88 64" className="h-16 w-auto" aria-hidden="true">
+                {MODE_SHAPES[String(it.id)]
+                  ?? <rect x="8" y="8" width="72" height="48" rx="4" fill={N} />}
+              </svg>
+            ),
+          }))} />
   );
 }
 
@@ -308,33 +286,53 @@ export function IconChoice({
       .then((r) => r.json()).then(setPreviews).catch(() => {});
   }, []);
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))" }}>
-      {items.map((it) => {
-        const on = value === it.id;
-        const glyphs = (previews[it.id] || []).slice(0, 5);
-        return (
-          <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="rounded-xl border p-4 text-left transition" style={cardStyle(on)}>
-            <div className="mb-3 flex h-9 items-center gap-3.5"
-                 style={{ color: on ? "var(--wdb-primary)" : "var(--foreground)" }}>
-              {glyphs.length
-                ? glyphs.map((g, i) => (
-                    <span key={i} className="h-6 w-6 shrink-0"
-                          dangerouslySetInnerHTML={{ __html: g.svg }} />
-                  ))
-                : <span className="text-xs" style={{ color: "var(--muted)" }}>—</span>}
-            </div>
-            <div className="flex items-center text-[15px] font-semibold">
-              <span className="truncate">{label(it)}</span>
-              {recommended === it.id ? <Star /> : null}
-            </div>
-            {desc(it) ? (
-              <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
+    <Pick cols={3} artHeight={72} value={value} onChange={onChange}
+          ariaLabel="아이콘 고르기"
+          items={items.map((it) => {
+            const glyphs = previews[String(it.id)] || [];
+            return {
+              id: String(it.id),
+              label: label(it),
+              star: recommended === it.id,
+              note: desc(it) || undefined,
+              art: (
+                <div className="flex items-center gap-3">
+                  {glyphs.length
+                    ? glyphs.map((g, k) => (
+                        <span key={k} className="h-6 w-6 shrink-0"
+                              dangerouslySetInnerHTML={{ __html: g.svg }} />
+                      ))
+                    : <span className="t-sub">—</span>}
+                </div>
+              ),
+            };
+          })} />
+  );
+}
+
+/* ---- 6b. 그림 붙은 한 개 고르기 ---------------------------------------
+   글만 있는 라디오 목록으로 물으면 "고르는 것은 그려서 보여준다" 는 이 화면의
+   약속을 어긴다. 실제로 두 질문(한 번에/나눠서 · 계획서 먼저)이 글만 있어서
+   화면 점수가 88 에서 멈춰 있었고, 무엇보다 고르는 사람이 두 갈래가 어떻게
+   다른지 읽어서 알아내야 했다. */
+
+export function ArtChoice({
+  items, value, onChange, art, recommended,
+}: {
+  items: { id: string; label: string; note?: string }[];
+  value: string; onChange: (v: string) => void;
+  art: Record<string, string>; recommended?: string;
+}) {
+  return (
+    // 갈래가 둘뿐인 질문이라 한 칸이 넓다. 그림을 작게 넣으면 카드가 대부분
+    // 빈 채로 남아 화면이 휑해진다.
+    <Pick cols={2} artHeight={184} value={value} onChange={onChange}
+          ariaLabel="고르기"
+          items={items.map((it) => ({
+            id: it.id, label: it.label, note: it.note, star: recommended === it.id,
+            art: <img src={art[it.id]} alt="" draggable={false}
+                      className="h-[140px] w-auto object-contain" />,
+          }))} />
   );
 }
 
@@ -347,17 +345,18 @@ export function Choice({
   onChange: (v: string) => void; recommended?: string;
 }) {
   return (
-    <RadioGroup value={value} onChange={onChange}>
-      {legend ? <Label>{legend}</Label> : null}
-      {items.map((it) => (
-        <Radio key={it.id} value={it.id}>
-          <Radio.Content>
-            <Radio.Control><Radio.Indicator /></Radio.Control>
-            <span>{label(it)}{recommended === it.id ? <Star /> : null}</span>
-          </Radio.Content>
-          {desc(it) ? <Description>{desc(it)}</Description> : null}
-        </Radio>
-      ))}
-    </RadioGroup>
+    <>
+      {legend ? <div className="t-card mb-3">{legend}</div> : null}
+      {/* 라디오 목록이었다. 같은 앱에서 고르는 방식이 두 가지면 어떤 것이
+          눌리는지 매번 다시 배워야 한다 — 시각 영역 없는 카드로 통일한다. */}
+      <Pick cols={2} artHeight={0} value={value} onChange={onChange}
+            ariaLabel={legend}
+            items={items.map((it) => ({
+              id: String(it.id),
+              label: label(it),
+              star: recommended === it.id,
+              note: desc(it) || undefined,
+            }))} />
+    </>
   );
 }

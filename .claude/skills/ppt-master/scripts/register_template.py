@@ -348,6 +348,26 @@ def _print_completion_card(kind: str, template_id: str, entry: dict, extras: dic
 # Main
 # ---------------------------------------------------------------------------
 
+def _lint_pages(ids: list[str], base: Path) -> list[str]:
+    """Run the page lint over each template's SVG directory.
+
+    A lint that cannot load is not a reason to block a registration, so an
+    import failure degrades to "no defects found" rather than to an error.
+    """
+    try:
+        import template_lint
+    except ImportError:
+        return []
+    faults: list[str] = []
+    for tid in ids:
+        try:
+            content = _template_content_dir(base / tid)
+        except SpecParseError:
+            continue
+        faults += [f"{tid}: {f}" for f in template_lint.check_pages(content)]
+    return faults
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Register / refresh templates (brand / layout / deck) in the index."
@@ -364,6 +384,8 @@ def main() -> int:
                         help="Rebuild every index entry within the chosen kind.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be written without modifying any files.")
+    parser.add_argument("--force", action="store_true",
+                        help="Register even when the page lint reports a defect.")
     args = parser.parse_args()
 
     if not args.template_id and not args.rebuild_all:
@@ -392,6 +414,20 @@ def main() -> int:
         except SpecParseError as exc:
             print(f"Error: {tid}: {exc}", file=sys.stderr)
             return 1
+
+    # PRD §14 item 10 (E-5): a buried or off-canvas page repeats in every deck
+    # built on the template, and is normally found by accident weeks later.
+    # Refuse the registration instead — the index is the last place to stop it.
+    faults = _lint_pages(ids, base)
+    if faults:
+        print(f"Error: page lint found {len(faults)} defect(s):", file=sys.stderr)
+        for fault in faults:
+            print(f"  x {fault}", file=sys.stderr)
+        if not args.force:
+            print("Fix the pages, or pass --force to register anyway.",
+                  file=sys.stderr)
+            return 1
+        print("--force given; registering despite the defects.", file=sys.stderr)
 
     if args.rebuild_all:
         index = OrderedDict((tid, extracted[tid]["entry"]) for tid in sorted(extracted))

@@ -5,7 +5,8 @@
    picking "성과 보고" shows you the report skeleton you are about to get,
    before any of it is written. */
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { Ask, Shell, Steps } from "./shell";
 import * as api from "./api";
 import type { IntakeData } from "./api";
 import { cardStyle, PresetField } from "./selectors";
@@ -13,26 +14,36 @@ import { cardStyle, PresetField } from "./selectors";
 type Dict = Record<string, any>;
 
 /** Purpose → the frame it resolves to, and that frame's section chain.
-    Mirrors references/planner.md §2 and §3; keep the two in step. */
+ *
+ *  Mirrors `plan_spec.py`'s FRAMES. The card draws what the purpose actually
+ *  produces, so a chain that falls behind makes the screen promise a shorter
+ *  document than the person will get — it did exactly that when the planning
+ *  chain grew from 8 sections to 12 and this list stayed put.
+ *
+ *  `tests/intake-chain.test.mts` compares the two: same length, and every label
+ *  here has to be the real section name or a shortening of it. */
 const PURPOSES: {
   id: string; short: string; note: string; chain: string[]; split?: boolean;
 }[] = [
   {
     id: "사내 예산 · 의사결정 승인", short: "승인 받기",
     note: "예산이나 결정을 받아내야 하는 자리",
-    chain: ["현상", "영향", "원인", "배경", "목표", "검증", "기대효과", "과제"],
+    chain: ["현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과",
+            "과제", "컨셉", "해결책", "실행 계획", "리스크 대책"],
     split: true,
   },
   {
     id: "전략 제안", short: "전략 제안",
     note: "방향을 새로 제시하는 자리",
-    chain: ["현상", "영향", "원인", "배경", "목표", "검증", "기대효과", "과제"],
+    chain: ["현상", "영향", "원인", "배경", "목표", "목적 검증", "기대효과",
+            "과제", "컨셉", "해결책", "실행 계획", "리스크 대책"],
     split: true,
   },
   {
     id: "성과 보고", short: "성과 보고",
     note: "이미 한 일의 결과를 전달",
-    chain: ["하기로 한 것", "한 것", "결과", "해석", "한계", "다음"],
+    chain: ["하기로 한 것", "한 것", "결과", "결과 해석", "한계", "다음",
+            "실행 계획", "리스크 대책"],
   },
   {
     id: "회사 · 서비스 · 프로그램 소개 / 제안서", short: "소개 · 제안서",
@@ -96,10 +107,13 @@ function Chain({ steps }: { steps: string[] }) {
 function Field({ label, hint, children }: {
   label: string; hint?: string; children: React.ReactNode;
 }) {
+  // 제목을 눈에만 보여주면 화면 낭독기는 칸에 이름이 없다고 읽는다. 묶음에
+  // 제목을 붙여 그 안의 것들이 무엇을 묻는 칸인지 함께 들리게 한다.
+  const id = useId();
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5" role="group" aria-labelledby={id}>
       <div>
-        <div className="text-[15px] font-semibold">{label}</div>
+        <div id={id} className="t-card">{label}</div>
         {hint ? (
           <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div>
         ) : null}
@@ -146,17 +160,28 @@ export function Intake({ draft, onDone }: {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[860px] flex-col">
-      <header className="border-b px-8 py-6"
-              style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-        <h1 className="text-xl font-bold">먼저, 이 자료가 무엇인지만 알려주세요</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-          나머지는 자료를 읽고 제가 채운 다음, 고르실 수 있게 보여드립니다.
-        </p>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-7">
-        <div className="flex flex-col gap-9">
+    <Shell
+      where="시작하기"
+      progress={8}
+      footNote={
+        <span style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
+          {msg || (picked
+            ? `${picked.short} · ${picked.chain.length}단 구성으로 짭니다`
+            : "무엇을 위한 자료인지부터 골라 주세요")}
+        </span>
+      }
+      footActions={
+        <button type="button" onClick={submit}
+                className="h-[50px] rounded-[14px] px-6 t-card tracking-tight text-white"
+                style={{ background: "var(--accent)",
+                         boxShadow: "var(--accent-glow)" }}>
+          자료 읽고 기획 시작 →
+        </button>
+      }>
+      <Steps items={["시작", "기획서", "뼈대", "디자인"]} at={0} />
+      <Ask title="먼저, 이 자료가 무엇인지만 알려주세요"
+           sub="나머지는 자료를 읽고 제가 채운 다음, 고르실 수 있게 보여드립니다. 채운 게 마음에 안 드시면 그 자리에서 바꾸시면 됩니다." />
+      <div className="flex flex-col gap-9">
 
           <Field label="이 자료는 무엇을 위한 건가요?"
                  hint="고르시면 어떤 뼈대로 짜이는지 아래 막대로 보여드립니다">
@@ -169,8 +194,8 @@ export function Intake({ draft, onDone }: {
                           className="overflow-hidden rounded-xl border p-0 text-left transition"
                           style={cardStyle(on)}>
                     <div className="px-4 pt-4">
-                      <div className="text-[15px] font-semibold">{p.short}</div>
-                      <div className="mt-1 text-[13px] leading-relaxed"
+                      <div className="t-card">{p.short}</div>
+                      <div className="t-sub mt-1.5"
                            style={{ color: "var(--muted)" }}>{p.note}</div>
                     </div>
                     <div className="px-4 pb-3 pt-3">
@@ -194,8 +219,8 @@ export function Intake({ draft, onDone }: {
                           onClick={() => set("assignment", a.id)}
                           className="rounded-xl border p-4 text-left transition"
                           style={cardStyle(v.assignment === a.id)}>
-                    <div className="text-[15px] font-semibold">{a.label}</div>
-                    <div className="mt-1 text-[13px] leading-relaxed"
+                    <div className="t-card">{a.label}</div>
+                    <div className="t-sub mt-1.5"
                          style={{ color: "var(--muted)" }}>{a.note}</div>
                   </button>
                 ))}
@@ -206,6 +231,7 @@ export function Intake({ draft, onDone }: {
           <Field label="결론적으로 무엇을 말하고 싶으신가요?"
                  hint="한 문장이면 됩니다. 이 문장이 덱 전체의 기준이 됩니다">
             <textarea value={v.conclusion} onChange={(e) => set("conclusion", e.target.value)}
+                      aria-label="결론적으로 무엇을 말하고 싶으신가요?"
                       rows={2} placeholder="예: 시범 성과가 확인됐으니 전사로 확대해야 합니다"
                       className="w-full rounded-lg border px-4 py-3 text-[15px] leading-relaxed outline-none"
                       style={{ borderColor: "var(--border)", background: "var(--surface)",
@@ -215,6 +241,7 @@ export function Intake({ draft, onDone }: {
           <Field label="이 자료에서 무엇을 중요하게 보시나요?"
                  hint="비워 두시면 제가 자료에서 찾아 제안드립니다">
             <textarea value={v.emphasis} onChange={(e) => set("emphasis", e.target.value)}
+                      aria-label="이 자료에서 무엇을 중요하게 보시나요?"
                       rows={2} placeholder="예: 신고 건수보다 재해 감소가 핵심입니다"
                       className="w-full rounded-lg border px-4 py-3 text-[15px] leading-relaxed outline-none"
                       style={{ borderColor: "var(--border)", background: "var(--surface)",
@@ -222,7 +249,7 @@ export function Intake({ draft, onDone }: {
           </Field>
 
           <Field label="누구에게 보여줍니까?">
-            <PresetField legend="" presets={AUDIENCE_PRESETS} value={v.audience}
+            <PresetField legend="" ariaLabel="누구에게 보여줍니까?" presets={AUDIENCE_PRESETS} value={v.audience}
                          onChange={(t: string) => set("audience", t)}
                          placeholder="가까운 것을 고르고 필요하면 고쳐 쓰세요" />
           </Field>
@@ -241,30 +268,15 @@ export function Intake({ draft, onDone }: {
                         onClick={() => set("doc_kind", d.id)}
                         className="rounded-xl border p-4 text-left transition"
                         style={cardStyle(v.doc_kind === d.id)}>
-                  <div className="text-[15px] font-semibold">{d.id}</div>
-                  <div className="mt-1 text-[13px] leading-relaxed"
+                  <div className="t-card">{d.id}</div>
+                  <div className="t-sub mt-1.5"
                        style={{ color: "var(--muted)" }}>{d.note}</div>
                 </button>
               ))}
             </div>
           </Field>
 
-        </div>
       </div>
-
-      <footer className="flex items-center justify-between gap-4 border-t px-8 py-4"
-              style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-        <span className="text-[13px]" style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
-          {msg || (picked
-            ? `${picked.short} · ${picked.chain.length}단 구성으로 짭니다`
-            : "무엇을 위한 자료인지부터 골라 주세요")}
-        </span>
-        <button type="button" onClick={submit}
-                className="rounded-lg px-5 py-2.5 text-[15px] font-semibold text-white"
-                style={{ background: "var(--wdb-primary)" }}>
-          자료 읽고 기획 시작 →
-        </button>
-      </footer>
-    </div>
+    </Shell>
   );
 }

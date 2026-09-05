@@ -1328,6 +1328,87 @@ def should_merge_lines(current: dict, next_line: dict) -> bool:
     return True
 
 
+# Units that follow a figure in Korean business writing. Deliberately a list and
+# not "any Hangul": joining a digit to whatever word follows would turn
+# "표 3 참조" into "표3 참조". Longest first, so 개월 wins over 개 and the
+# rest of the word is left alone.
+_KO_UNITS = "|".join(sorted(
+    ("명", "건", "개", "개월", "개소", "개국", "개년", "곳", "회", "차", "번",
+     "쪽", "장", "권", "부", "팀", "본부", "년", "년생", "월", "일", "시간",
+     "분", "초", "주", "주간", "주년", "원", "만원", "억원", "천원", "조원",
+     "억", "만", "천", "점", "배", "위", "등급", "종", "가지", "여명", "여건",
+     "퍼센트", "세", "대", "권역", "단계", "차례", "인", "인분", "쌍", "매"),
+    key=len, reverse=True))
+
+# `1,340 명` — the writer typed `1,340명`. Word and LibreOffice draw a gap
+# between a Latin digit and an East Asian character, and text extraction reads
+# that drawn gap back as a real space. Every figure in the document arrives
+# split from its unit, and the split survives all the way onto the slides.
+# A one-syllable unit is also the first syllable of ordinary words — 배 starts
+# 배경, 장 starts 장기, 부 starts 부서 — so the unit only counts when the word
+# ends there: the next character is not Hangul, or it is a particle continuing
+# the sentence ("53명은", "6개월간"). Without this, `1. 배경` became `1.배경`.
+_KO_PARTICLES = (
+    "이며|이고|이나|으로|부터|까지|은|는|이|가|을|를|의|에|와|과|도|만|씩|로|간|째|당|여|중|및"
+)
+
+_NUM_UNIT_RE = re.compile(
+    r"(?<![A-Za-z])(\d[\d,.]*)[ \u00a0]"
+    r"(?=(?:" + _KO_UNITS + r")(?:(?![가-힣])|(?:" + _KO_PARTICLES + r")))")
+
+# `## Ⅰ. 배경` comes back as `## Ⅰ배경 .` — the period is drawn at the
+# numeral's baseline and sorts to the end of the line, which costs the document
+# its section numbering.
+_ROMAN_HEAD_RE = re.compile(
+    r"^(#{1,6}\s*)([ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ])\s*(.+?)\s*\.\s*$", re.M)
+
+
+def normalize_extracted_text(markdown: str) -> str:
+    """Undo the two artifacts text extraction adds to Korean documents.
+
+    Both are the extractor's, not the author's: the source file has no space
+    inside `1,340명` and no trailing period on `Ⅰ. 배경`. Left alone they reach
+    the slides, so they are repaired here, once, at the point of conversion.
+    """
+    markdown = _NUM_UNIT_RE.sub(r"\1", markdown)
+    markdown = _ROMAN_HEAD_RE.sub(r"\1\2. \3", markdown)
+    return markdown
+
+
+def _profile_warnings(profile_path) -> list[str]:
+    """Read back the warnings the profile writer recorded, if any."""
+    try:
+        payload = json.loads(Path(profile_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    warnings = payload.get("warnings")
+    return [str(item) for item in warnings] if isinstance(warnings, list) else []
+
+
+def count_source_objects(doc: "fitz.Document") -> dict[str, int]:
+    """Count tables and images in the PDF itself, before any conversion.
+
+    Deliberately independent of the extraction path below: the point is to
+    have a second opinion the conversion cannot talk itself out of. A PDF
+    whose three tables all arrive as loose paragraphs looks perfectly healthy
+    from the output alone — this is the only place the loss is visible.
+    Detection failures count as zero rather than raising; a profile with an
+    undercount is still better than no conversion.
+    """
+    tables = 0
+    images = 0
+    for page in doc:
+        try:
+            tables += len(list(page.find_tables()))
+        except Exception:
+            pass
+        try:
+            images += len(page.get_images(full=True))
+        except Exception:
+            pass
+    return {"tables": tables, "images": images}
+
+
 def extract_pdf_to_markdown(
     pdf_path: str,
     output_path: str = None,
@@ -1357,6 +1438,10 @@ def extract_pdf_to_markdown(
         print(f"[HINT] {len(doc)} pages — for very large PDFs, consider splitting "
               f"the source by chapter beforehand (e.g. with pdftk / qpdf / PyPDF2) "
               f"and converting each part individually.")
+
+    source_counts = count_source_objects(doc)
+    print(f"[INFO] Source objects: tables={source_counts['tables']}, "
+          f"images={source_counts['images']}")
 
     filename = Path(pdf_path).stem
     title = re.sub(r'^\d+-', '', filename).strip()
@@ -1717,6 +1802,7 @@ def extract_pdf_to_markdown(
     doc.close()
 
     markdown_content = merge_markdown_continuation_tables(markdown_content)
+    markdown_content = normalize_extracted_text(markdown_content)
     markdown_content = CONTROL_CHARS_RE.sub('', markdown_content)
     markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
     markdown_content = markdown_content.strip() + "\n"
@@ -1736,10 +1822,15 @@ def extract_pdf_to_markdown(
             converter="pdf_to_md.py",
             conversion_type="pdf",
             asset_dir=img_dir,
+            source_counts=source_counts,
         )
         print(f"[OK] Saved Markdown to: {output_path}")
         if profile_path:
             print(f"   Wrote conversion profile -> {profile_path}")
+            loss = _profile_warnings(profile_path)
+            for message in loss:
+                print(f"[WARN] {message}")
+                print(f"[WARN] {message}", file=sys.stderr)
 
     return markdown_content
 

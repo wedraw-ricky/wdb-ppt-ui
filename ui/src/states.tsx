@@ -11,6 +11,11 @@
    running), and the name of the stage being prepared. */
 
 import { useEffect, useState } from "react";
+import * as api from "./api";
+import { T } from "./i18n";
+import doneArt from "./art/done.png";
+import errorArt from "./art/error.png";
+import loadingArt from "./art/loading.png";
 
 const PANEL = "var(--wdb-card-bg)";
 const LINE = "var(--border)";
@@ -20,6 +25,10 @@ const CYAN = "var(--wdb-cyan)";
 const GRAY = "var(--wdb-gray)";
 
 const CYCLE = "3.6s";
+
+// Often enough that a note lands while the person is still looking at the
+// step before it; rare enough to be invisible next to the 1s stage poll.
+const PROGRESS_POLL_MS = 2_000;
 
 function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -113,15 +122,63 @@ export function WaitingArt({ animate = true }: { animate?: boolean }) {
   );
 }
 
+/** What the agent has actually done since this wait began.
+
+    A stage label alone stops reading as movement within about half a minute —
+    the elapsed counter proves the page is alive, but not that the *work* is.
+    These are the agent's own notes, and they are strictly a record: the last
+    one is what is happening now, the ones above it already finished. Nothing
+    counts what is left, because nothing here knows. */
+function useProgress(): string[] {
+  const [notes, setNotes] = useState<string[]>([]);
+  useEffect(() => {
+    const startedAt = Date.now();
+    let stopped = false;
+    async function read() {
+      const all = await api.progressNotes();
+      if (stopped) return;
+      // Only notes from this wait. An older one would describe work that
+      // finished before the person even got here.
+      const waited = (Date.now() - startedAt) / 1000 + 2;
+      setNotes(all.filter((n) => n.age_seconds <= waited).map((n) => n.note));
+    }
+    read();
+    const id = setInterval(read, PROGRESS_POLL_MS);
+    return () => { stopped = true; clearInterval(id); };
+  }, []);
+  return notes;
+}
+
+function ProgressTrail({ notes }: { notes: string[] }) {
+  if (notes.length === 0) return null;
+  const last = notes.length - 1;
+  return (
+    <ul className="flex w-[320px] flex-col gap-1.5" aria-live="polite">
+      {notes.map((note, i) => (
+        <li key={`${i}-${note}`} className="flex items-baseline gap-2 text-[13px]"
+            style={{ color: i === last ? "var(--foreground)" : "var(--muted)",
+                     fontWeight: i === last ? 600 : 400 }}>
+          <span aria-hidden="true" style={{ color: i === last ? CYAN : GRAY }}>
+            {i === last ? "▸" : "✓"}
+          </span>
+          <span className="min-w-0 flex-1">{note}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The waiting screen: art, an honest bar, what is being prepared, elapsed. */
 export function Deriving({ target }: { target: number }) {
   const reduced = useReducedMotion();
+  const notes = useProgress();
   const what = target === 0 ? "자료를 읽고 기획 뼈대를 짜는 중"
              : target === 2 ? "색과 글꼴 후보를 고르는 중"
              : target === 3 ? "이미지 방향을 정리하는 중"
              : "다음 단계를 준비하는 중";
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className="grid h-full place-items-center px-8">
+      <div className="flex flex-col items-center gap-5">
       <WaitingArt animate={!reduced} />
       <div className="flex flex-col items-center gap-2.5">
         <div className="text-[15px] font-bold" style={{ color: "var(--foreground)" }}>
@@ -130,27 +187,45 @@ export function Deriving({ target }: { target: number }) {
         <Sweep animate={!reduced} />
         <Elapsed />
       </div>
-      <div className="max-w-[320px] text-center text-[13px] leading-relaxed"
+      <ProgressTrail notes={notes} />
+      <div className="max-w-[380px] text-center text-[13px] leading-relaxed"
            style={{ color: "var(--muted)" }}>
-        고르신 내용을 읽고 다음 단계 후보를 만들고 있습니다. 창을 닫지 마세요.
+        {/* Once the trail is running it already says what is happening; repeating
+            it here just pushes the one instruction that matters further down. */}
+        {notes.length > 0
+          ? "창을 닫지 마세요."
+          : "고르신 내용을 읽고 다음 단계 후보를 만들고 있습니다. 창을 닫지 마세요."}
+      </div>
       </div>
     </div>
   );
 }
 
 /** The same stack, settled, with the check that says it is done. */
-export function DoneArt() {
+/* 상태 그림 셋. 예전에는 <rect> 를 쌓아 만들었는데, 그건 그린 게 아니라
+   자리만 잡아둔 티가 나서 오히려 "기계가 만든 화면" 으로 읽혔다. 세 장을 한
+   세트로 그려 붙인다 — 같은 장 더미, 같은 선 굵기, 같은 정면 시점.
+   글자를 대신하는 그림이 아니라 옆의 문장을 거드는 그림이라 alt 는 비운다. */
+function StateArt({ src }: { src: string }) {
+  return <img src={src} alt="" className="h-[132px] w-auto" draggable={false} />;
+}
+
+export function LoadingArt() { return <StateArt src={loadingArt} />; }
+export function ErrorArt() { return <StateArt src={errorArt} />; }
+export function DoneArt() { return <StateArt src={doneArt} />; }
+
+/** Says the server went away — the one thing this screen cannot recover from
+    on its own. It stays a banner rather than a blocking overlay because the
+    choices already made are still on screen and still readable; the person
+    reopens the page from chat and finds the same questions waiting. */
+export function Disconnected() {
   return (
-    <svg viewBox="0 0 160 120" className="h-[120px] w-[160px]" role="img"
-         aria-label="선택이 저장됨">
-      {[0, 1, 2].map((i) => (
-        <rect key={i} x="12" y={52 + i * 16} width="88" height="12" rx="2"
-              fill={PANEL} stroke={LINE} strokeWidth="1" />
-      ))}
-      <rect x="12" y="36" width="88" height="12" rx="2" fill={INDIGO} />
-      <rect x="12" y="20" width="88" height="12" rx="2" fill={BLUE} />
-      <path d="M114 74 L126 86 L148 56" fill="none" stroke={CYAN} strokeWidth="9"
-            strokeLinecap="square" strokeLinejoin="miter" />
-    </svg>
+    <div role="status"
+         className="fixed inset-x-0 top-0 z-50 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center"
+         style={{ background: "var(--ink)", color: "var(--ink-on-accent)" }}>
+      <span className="text-[13px] font-bold">{T.offlineTitle}</span>
+      <span className="text-[13px]" style={{ opacity: 0.82 }}>{T.offlineHint}</span>
+      <span className="text-[12px]" style={{ opacity: 0.6 }}>{T.offlineRetry}</span>
+    </div>
   );
 }

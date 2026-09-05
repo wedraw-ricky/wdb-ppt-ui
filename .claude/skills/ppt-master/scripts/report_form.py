@@ -262,6 +262,23 @@ class ReportWriter:
             el.set(self.qn("w:val"), "0")
             ppr.insert(0, el)
 
+    def no_auto_space_para(self, para) -> None:
+        """Repeat the setting on one paragraph.
+
+        The document default is what Word reads, and it is enough for Word. Other
+        readers — LibreOffice among them — ignore `docDefaults` here and pad the
+        seam anyway, which means a converted preview shows "1,015 명" and nobody
+        can tell a real defect from a rendering artifact. Stating it per
+        paragraph makes the file say the same thing to every reader.
+        """
+        ppr = para._p.get_or_add_pPr()
+        for tag in ("w:autoSpaceDN", "w:autoSpaceDE"):
+            if ppr.find(self.qn(tag)) is not None:
+                continue
+            el = self.OxmlElement(tag)
+            el.set(self.qn("w:val"), "0")
+            ppr.insert(0, el)
+
     def top_rule(self, para, color: str, size: int = 6) -> None:
         borders = self.OxmlElement("w:pBdr")
         top = self.OxmlElement("w:top")
@@ -429,6 +446,42 @@ class ReportWriter:
         if f["rules"].get("title_rule"):
             self.bottom_rule(para, colors["accent"], 18)
 
+    def write_governing(self, text: str) -> None:
+        """The summary a reader who reads nothing else takes away.
+
+        Set apart from the body — indented, on a tinted ground — because it is
+        the one block that is not part of the chain. It states the situation,
+        what was done about it, and the figure that came out; the planner writes
+        it to that shape and this only places it.
+        """
+        f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
+        para = self.doc.add_paragraph()
+        para.paragraph_format.space_after = self.Pt(14)
+        para.paragraph_format.left_indent = self.Pt(14)
+        para.paragraph_format.right_indent = self.Pt(14)
+        para.paragraph_format.line_spacing = f["line_spacing"]["base"]
+        for chunk, role in _runs(text):
+            self.font(
+                para.add_run(chunk), name=f["fonts"]["body"],
+                size=sizes["core"],
+                bold=role in ("bold", "improve", "worsen", "badge"),
+                color=colors["improve"] if role == "improve"
+                else colors["worsen"] if role == "worsen"
+                else colors["text"],
+            )
+        self.shade(para._p.get_or_add_pPr(), colors.get("table_label_bg", "F2F4F7"))
+        self.left_rule(para, colors["accent"], 12)
+
+    def left_rule(self, para, color: str, size: int = 12) -> None:
+        borders = self.OxmlElement("w:pBdr")
+        left = self.OxmlElement("w:left")
+        left.set(self.qn("w:val"), "single")
+        left.set(self.qn("w:sz"), str(size))
+        left.set(self.qn("w:space"), "8")
+        left.set(self.qn("w:color"), color)
+        borders.append(left)
+        para._p.get_or_add_pPr().append(borders)
+
     def write_section(self, index: int, name: str, status: str) -> None:
         f, colors, sizes = self.form, self.form["colors"], self.form["sizes"]
         numeral = ROMAN[index] if index < len(ROMAN) else str(index + 1)
@@ -532,6 +585,22 @@ class ReportWriter:
         for el in (begin, instr, end):
             run._element.append(el)
 
+    def _seal_auto_space(self) -> None:
+        """Repeat the no-padding setting on every paragraph, table cells included.
+
+        One pass at the end rather than at each of the places a paragraph is
+        made: a new kind of paragraph added later would otherwise quietly opt
+        out of it, and the defect only shows up in a rendered document.
+        """
+        for para in self.doc.paragraphs:
+            self.no_auto_space_para(para)
+        for table in self.doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        self.no_auto_space_para(para)
+
     def save(self, path: Path) -> None:
+        self._seal_auto_space()
         path.parent.mkdir(parents=True, exist_ok=True)
         self.doc.save(str(path))

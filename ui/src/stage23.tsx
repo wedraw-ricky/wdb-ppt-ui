@@ -5,7 +5,16 @@
    image source as the kind of picture it produces — never as a name plus a
    row of chips the reader has to imagine assembled. */
 
+import { useState } from "react";
 import { cardStyle, Star } from "./selectors";
+import { pickStyle } from "./shell";
+import { Pick } from "../system/pick";
+import { SlideArt } from "./outline/art";
+import aiArt from "./art/src-ai.png";
+import noneArt from "./art/src-none.png";
+import placeholderArt from "./art/src-placeholder.png";
+import providedArt from "./art/src-provided.png";
+import webArt from "./art/src-web.png";
 import { label, desc } from "./i18n";
 
 type Dict = Record<string, any>;
@@ -18,22 +27,34 @@ function MiniSlide({ p, w = 190 }: { p: Palette; w?: number }) {
   return (
     <svg viewBox="0 0 320 180" width={w} height={h} role="img" aria-hidden="true"
          style={{ display: "block", borderRadius: 6, overflow: "hidden" }}>
-      <rect width="320" height="180" fill={g("background", "#FFFFFF")} />
-      <rect x="0" y="0" width="320" height="52" fill={g("primary", "#1B3F8F")} />
-      <rect x="18" y="18" width="128" height="10" rx="2" fill="#FFFFFF" opacity="0.95" />
-      <rect x="18" y="34" width="76" height="6" rx="2" fill={g("accent", "#00A651")} />
-      <rect x="18" y="70" width="150" height="8" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.85" />
-      <rect x="18" y="86" width="118" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.45" />
-      <rect x="18" y="98" width="134" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.45" />
-      <rect x="186" y="66" width="116" height="96" rx="8" fill={g("secondary_bg", "#EEF2F7")} />
-      <circle cx="212" cy="92" r="13" fill={g("accent", "#00A651")} />
-      <rect x="198" y="116" width="80" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.55" />
-      <rect x="198" y="130" width="58" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.3" />
-      <rect x="18" y="128" width="46" height="18" rx="9" fill={g("secondary_accent", "#6D6E71")} opacity="0.9" />
-      <rect x="18" y="158" width="284" height="2" fill={g("accent", "#00A651")} opacity="0.35" />
+      <rect width="320" height="180" fill={g("background", DECK_FALLBACK.background)} />
+      <rect x="0" y="0" width="320" height="52" fill={g("primary", DECK_FALLBACK.primary)} />
+      <rect x="18" y="18" width="128" height="10" rx="2" fill={DECK_FALLBACK.background} opacity="0.95" />
+      <rect x="18" y="34" width="76" height="6" rx="2" fill={g("accent", DECK_FALLBACK.accent)} />
+      <rect x="18" y="70" width="150" height="8" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.85" />
+      <rect x="18" y="86" width="118" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.45" />
+      <rect x="18" y="98" width="134" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.45" />
+      <rect x="186" y="66" width="116" height="96" rx="8" fill={g("secondary_bg", DECK_FALLBACK.secondary_bg)} />
+      <circle cx="212" cy="92" r="13" fill={g("accent", DECK_FALLBACK.accent)} />
+      <rect x="198" y="116" width="80" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.55" />
+      <rect x="198" y="130" width="58" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.3" />
+      <rect x="18" y="128" width="46" height="18" rx="9" fill={g("secondary_accent", DECK_FALLBACK.secondary_accent)} opacity="0.9" />
+      <rect x="18" y="158" width="284" height="2" fill={g("accent", DECK_FALLBACK.accent)} opacity="0.35" />
     </svg>
   );
 }
+/* 덱 팔레트의 대체값. 이건 화면 토큰이 아니라 **데이터**다 — 사용자가 아직
+   색을 안 골랐을 때 미리보기가 보여줄 값이라, 화면의 색 규칙과 다른 물건이다.
+   흩어져 있으면 화면 색으로 오해되므로 한 곳에 모아 이름을 붙인다. */
+export const DECK_FALLBACK = {
+  background: "#FFFFFF",
+  primary: "#1B3F8F",
+  accent: "#00A651",
+  body_text: "#1A1D1C",
+  secondary_bg: "#EEF2F7",
+  secondary_accent: "#6D6E71",
+} as const;
+
 
 export function PaletteChoice({
   candidates, selectedIndex, recommendedIndex, onSelect, nameOf, noteOf,
@@ -53,12 +74,12 @@ export function PaletteChoice({
               <MiniSlide p={c.palette || {}} w={252} />
             </div>
             <div className="p-4">
-              <div className="flex items-center text-[15px] font-semibold">
+              <div className="flex items-center t-card">
                 <span className="truncate">{nameOf(c)}</span>
                 {i === recommendedIndex ? <Star /> : null}
               </div>
               {noteOf(c) ? (
-                <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                <div className="t-sub mt-2" style={{ color: "var(--muted)" }}>
                   {noteOf(c)}
                 </div>
               ) : null}
@@ -108,6 +129,21 @@ const RAMP: { key: string; ko: string; sample: string }[] = [
   { key: "annotation", ko: "작은 설명", sample: "출처와 각주는 이 크기" },
 ];
 
+/* 파워포인트는 pt 로 센다. 화면 px 는 그 0.75배다 — 1280×720 캔버스가
+   13.333×7.5 인치이므로 96dpi 에서 정확히 맞아떨어진다. 안에서는 px 로 다루되
+   사람에게는 pt 로 말한다. 본문 24px 라고 하면 아무도 크기를 짐작 못 하지만
+   18pt 라고 하면 파워포인트를 써 본 사람은 바로 안다. */
+const toPt = (px: number) => Math.round(px * 0.75);
+const toPx = (pt: number) => Math.round(pt / 0.75);
+
+/* 가장 많이 쓰는 세 가지. 기본은 18pt — 발표자료 본문의 표준이다.
+   디자이너는 매번 네 숫자를 정하지 않는다. 기본에서 시작해 필요할 때만 만진다. */
+const BODY_PT = [
+  { pt: 16, ko: "작게", hint: "글이 많을 때" },
+  { pt: 18, ko: "기본", hint: "발표자료 표준" },
+  { pt: 20, ko: "크게", hint: "멀리서 볼 때" },
+];
+
 export function TypeSpecimen({
   typography, onBody, onRole,
 }: {
@@ -115,44 +151,135 @@ export function TypeSpecimen({
   onBody: (v: string) => void;
   onRole: (role: string, v: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const headCss = typography?.heading?.css;
   const bodyCss = typography?.body?.css;
   const px = (k: string) =>
-    k === "body" ? Number(typography?.body_size) || 16 : Number(typography?.sizes?.[k]) || 0;
-  // the canvas is 1280 wide; the specimen column is ~640, so halve to keep the
-  // ladder honest rather than showing every role at its raw px
-  const SCALE = 0.5;
+    k === "body" ? Number(typography?.body_size) || 24 : Number(typography?.sizes?.[k]) || 0;
+  const bodyPt = toPt(px("body"));
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border p-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <div role="radiogroup" className="grid gap-3 sm:grid-cols-3">
+        {BODY_PT.map((b) => {
+          const on = bodyPt === b.pt;
+          return (
+            <button key={b.pt} type="button" role="radio" aria-checked={on}
+                    onClick={() => onBody(String(toPx(b.pt)))}
+                    className="px-4 py-3.5 text-left transition" style={pickStyle(on)}>
+              <div className="flex items-baseline gap-2">
+                <span className="t-card">{b.ko}</span>
+                <span className="t-label">본문 {b.pt}pt</span>
+              </div>
+              <div className="t-sub mt-1">{b.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-2xl border p-5"
+           style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         {RAMP.map((r) => (
           <div key={r.key} className="flex items-baseline gap-3 border-b py-2.5 last:border-0"
                style={{ borderColor: "var(--border)" }}>
-            <span className="w-16 shrink-0 text-[13px]" style={{ color: "var(--muted)" }}>{r.ko}</span>
+            <span className="w-16 shrink-0 t-label">{r.ko}</span>
             <span className="min-w-0 flex-1 truncate"
                   style={{
                     fontFamily: r.key === "title" || r.key === "subtitle" ? headCss : bodyCss,
-                    fontSize: Math.max(11, px(r.key) * SCALE),
-                    fontWeight: r.key === "title" ? 700 : r.key === "subtitle" ? 600 : 400,
+                    // 미리보기는 실제 pt 값을 그대로 화면 px 로 쓴다. 슬라이드는
+                    // 이보다 크지만 층 사이의 비율은 그대로라, 위계는 정직하게 보인다.
+                    fontSize: Math.max(11, toPt(px(r.key))),
+                    fontWeight: r.key === "title" ? 700 : r.key === "subtitle" ? 600 : 500,
                     color: "var(--foreground)",
                   }}>
               {r.sample}
             </span>
-            <input
-              value={String(r.key === "body" ? (typography?.body_size ?? "") : (typography?.sizes?.[r.key] ?? ""))}
-              onChange={(e) => (r.key === "body" ? onBody(e.target.value) : onRole(r.key, e.target.value))}
-              inputMode="decimal"
-              className="w-16 shrink-0 rounded border bg-transparent px-2 py-1 text-right text-[15px] outline-none"
-              style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
-            <span className="w-6 shrink-0 text-[13px]" style={{ color: "var(--muted)" }}>px</span>
+            {open ? (
+              <>
+                <input
+                  value={String(toPt(px(r.key)) || "")}
+                  onChange={(e) => {
+                    const pt = Number(String(e.target.value).replace(/[^0-9.]/g, ""));
+                    if (!pt) return;
+                    const v = String(toPx(pt));
+                    r.key === "body" ? onBody(v) : onRole(r.key, v);
+                  }}
+                  inputMode="decimal" aria-label={`${r.ko} 크기 (pt)`}
+                  className="w-16 shrink-0 rounded-lg border bg-transparent px-2 py-1 text-right t-body outline-none"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
+                <span className="w-6 shrink-0 t-label">pt</span>
+              </>
+            ) : (
+              <span className="w-[5.5rem] shrink-0 text-right t-label tabular-nums">
+                {toPt(px(r.key))}pt
+              </span>
+            )}
           </div>
         ))}
       </div>
-      <div className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
-        본문 크기를 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
-        화면 px는 파워포인트 pt의 약 0.75배입니다 — 본문 {px("body")}px ≈ {Math.round(px("body") * 0.75 * 10) / 10}pt.
+
+      <div className="flex items-baseline gap-3">
+        <button type="button" onClick={() => setOpen((v) => !v)}
+                className="t-sub -mx-2 min-h-[24px] rounded-lg px-2 underline underline-offset-4"
+                style={{ color: "var(--accent)" }}>
+          {open ? "기본값으로 두기" : "층별로 직접 고치기"}
+        </button>
+        <span className="t-sub max-w-[52ch]">
+          본문을 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
+        </span>
       </div>
+    </div>
+  );
+}
+
+/* 뼈대에서 그린 그 장들을, 지금 고른 색과 글꼴로 다시 그린다.
+
+   여기가 안 맞았다. 뼈대 화면에서 장마다 모양과 사진 자리를 골라 놓고 넘어오면,
+   디자인 화면은 그것과 아무 상관 없는 견본 한 장만 보여줬다. 같은 덱을 두 화면이
+   서로 다른 그림으로 말하고 있었으니 "이 색을 고르면 내 장이 어떻게 되나" 를
+   볼 방법이 없었다.
+
+   SlideArt 는 CSS 변수 다섯 개로 그려진다. 고른 팔레트를 그 변수에 꽂으면 같은
+   그림이 새 색으로 다시 그려진다 — 미리보기를 따로 만들지 않아도 된다. */
+const SKIN_ROLES: [string, string][] = [
+  ["--surface", "background"],
+  ["--border", "secondary_bg"],
+  ["--wdb-charcoal", "body_text"],
+  ["--wdb-secondary", "primary"],
+  ["--wdb-primary", "accent"],
+];
+
+export function DeckPreview({ rows, palette, typography, limit = 4 }: {
+  rows: { n: number; title: string; shape: string; image: string }[];
+  palette: Dict; typography: Dict; limit?: number;
+}) {
+  if (!rows?.length) return null;
+  const skin: Dict = {};
+  for (const [cssVar, role] of SKIN_ROLES) {
+    if (palette?.[role]) skin[cssVar] = palette[role];
+  }
+  const shown = rows.slice(0, limit);
+  return (
+    <div>
+      <div className="grid gap-3 sm:grid-cols-4" style={skin}>
+        {shown.map((r) => (
+          <div key={r.n}>
+            <div className="overflow-hidden rounded-xl border"
+                 style={{ borderColor: "var(--border)" }}>
+              <SlideArt shape={r.shape} image={r.image} />
+            </div>
+            <div className="t-label mt-1.5 truncate"
+                 style={{ fontFamily: typography?.body?.css }}>
+              {r.n}. {r.title}
+            </div>
+          </div>
+        ))}
+      </div>
+      {rows.length > limit ? (
+        <div className="t-sub mt-2 max-w-[52ch]">
+          앞 {limit}장만 보여드립니다 — 모두 {rows.length}장이고 나머지도 같은 색과 글꼴로 나옵니다.
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -200,46 +327,14 @@ export function PageCount({ value, onChange }: { value: string; onChange: (v: st
 }
 
 /** Image sources, drawn. Each card shows the kind of picture it produces. */
-const SOURCE_ART: Record<string, JSX.Element> = {
-  ai: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="var(--wdb-secondary)" opacity="0.16" />
-      <path d="M38 52 L52 34 L64 50 L72 42 L84 60 H20 Z" fill="var(--wdb-primary)" opacity="0.55" />
-      <path d="M74 20 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 z" fill="var(--wdb-cyan)" />
-    </g>
-  ),
-  web: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="var(--wdb-secondary)" opacity="0.12" />
-      <circle cx="52" cy="42" r="19" fill="none" stroke="var(--wdb-primary)" strokeWidth="2.5" />
-      <path d="M33 42h38M52 23a26 26 0 0 0 0 38a26 26 0 0 0 0 -38" fill="none"
-            stroke="var(--wdb-primary)" strokeWidth="2.5" />
-    </g>
-  ),
-  provided: (
-    <g>
-      <rect x="20" y="22" width="60" height="42" rx="4" fill="var(--wdb-secondary)" opacity="0.2" />
-      <rect x="14" y="16" width="60" height="42" rx="4" fill="var(--wdb-card-bg)"
-            stroke="var(--wdb-primary)" strokeWidth="2" />
-      <circle cx="30" cy="30" r="5" fill="var(--wdb-cyan)" />
-      <path d="M18 52 L34 36 L44 46 L54 38 L70 54 H18 Z" fill="var(--wdb-primary)" opacity="0.5" />
-    </g>
-  ),
-  placeholder: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="none"
-            stroke="var(--wdb-gray)" strokeWidth="2.5" strokeDasharray="7 5" />
-      <path d="M36 34 L68 58 M68 34 L36 58" stroke="var(--wdb-gray)" strokeWidth="2.5" opacity="0.6" />
-    </g>
-  ),
-  none: (
-    <g>
-      <rect x="14" y="16" width="76" height="52" rx="5" fill="var(--wdb-card-bg)"
-            stroke="var(--border)" strokeWidth="2" />
-      <path d="M30 30 h40 M30 42 h40 M30 54 h26" stroke="var(--wdb-gray)" strokeWidth="3"
-            strokeLinecap="round" opacity="0.55" />
-    </g>
-  ),
+/* 이미지를 어디서 가져올지 고르는 다섯 카드의 그림. 예전에는 여기도 도형을
+   얹어 만든 아이콘이었는데, 얇은 선 아이콘 다섯 개는 어느 서비스에나 붙어
+   있는 얼굴이라 "그냥 갖다 붙인 화면" 으로 읽혔다. 한 세트로 그려 넣는다 —
+   같은 장 한 장, 같은 선 굵기, 같은 정면 시점. 옆에 이름과 설명이 이미 있으니
+   그림은 거드는 쪽이고, 그래서 alt 는 비운다. */
+const SOURCE_ART: Record<string, string> = {
+  ai: aiArt, web: webArt, provided: providedArt,
+  placeholder: placeholderArt, none: noneArt,
 };
 
 export function ImageSourceChoice({
@@ -247,40 +342,26 @@ export function ImageSourceChoice({
 }: {
   items: Dict[]; value: string[]; onChange: (v: string[]) => void; recommended: string[];
 }) {
-  const on = (id: string) => (value || []).includes(id);
-  const toggle = (id: string) => {
-    const cur = value || [];
-    if (id === "none") return onChange(on("none") ? [] : ["none"]);
-    const next = cur.filter((v) => v !== "none");
-    onChange(on(id) ? next.filter((v) => v !== id) : [...next, id]);
-  };
+  const cur = value || [];
+  // "이미지 없음" 은 혼자여야 한다 — 다른 것과 같이 고를 수 없다.
+  const set = (next: string[]) =>
+    onChange(next.includes("none")
+      ? (cur.includes("none") ? next.filter((v) => v !== "none") : ["none"])
+      : next.filter((v) => v !== "none"));
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {items.map((it) => (
-        <button key={it.id} type="button" onClick={() => toggle(it.id)} aria-pressed={on(it.id)}
-                className="overflow-hidden rounded-xl border p-0 text-left transition"
-                style={cardStyle(on(it.id))}>
-          <div className="border-b" style={{ borderColor: "var(--border)", background: "var(--wdb-card-bg)" }}>
-            <svg viewBox="0 0 104 84" className="h-[84px] w-full" aria-hidden="true">
-              {SOURCE_ART[it.id] ?? SOURCE_ART.none}
-            </svg>
-          </div>
-          <div className="p-4">
-            <div className="flex items-center text-[15px] font-semibold">
-              <span className="truncate">{label(it)}</span>
-              {recommended.includes(it.id) ? <Star /> : null}
-            </div>
-            {desc(it) ? (
-              <div className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
-                {desc(it)}
-              </div>
-            ) : null}
-          </div>
-        </button>
-      ))}
-    </div>
+    <Pick cols={3} artHeight={112} multi value={cur} onChange={set}
+          ariaLabel="이미지를 어디서 가져올지"
+          items={items.map((it) => ({
+            id: String(it.id),
+            label: label(it),
+            note: desc(it) || undefined,
+            star: recommended.includes(String(it.id)),
+            art: <img src={SOURCE_ART[String(it.id)] ?? SOURCE_ART.none} alt=""
+                      draggable={false} className="h-[84px] w-auto object-contain" />,
+          }))} />
   );
 }
+
 
 /** Generated-image style: show the reference frames, not a field list. */
 export function StrategyChoice({
@@ -306,7 +387,7 @@ export function StrategyChoice({
               ))}
             </div>
             <div className="p-4">
-              <div className="flex items-center text-[15px] font-semibold">
+              <div className="flex items-center t-card">
                 <span className="truncate">{nameOf(c)}</span>
                 {i === recommendedIndex ? <Star /> : null}
               </div>
@@ -314,7 +395,7 @@ export function StrategyChoice({
                 <div className="mt-1 text-[13px] font-medium" style={{ color: "var(--wdb-secondary)" }}>{c.mood}</div>
               ) : null}
               {noteOf(c) || c.visual ? (
-                <div className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                <div className="t-sub mt-2 line-clamp-3" style={{ color: "var(--muted)" }}>
                   {c.visual || noteOf(c)}
                 </div>
               ) : null}

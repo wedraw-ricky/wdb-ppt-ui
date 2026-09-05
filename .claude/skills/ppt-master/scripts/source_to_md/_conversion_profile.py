@@ -90,6 +90,41 @@ def markdown_stats(markdown_path: Path) -> dict[str, int]:
     }
 
 
+def compare_source_counts(
+    source_counts: dict[str, int] | None,
+    output_counts: dict[str, int],
+) -> list[str]:
+    """Report objects the source had and the Markdown does not.
+
+    Only unambiguous losses are reported. Both sides are heuristic — a PDF
+    table finder over-detects, and a table split across two pages is merged
+    back into one on the way out — so a shortfall of one is normal and
+    warning about it would stop healthy conversions. What is never normal is
+    a source with tables producing Markdown with none, or half of them
+    disappearing at once.
+    """
+    if not source_counts:
+        return []
+
+    warnings: list[str] = []
+    for key, label in (("tables", "표"), ("images", "이미지")):
+        found = int(source_counts.get(key) or 0)
+        kept = int(output_counts.get(key) or 0)
+        if found < 1 or kept >= found:
+            continue
+        if kept == 0:
+            warnings.append(
+                f"원본에서 {label} {found}개를 찾았는데 변환 결과에는 하나도 "
+                f"없습니다 ({found}개 중 0개). 원본을 확인해 주세요."
+            )
+        elif found >= 2 and kept <= found // 2:
+            warnings.append(
+                f"원본 {label} {found}개 중 {kept}개만 변환됐습니다. "
+                f"나머지 {found - kept}개가 빠졌는지 확인해 주세요."
+            )
+    return warnings
+
+
 def _read_json(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -116,8 +151,15 @@ def build_conversion_profile(
     conversion_type: str,
     asset_dir: str | Path | None = None,
     warnings: list[str] | None = None,
+    source_counts: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    """Build a sidecar profile without changing the Markdown conversion result."""
+    """Build a sidecar profile without changing the Markdown conversion result.
+
+    ``source_counts`` is what the converter counted on the *source* side
+    (``{"tables": n, "images": n}``). Recording it next to the output counts
+    is what makes a silent loss visible: without it nobody can tell whether a
+    Markdown file with no tables came from a source that had none.
+    """
     markdown = Path(markdown_path)
     root = markdown.parent
     is_url = input_path.startswith(("http://", "https://"))
@@ -125,6 +167,14 @@ def build_conversion_profile(
     assets = Path(asset_dir) if asset_dir else default_asset_dir(markdown)
     image_manifest = assets / IMAGE_MANIFEST_NAME
     source_exists = bool(source and source.exists())
+
+    stats = markdown_stats(markdown)
+    output_image_count = _image_count_from_manifest(image_manifest)
+    loss_warnings = compare_source_counts(
+        source_counts,
+        {"tables": stats["table_count"],
+         "images": output_image_count or stats["image_ref_count"]},
+    )
 
     return {
         "schema": PROFILE_SCHEMA,
@@ -141,6 +191,7 @@ def build_conversion_profile(
                 if source_exists and source is not None and source.is_file()
                 else None
             ),
+            "counts": dict(source_counts) if source_counts else {},
         },
         "outputs": {
             "markdown": _display_path(markdown, root),
@@ -148,10 +199,10 @@ def build_conversion_profile(
             "image_manifest": (
                 _display_path(image_manifest, root) if image_manifest.is_file() else ""
             ),
-            "image_count": _image_count_from_manifest(image_manifest),
+            "image_count": output_image_count,
         },
-        "markdown": markdown_stats(markdown),
-        "warnings": warnings or [],
+        "markdown": stats,
+        "warnings": list(warnings or []) + loss_warnings,
     }
 
 
@@ -163,6 +214,7 @@ def write_conversion_profile(
     conversion_type: str,
     asset_dir: str | Path | None = None,
     warnings: list[str] | None = None,
+    source_counts: dict[str, int] | None = None,
 ) -> Path:
     """Write `<stem>.conversion_profile.json` beside one Markdown output."""
     markdown = Path(markdown_path)
@@ -174,6 +226,7 @@ def write_conversion_profile(
         conversion_type=conversion_type,
         asset_dir=asset_dir,
         warnings=warnings,
+        source_counts=source_counts,
     )
     profile_path.write_text(
         json.dumps(profile, ensure_ascii=False, indent=2) + "\n",
@@ -190,6 +243,7 @@ def write_conversion_profile_best_effort(
     conversion_type: str,
     asset_dir: str | Path | None = None,
     warnings: list[str] | None = None,
+    source_counts: dict[str, int] | None = None,
 ) -> Path | None:
     """Write a profile sidecar, warning without changing converter success."""
     try:
@@ -200,6 +254,7 @@ def write_conversion_profile_best_effort(
             conversion_type=conversion_type,
             asset_dir=asset_dir,
             warnings=warnings,
+            source_counts=source_counts,
         )
     except OSError as exc:
         print(f"[WARN] Could not write conversion profile: {exc}", file=sys.stderr)

@@ -26,3 +26,19 @@ docs/handoff/
 docs/superpowers/
 # OS
 Thumbs.db
+
+# Vite writes this next to the bundle, but the page served is static/index.html.
+static/app/index.html
+
+# 강사 자료는 저장소에 올리지 않는다. 규칙만 references/ 로 옮긴다.
+docs/자료/
+*강의*.txt
+*강의*.pdf
+
+# bkit 런타임 부산물 — 기계마다 다르고 세션마다 바뀐다. 특히 audit/ 에는 돌린 명령이
+# 그대로 남으므로, 공개 저장소인 이곳에 올리면 대표 컴퓨터의 작업 기록이 공개된다.
+# 사람끼리 넘겨주는 상태는 pdca-status.json 하나뿐이고 그것만 추적한다.
+.bkit/audit/
+.bkit/runtime/
+.bkit/state/session-history.json
+.bkit/snapshots/
