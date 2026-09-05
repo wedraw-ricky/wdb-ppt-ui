@@ -131,15 +131,26 @@ export function Mid({ art, title, children }: {
   );
 }
 
-/** 눌러 고르는 카드. 테두리는 옅게, 고른 것은 파란 테와 그림자로 알린다 —
-    고른 상태를 색 하나로만 말하지 않도록 테두리 굵기도 함께 바뀐다. */
+/** 눌러 고르는 카드.
+
+    처음엔 옅은 테두리(`--border`)에 그림자를 얹었다. 부드러워 보였지만 그
+    테두리는 흰 바탕에서 **1.15:1** 이라, WCAG 1.4.11 이 조작 요소 경계선에
+    요구하는 3:1 에 한참 못 미친다. 카드가 어디서 시작하고 끝나는지 저시력
+    사용자에게 안 보인다는 뜻이다.
+
+    뼈대 화면은 처음부터 `--border-strong`(3.37:1)에 그림자 없이 그리고 있었다.
+    그쪽이 맞았다 — 화면마다 카드가 달라 보이던 것도 이 차이였다. 보이는
+    선으로 통일하고, 그림자는 장식이 아니라 **손을 얹었을 때의 반응**으로만 쓴다.
+
+    고른 것은 색 하나로 말하지 않는다: 테두리가 굵어지고(1→2px) 파란 테가
+    함께 선다 (WCAG 1.4.1). */
 export function pickStyle(on: boolean): React.CSSProperties {
   return {
     background: "var(--surface)",
     borderRadius: "var(--radius-card)",
-    border: `1.5px solid ${on ? "var(--accent)" : "var(--border)"}`,
-    boxShadow: on
-      ? "0 0 0 3px var(--accent-soft), var(--shadow-lift)"
-      : "var(--shadow-card)",
+    border: on ? "2px solid var(--accent)" : "1px solid var(--border-strong)",
+    boxShadow: on ? "0 0 0 3px var(--accent-soft)" : "none",
+    // 고른 카드가 1px 두꺼워지면서 안쪽이 밀리지 않게
+    padding: on ? undefined : undefined,
   };
 }

@@ -58,7 +58,9 @@
   --field-background: var(--sunken);
   --field-border: transparent;
   --radius: 14px;
-  --radius-card: 20px;
+  /* 카드 모서리. 20px 은 뼈대 화면의 스토리보드 컷(8px)과 너무 달라
+     같은 앱에서 카드가 두 종류로 보였다. 12px 로 모은다. */
+  --radius-card: 12px;
 }
 
 @font-face {

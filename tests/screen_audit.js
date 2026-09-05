@@ -163,6 +163,24 @@
       miss("접근성", "키보드로 못 간다", String(el.className).slice(0, 50));
     }
   }
+  // 누를 수 있는 것의 경계선 (WCAG 1.4.11). 3:1 이 안 되면 카드가 어디서
+  // 시작하고 끝나는지 저시력 사용자에게 안 보인다. 그림자로 때운 적이 있어
+  // 재기로 했다 — 옅은 테두리는 예뻐 보이지만 경계를 말하지 못한다.
+  let faintEdge = 0;
+  for (const el of hits) {
+    const s = getComputedStyle(el);
+    const w = parseFloat(s.borderTopWidth) || 0;
+    if (w < 0.5) continue;                     // 테두리로 경계를 말하지 않는 것은 넘어간다
+    const line = R(s.borderTopColor);
+    if (!line || line.a < 0.5) continue;
+    const under = bgOf(el.parentElement || el, line);
+    if (ratio(line, under) < 3) {
+      faintEdge++;
+      miss("접근성", "카드 경계선이 너무 옅다",
+        `${ratio(line, under).toFixed(2)}:1 (3:1 필요) «${(el.textContent || "").trim().slice(0, 16)}»`);
+    }
+  }
+
   // 색만으로 뜻을 전하는 조각 — 글도 없고 이름도 없는데 색만 칠해진 것
   let colorOnly = 0;
   for (const el of document.querySelectorAll("body *")) {
@@ -248,8 +266,10 @@
     { name: "가독성", max: 30, got: clamp(30 - textBad * 6 - longLine * 2, 30),
       note: `글 ${textN}군데 중 묻힌 것 ${textBad} · 긴 줄 ${longLine}` },
     { name: "접근성", max: 30,
-      got: clamp(30 - small * 4 - unnamed * 4 - unreachable * 6 - colorOnly * 3, 30),
-      note: `누를 곳 ${hits.length} · 작음 ${small} · 이름없음 ${unnamed} · 키보드밖 ${unreachable} · 색만 ${colorOnly}` },
+      got: clamp(30 - small * 4 - unnamed * 4 - unreachable * 6 - colorOnly * 3
+                 - Math.min(faintEdge, 4) * 3, 30),
+      note: `누를 곳 ${hits.length} · 작음 ${small} · 이름없음 ${unnamed}`
+        + ` · 키보드밖 ${unreachable} · 색만 ${colorOnly} · 옅은 경계 ${faintEdge}` },
     { name: "비주얼라이징", max: 20,
       got: clamp(Math.round(Math.min(1, drawShare / drawTarget) * 12)
                  + Math.round(Math.max(0, 1 - emptyBelow / 0.35) * 8), 20),
