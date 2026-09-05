@@ -767,6 +767,8 @@ class OutlineGate(unittest.TestCase):
             self.slide(2, "why", "body", "현상", "body", "plan_spec.md#현상"),
             self.slide(3, "what", "proposal_primary", "1안", "body"),
             self.slide(4, "what", "proposal_alt", "2안", "body"),
+            # 닫는 장. 내용 절로 끝나면 이야기가 끝나지 않고 멈춘다.
+            self.slide(5, "what", "closing", "닫는 장", "cover"),
         ]
 
     def test_a_sound_deck_passes(self):
@@ -842,6 +844,8 @@ class L1_5_SectionIXParity(unittest.TestCase):
             outline.Slide(n=2, layer="why", role="body", title="현상"),
             outline.Slide(n=3, layer="what", role="proposal_primary", title="1안"),
             outline.Slide(n=4, layer="what", role="proposal_alt", title="2안"),
+            outline.Slide(n=5, layer="what", role="closing", title="닫는 장",
+                          shape="cover"),
         ]
         (path / "outline.md").write_text(
             outline.dump(plan_spec.FRAMES["problem"], "problem-first", rows), encoding="utf-8")
@@ -861,6 +865,8 @@ class L1_5_SectionIXParity(unittest.TestCase):
             outline.Slide(n=2, layer="why", role="body", title="현상"),
             outline.Slide(n=3, layer="what", role="proposal_primary", title="1안"),
             outline.Slide(n=4, layer="what", role="proposal_alt", title="2안"),
+            outline.Slide(n=5, layer="what", role="closing", title="닫는 장",
+                          shape="cover"),
         ]
         (path / "outline.md").write_text(
             outline.dump(plan_spec.FRAMES["problem"], "problem-first", rows), encoding="utf-8")

@@ -62,8 +62,24 @@ export function Shell({
   );
 }
 
-/** 어느 단계에 있는지. 왼쪽 패널이 하던 일을 한 줄이 대신한다. */
+/** 어느 단계에 있는지. 왼쪽 패널이 하던 일을 한 줄이 대신한다.
+ *
+ * 항목이 많으면 늘어놓지 않는다. 열두 개를 한 줄에 밀어 넣었더니 글자가 6px 로
+ * 줄고 두 줄로 접혀서, 어디쯤인지 알려주려던 것이 오히려 못 읽는 덩어리가 됐다.
+ * 위치는 이미 맨 위 막대가 말하고 있으므로, 많을 때는 지금 것만 이름으로 말한다. */
 export function Steps({ items, at }: { items: string[]; at: number }) {
+  if (items.length > 6) {
+    return (
+      <div className="mb-6 flex items-baseline gap-2">
+        <span className="text-[12.5px] font-bold tabular-nums" style={{ color: "var(--accent)" }}>
+          {at + 1} / {items.length}
+        </span>
+        <span className="truncate text-[12.5px]" style={{ color: "var(--faint)" }}>
+          {items[at]}
+        </span>
+      </div>
+    );
+  }
   return (
     <ol className="mb-6 flex items-center gap-1.5">
       {items.map((s, i) => (

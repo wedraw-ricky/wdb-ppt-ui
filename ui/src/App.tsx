@@ -229,6 +229,11 @@ function Confirm() {
       try {
         const s = await api.getJson("/api/session");
         if (Number(s?.recommendation_stage_number || 0) >= target) { await load(); return; }
+        // 후보를 한 번에 다 쓰는 것이 기본이고(계약 Step 4), 그때는 stage 키가
+        // 없어 단계 번호가 0 이다. 그런데 뼈대를 확정하면 3단계 기계를 기다리게
+        // 되어 있어서, 기본 경로가 영원히 "준비 중" 에 머물렀다. 후보가 이미
+        // 쓰여 있고 단계가 안 붙어 있으면 그게 준비된 것이다.
+        if (!s?.recommendation_stage && s?.recommendation_version) { await load(); return; }
       } catch { /* server may be restarting; keep polling */ }
     }
     setMsg(T.errRetry);

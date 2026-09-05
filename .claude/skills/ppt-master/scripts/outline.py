@@ -25,6 +25,7 @@ Checks (see references/storyline.md):
     - W-SAME   (warning) three or more slides in a row share one layout
     - E-COVER  a `확정` plan_spec section reaches no slide
     - E-END    the deck misses the conclusion, or concludes with a figure
+    - E-CLOSE  the deck does not end on a closing slide
                the document does not state
     - E-SYNC   outline row count or numbering disagrees with §IX
 
@@ -268,6 +269,13 @@ def build_slides(frame: Frame, sections: list, flow: str) -> list[Slide]:
         slides.append(Slide(n=len(slides) + 1, layer="what", role="proposal_primary",
                             title="재무 시나리오 — 보수 · 기본 · 공격",
                             shape="grouped_bar_chart", source="plan_spec.md#재무"))
+
+    # 마지막 장은 닫는 장이다. 내용 절로 끝내면 이야기가 끝나지 않고 그냥
+    # 멈춘다 — 마지막 장을 본 사람이 무엇을 하면 되는지 모른 채 나간다.
+    # 여는 장이 세운 약속을 여기서 다시 세우고 결정으로 민다 (planner.md §2.8).
+    slides.append(Slide(n=len(slides) + 1, layer="what", role="closing",
+                        title="", shape="cover",
+                        source=f"plan_spec.md#{frame.action}"))
     return slides
 
 
@@ -410,6 +418,14 @@ def run_check(project: Path) -> list[str]:
     # 화면에 나가는 글은 숫자, 발표자 노트는 한글 (planner.md §2.7). 규칙이 한
     # 곳에만 있으면 두 파일이 갈라지므로 plan_spec 의 것을 그대로 부른다 —
     # 같은 것을 두 곳에 손으로 적으면 언젠가 어긋난다.
+    # 여는 장과 닫는 장. 둘이 이야기의 처음과 끝이라 없으면 이야기가 아니다.
+    if slides and slides[-1].role != "closing":
+        errs.append("E-CLOSE 마지막 장이 닫는 장이 아니다 — 내용 절로 끝나면 "
+                    "이야기가 끝나지 않고 멈춘다. 여는 장의 약속을 다시 세우고 "
+                    "독자가 무엇을 하면 되는지로 닫는다 (planner.md §2.8)")
+    if sum(1 for s in slides if s.role == "closing") > 1:
+        errs.append("E-CLOSE 닫는 장이 둘 이상이다 — 끝은 한 번만 온다")
+
     # 장 제목도 카피다 — 목차 라벨을 적어두면 그 장은 안 읽힌다 (planner.md §2.6).
     # 발표자 노트(script)는 말하는 글이라 대상이 아니다.
     for s in slides:

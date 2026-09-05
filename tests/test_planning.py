@@ -437,3 +437,31 @@ class CopyRules(unittest.TestCase):
         self.assertIn("check_copy(s.title", src)
         self.assertIn("check_screen_numerals(s.screen", src)
         self.assertNotIn("s.script", src)
+
+
+class ClosingSlide(unittest.TestCase):
+    """planner.md §2.8 — 이야기는 닫혀야 끝난다.
+
+    구조 자체에 닫는 장이 없었다. 마지막 절이 내용 절이라, 어떤 덱이든 마지막
+    장을 본 사람이 무엇을 하면 되는지 모른 채 나갔다.
+    """
+
+    def _slides(self, frame_key="intro"):
+        frame = plan_spec.FRAMES[frame_key]
+        secs = [plan_spec.Section(name=n, heading=n, body="본문 한 줄", status="확정")
+                for n in frame.sections]
+        return outline.build_slides(frame, secs, outline.FLOW_DEFAULTS[frame_key][0])
+
+    def test_뼈대를_세우면_닫는_장이_생긴다(self):
+        for key in ("intro", "problem", "report", "teach", "ir", "hypothesis"):
+            slides = self._slides(key)
+            self.assertEqual(slides[-1].role, "closing", key)
+
+    def test_여는_장과_닫는_장은_한_쌍이다(self):
+        slides = self._slides()
+        self.assertEqual(slides[0].role, "cover")
+        self.assertEqual(slides[-1].role, "closing")
+
+    def test_닫는_장은_한_번만(self):
+        slides = self._slides()
+        self.assertEqual(sum(1 for s in slides if s.role == "closing"), 1)
