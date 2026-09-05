@@ -18,7 +18,8 @@ export interface Step {
 }
 
 /** Which steps this stage carries, and whether each is answered yet. */
-export function stageSteps(stageNum: number, state: Dict, cat: Dict, isPpt: boolean): Step[] {
+export function stageSteps(stageNum: number, state: Dict, cat: Dict, isPpt: boolean,
+                           outlineSlides?: number): Step[] {
   const anchors = stageNum === 0 || stageNum === 1;
   const design = stageNum === 0 || stageNum === 2;
   const images = stageNum === 0 || stageNum === 3;
@@ -34,7 +35,11 @@ export function stageSteps(stageNum: number, state: Dict, cat: Dict, isPpt: bool
                filled: has(state.mode) && has(state.visual_style) && (!isPpt || has(state.delivery_purpose)) });
   }
   if (design) {
-    out.push({ key: "pages", title: T.secPages, required: true, filled: has(state.page_count) });
+    // 뼈대를 확정했으면 장 수는 이미 정해졌다. 방금 7장짜리 스토리보드를
+    // 확정한 사람에게 "몇 장으로 만들까요" 를 다시 묻는 건 앞 화면을 안 본
+    // 것이고, 답이 다르게 들어오면 확정한 뼈대와 어긋난다.
+    if (!outlineSlides)
+      out.push({ key: "pages", title: T.secPages, required: true, filled: has(state.page_count) });
     out.push({ key: "color", title: T.secColor, required: true, filled: Boolean(state.color?.palette) });
     out.push({ key: "icons", title: T.secIcons, required: false, filled: has(state.icons) });
     out.push({ key: "type", title: T.secType, required: true, filled: Boolean(state.typography) });

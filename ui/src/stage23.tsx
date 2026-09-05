@@ -58,12 +58,12 @@ export function PaletteChoice({
               <MiniSlide p={c.palette || {}} w={252} />
             </div>
             <div className="p-4">
-              <div className="flex items-center text-[15px] font-semibold">
+              <div className="flex items-center t-card">
                 <span className="truncate">{nameOf(c)}</span>
                 {i === recommendedIndex ? <Star /> : null}
               </div>
               {noteOf(c) ? (
-                <div className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                <div className="t-sub mt-2" style={{ color: "var(--muted)" }}>
                   {noteOf(c)}
                 </div>
               ) : null}
@@ -154,7 +154,7 @@ export function TypeSpecimen({
           </div>
         ))}
       </div>
-      <div className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+      <div className="t-sub" style={{ color: "var(--muted)" }}>
         본문 크기를 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
         화면 px는 파워포인트 pt의 약 0.75배입니다 — 본문 {px("body")}px ≈ {Math.round(px("body") * 0.75 * 10) / 10}pt.
       </div>
@@ -238,12 +238,12 @@ export function ImageSourceChoice({
                  className="mx-auto h-[84px] w-full object-contain py-2" />
           </div>
           <div className="p-4">
-            <div className="flex items-center text-[15px] font-semibold">
+            <div className="flex items-center t-card">
               <span className="truncate">{label(it)}</span>
               {recommended.includes(it.id) ? <Star /> : null}
             </div>
             {desc(it) ? (
-              <div className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+              <div className="t-sub mt-2 line-clamp-3" style={{ color: "var(--muted)" }}>
                 {desc(it)}
               </div>
             ) : null}
@@ -278,7 +278,7 @@ export function StrategyChoice({
               ))}
             </div>
             <div className="p-4">
-              <div className="flex items-center text-[15px] font-semibold">
+              <div className="flex items-center t-card">
                 <span className="truncate">{nameOf(c)}</span>
                 {i === recommendedIndex ? <Star /> : null}
               </div>
@@ -286,7 +286,7 @@ export function StrategyChoice({
                 <div className="mt-1 text-[13px] font-medium" style={{ color: "var(--wdb-secondary)" }}>{c.mood}</div>
               ) : null}
               {noteOf(c) || c.visual ? (
-                <div className="mt-1.5 line-clamp-3 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                <div className="t-sub mt-2 line-clamp-3" style={{ color: "var(--muted)" }}>
                   {c.visual || noteOf(c)}
                 </div>
               ) : null}

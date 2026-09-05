@@ -43,9 +43,25 @@ export async function getJson(path: string): Promise<any> {
 }
 
 export function firstCandidate(block: any): any {
-  if (!block || !Array.isArray(block.candidates) || !block.candidates.length) return null;
-  const i = Number(block.selected) || 0;
-  return block.candidates[i] || block.candidates[0];
+  if (!block) return null;
+  if (Array.isArray(block.candidates) && block.candidates.length) {
+    const i = Number(block.selected) || 0;
+    return block.candidates[i] || block.candidates[0];
+  }
+  // 후보가 셋이 아니라 고정 한 벌인 경우. 계약(Step 4)이 허용하는 모양이다 —
+  // 이 저장소는 덱 서체를 Pretendard 로 고정하므로 글꼴은 늘 이쪽이다.
+  // 배열만 읽던 시절에는 이 모양이 조용히 null 이 되어, 필수 항목인 글꼴이
+  // 빈 채로 확정까지 갔다. 알아보게 만든다.
+  if (block.heading || block.body || block.palette) return block;
+  return null;
+}
+
+/** 후보 블록이든 맨 값이든 받아 쓴다. `page_count: 6` 처럼 숫자로 쓴 것이
+    `{value}` 만 읽는 쪽을 만나 빈 칸이 됐다 — 계약은 둘 다 쓴다. */
+export function plainValue(block: any): string {
+  if (block === null || block === undefined) return "";
+  if (typeof block === "object") return String(block.value ?? "");
+  return String(block);
 }
 
 /** Build the editable state from the AI's recommendations. */
@@ -64,9 +80,9 @@ export function initialState(rec: Recommendations, catalogs: Dict): Dict {
 
   return {
     canvas,
-    page_count: rec.page_count?.value ?? "",
-    audience: rec.audience?.value ?? "",
-    content_divergence: rec.content_divergence?.value ?? "",
+    page_count: plainValue(rec.page_count),
+    audience: plainValue(rec.audience),
+    content_divergence: plainValue(rec.content_divergence),
     mode: R.mode || "briefing",
     visual_style: R.visual_style || "editorial",
     template: R.template || "free",

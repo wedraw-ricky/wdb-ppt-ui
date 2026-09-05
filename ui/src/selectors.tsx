@@ -59,7 +59,7 @@ export function ThumbChoice({
               )}
             </div>
             <div className="p-3">
-              <div className="flex items-center text-[15px] font-semibold">
+              <div className="flex items-center t-card">
                 <span className="truncate">{label(it)}</span>
                 {recommended === it.id ? <Star /> : null}
               </div>
@@ -69,7 +69,7 @@ export function ThumbChoice({
                 </div>
               ) : null}
               {desc(it) ? (
-                <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+                <div className="mt-1.5 line-clamp-2 t-sub" style={{ color: "var(--muted)" }}>
                   {desc(it)}
                 </div>
               ) : null}
@@ -289,12 +289,12 @@ export function DiagramChoice({
             <svg viewBox="0 0 88 64" className="mb-2 h-14 w-full" aria-hidden="true">
               {MODE_SHAPES[it.id] ?? <rect x="8" y="8" width="72" height="48" rx="4" fill={N} />}
             </svg>
-            <div className="flex items-center text-[15px] font-semibold">
+            <div className="flex items-center t-card">
               <span className="truncate">{label(it)}</span>
               {recommended === it.id ? <Star /> : null}
             </div>
             {desc(it) ? (
-              <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
+              <div className="mt-1.5 line-clamp-2 t-sub" style={{ color: "var(--muted)" }}>{desc(it)}</div>
             ) : null}
           </button>
         );
@@ -330,12 +330,12 @@ export function IconChoice({
                   ))
                 : <span className="text-xs" style={{ color: "var(--muted)" }}>—</span>}
             </div>
-            <div className="flex items-center text-[15px] font-semibold">
+            <div className="flex items-center t-card">
               <span className="truncate">{label(it)}</span>
               {recommended === it.id ? <Star /> : null}
             </div>
             {desc(it) ? (
-              <div className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{desc(it)}</div>
+              <div className="mt-1.5 line-clamp-2 t-sub" style={{ color: "var(--muted)" }}>{desc(it)}</div>
             ) : null}
           </button>
         );
@@ -374,12 +374,12 @@ export function ArtChoice({
                    className="h-[140px] w-auto object-contain" />
             </div>
             <div className="px-[18px] pt-4 pb-[18px]">
-              <div className="flex items-center text-[15px] font-bold tracking-tight">
+              <div className="flex items-center t-card tracking-tight">
                 <span className="truncate">{it.label}</span>
                 {recommended === it.id ? <Star /> : null}
               </div>
               {it.note ? (
-                <div className="mt-1.5 text-[13px] leading-relaxed"
+                <div className="t-sub mt-2"
                      style={{ color: "var(--muted)" }}>{it.note}</div>
               ) : null}
             </div>

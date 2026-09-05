@@ -103,9 +103,9 @@ export function Steps({ items, at }: { items: string[]; at: number }) {
 export function Ask({ title, sub }: { title: string; sub?: React.ReactNode }) {
   return (
     <>
-      <h1 className="mb-2 text-[26px] leading-[1.35] font-extrabold tracking-[-0.03em]">{title}</h1>
+      <h1 className="t-page mb-2.5">{title}</h1>
       {sub ? (
-        <p className="mb-7 max-w-[56ch] text-[15px] leading-[1.65]" style={{ color: "var(--muted)" }}>
+        <p className="t-body mb-8 max-w-[56ch]" style={{ color: "var(--muted)" }}>
           {sub}
         </p>
       ) : null}
@@ -122,9 +122,9 @@ export function Mid({ art, title, children }: {
     <div className="grid h-full place-items-center px-8 text-center">
       <div className="max-w-[44ch]">
         {art}
-        <h1 className="mt-5 mb-2 text-[23px] font-extrabold tracking-[-0.02em]">{title}</h1>
+        <h1 className="t-page mt-6 mb-2.5">{title}</h1>
         {children ? (
-          <p className="text-[15px] leading-[1.7]" style={{ color: "var(--muted)" }}>{children}</p>
+          <p className="t-body" style={{ color: "var(--muted)" }}>{children}</p>
         ) : null}
       </div>
     </div>

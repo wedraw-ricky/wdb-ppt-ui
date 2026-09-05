@@ -113,7 +113,7 @@ function Field({ label, hint, children }: {
   return (
     <div className="flex flex-col gap-2.5" role="group" aria-labelledby={id}>
       <div>
-        <div id={id} className="text-[15px] font-semibold">{label}</div>
+        <div id={id} className="t-card">{label}</div>
         {hint ? (
           <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div>
         ) : null}
@@ -172,7 +172,7 @@ export function Intake({ draft, onDone }: {
       }
       footActions={
         <button type="button" onClick={submit}
-                className="h-[50px] rounded-[14px] px-6 text-[15px] font-bold tracking-tight text-white"
+                className="h-[50px] rounded-[14px] px-6 t-card tracking-tight text-white"
                 style={{ background: "var(--accent)",
                          boxShadow: "0 6px 16px -8px rgba(54,103,255,.9)" }}>
           자료 읽고 기획 시작 →
@@ -194,8 +194,8 @@ export function Intake({ draft, onDone }: {
                           className="overflow-hidden rounded-xl border p-0 text-left transition"
                           style={cardStyle(on)}>
                     <div className="px-4 pt-4">
-                      <div className="text-[15px] font-semibold">{p.short}</div>
-                      <div className="mt-1 text-[13px] leading-relaxed"
+                      <div className="t-card">{p.short}</div>
+                      <div className="t-sub mt-1.5"
                            style={{ color: "var(--muted)" }}>{p.note}</div>
                     </div>
                     <div className="px-4 pb-3 pt-3">
@@ -219,8 +219,8 @@ export function Intake({ draft, onDone }: {
                           onClick={() => set("assignment", a.id)}
                           className="rounded-xl border p-4 text-left transition"
                           style={cardStyle(v.assignment === a.id)}>
-                    <div className="text-[15px] font-semibold">{a.label}</div>
-                    <div className="mt-1 text-[13px] leading-relaxed"
+                    <div className="t-card">{a.label}</div>
+                    <div className="t-sub mt-1.5"
                          style={{ color: "var(--muted)" }}>{a.note}</div>
                   </button>
                 ))}
@@ -268,8 +268,8 @@ export function Intake({ draft, onDone }: {
                         onClick={() => set("doc_kind", d.id)}
                         className="rounded-xl border p-4 text-left transition"
                         style={cardStyle(v.doc_kind === d.id)}>
-                  <div className="text-[15px] font-semibold">{d.id}</div>
-                  <div className="mt-1 text-[13px] leading-relaxed"
+                  <div className="t-card">{d.id}</div>
+                  <div className="t-sub mt-1.5"
                        style={{ color: "var(--muted)" }}>{d.note}</div>
                 </button>
               ))}

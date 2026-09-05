@@ -196,7 +196,11 @@ function Confirm() {
       try { outline = await api.readPlanning("outline"); } catch { /* same */ }
       if (outline?.text) {
         const doc = parseOutline(outline.text);
-        if (!metaGet(doc, "confirmed_at")) { setOutlineDoc(doc); setPhase("outline"); return; }
+        // 확정 여부와 무관하게 들고 있는다. 확정된 뼈대는 이 뒤 화면이 장 수를
+        // 아는 유일한 근거라, 안 들고 있으면 "몇 장으로 만들까요" 를 다시 묻게
+        // 된다 — 방금 확정한 사람에게.
+        setOutlineDoc(doc);
+        if (!metaGet(doc, "confirmed_at")) { setPhase("outline"); return; }
       }
       setPhase("form");
     } catch {
@@ -241,20 +245,25 @@ function Confirm() {
 
   async function onPrimary() {
     setMsg("");
+    // 쪽수를 안 물었으면 확정한 뼈대의 장 수가 곧 쪽수다. 빈 채로 넘기면
+    // 뒤 단계가 장 수를 모른다.
+    const sent = outlineSlides && !state.page_count
+      ? { ...state, page_count: String(outlineSlides) }
+      : state;
     try {
       if (stageNum === 1) {
         if (canvasMismatch && !mismatchAck) {
           setMsg(T.errCanvasMismatch);
           return;
         }
-        await api.postConfirm(api.stage1Payload(state, cat));
+        await api.postConfirm(api.stage1Payload(sent, cat));
         setWaitTarget(2); setPhase("deriving"); pollNext(2); return;
       }
       if (stageNum === 2) {
-        await api.postConfirm(api.stage2Payload(state, cat));
+        await api.postConfirm(api.stage2Payload(sent, cat));
         setWaitTarget(3); setPhase("deriving"); pollNext(3); return;
       }
-      await api.postConfirm(api.finalPayload(state, cat));
+      await api.postConfirm(api.finalPayload(sent, cat));
       setPhase("done");
       api.shutdown();
     } catch (e: any) {
@@ -340,7 +349,9 @@ function Confirm() {
   const pickedDeck = (cat.templates || []).find((d: Dict) => d.id === state.template);
   const deckFormat = state.template && state.template !== "free" ? pickedDeck?.canvas_format : null;
   const canvasMismatch = Boolean(deckFormat && deckFormat !== state.canvas);
-  const steps = stageSteps(stageNum, state, cat, isPpt);
+  const outlineSlides = outlineDoc && metaGet(outlineDoc, "confirmed_at")
+    ? outlineDoc.rows.length : 0;
+  const steps = stageSteps(stageNum, state, cat, isPpt, outlineSlides);
 
   // The list can change under us — picking a deck adds or drops a question — so
   // an unknown key falls back to the first, never to an empty screen.
@@ -442,9 +453,11 @@ function Confirm() {
 
           {showDesign && (
             <>
-              <Section k="pages" title={T.secPages}>
-                <PageCount value={state.page_count} onChange={(v) => set("page_count", v)} />
-              </Section>
+              {outlineSlides ? null : (
+                <Section k="pages" title={T.secPages}>
+                  <PageCount value={state.page_count} onChange={(v) => set("page_count", v)} />
+                </Section>
+              )}
               <Section k="color" title={T.secColor}>
                 <PaletteChoice
                   candidates={rec.color?.candidates || []}
@@ -458,7 +471,7 @@ function Confirm() {
                   }}
                 />
                 <div>
-                  <div className="mb-3 text-[15px] font-semibold">{T.hexOverride}</div>
+                  <div className="mb-3 t-card">{T.hexOverride}</div>
                   <HexGrid palette={state.color?.palette || {}} roles={T.roles}
                            onChange={(role, v) =>
                              setState((s) => ({ ...s,

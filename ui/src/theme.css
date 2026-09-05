@@ -120,3 +120,19 @@ body {
   min-height: 24px;
   align-items: center;
 }
+
+/* ==========================================================================
+   글자 위계.
+
+   화면에 쓰인 글자 138곳 중 129곳이 10~15px 안에 몰려 있었다. 크기 차이가
+   5px 안이면 그건 위계가 아니라 그냥 다 작은 글씨다 — 무엇이 중요한지 눈이
+   못 고른다. 여섯 단으로 벌리고, 크기만이 아니라 굵기로도 벌린다.
+
+   노트북 1440×900 기준. 본문 16px 는 한글에서 오래 읽어도 눈이 안 아픈 하한이다.
+   ========================================================================== */
+.t-page  { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.3; }
+.t-sect  { font-size: 21px; font-weight: 700; letter-spacing: -.02em; line-height: 1.4; }
+.t-card  { font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.45; }
+.t-body  { font-size: 16px; font-weight: 400; line-height: 1.65; }
+.t-sub   { font-size: 14px; font-weight: 400; line-height: 1.6; color: var(--muted); }
+.t-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--faint); }

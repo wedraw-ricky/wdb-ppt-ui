@@ -18,7 +18,7 @@ import { describe, it } from "node:test";
 
 import {
   PREVIEW_FIELDS, allPreviewFields, previewFieldsFor,
-  stage1Payload, stage2Payload,
+  stage1Payload, stage2Payload, firstCandidate, plainValue,
 } from "../ui/src/api.ts";
 
 /** Catalogs stub: enough for `isPptCanvas` to treat 16:9 as a deck canvas. */
@@ -93,5 +93,33 @@ describe("payloads and previews agree", () => {
     for (const field of previewFieldsFor(1)) {
       assert.ok(!own.has(field), `stage 2 claims stage 1's '${field}'`);
     }
+  });
+});
+
+describe("후보 블록의 두 가지 모양", () => {
+  it("고정 한 벌도 읽는다 — 배열만 읽으면 글꼴이 조용히 빈다", () => {
+    // 계약(Step 4)은 하드락 필드를 "후보 셋 대신 고정 한 벌" 로 쓰게 한다.
+    // 배열만 읽던 시절, 필수 항목인 글꼴이 null 로 확정까지 갔다.
+    const locked = { locked: true, heading: { name: "Pretendard SemiBold" },
+                     body: { name: "Pretendard" }, body_size: 32 };
+    assert.equal(firstCandidate(locked), locked);
+  });
+
+  it("후보 배열이 있으면 고른 것을 준다", () => {
+    const block = { selected: 1, candidates: [{ name: "가" }, { name: "나" }] };
+    assert.equal(firstCandidate(block).name, "나");
+  });
+
+  it("빈 블록은 여전히 null", () => {
+    assert.equal(firstCandidate(null), null);
+    assert.equal(firstCandidate({ candidates: [] }), null);
+    assert.equal(firstCandidate({ note: "설명만 있는 것" }), null);
+  });
+
+  it("맨 값과 {value} 를 둘 다 받는다", () => {
+    // page_count: 6 으로 쓴 것이 {value} 만 읽는 쪽을 만나 빈 칸이 됐다.
+    assert.equal(plainValue(6), "6");
+    assert.equal(plainValue({ value: "8-10" }), "8-10");
+    assert.equal(plainValue(null), "");
   });
 });
