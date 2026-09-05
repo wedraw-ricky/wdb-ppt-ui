@@ -22,11 +22,11 @@ export function Star() {
   );
 }
 
-export const cardStyle = (on: boolean) => ({
-  borderColor: on ? "var(--wdb-primary)" : "var(--border)",
-  boxShadow: on ? "0 0 0 2px rgba(54,103,255,.18)" : "none",
-  background: "var(--surface)",
-});
+/* 고르는 카드는 화면마다 같아야 한다. 예전에는 이것과 shell 의 pickStyle 두
+   가지가 굴러다녀서, 같은 앱 안에서 어떤 카드는 그림자가 있고 어떤 카드는
+   없었다. 이름은 남기되 한 곳을 보게 한다 — 부르는 자리를 다 고치는 것보다
+   안전하고, 다음에 또 갈라지지 않는다. */
+export const cardStyle = pickStyle;
 
 /* ---- 1. thumbnail grid (template / visual style) ---------------------- */
 
@@ -88,35 +88,40 @@ const parseDim = (dim?: string): [number, number] => {
   return m ? [Number(m[1]), Number(m[2])] : [16, 9];
 };
 
-/** Draw each canvas at its true aspect ratio — the shape IS the information. */
+/* 크기 고르기. 비율 자체가 정보라 그 비율대로 그린다.
+
+   예전에는 150px 짜리 좁은 칸에 회색 네모 조각을 얹어 놓아서, 뼈대 화면의
+   스토리보드 카드와 말이 달랐다. 같은 앱에서 "장 하나" 를 보여주는 방식은
+   하나여야 한다 — 카드가 넓게 서고, 그 안에 실제 비율이 크게 들어간다. */
 export function RatioChoice({
   items, value, onChange, recommended,
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
-  const BOX = 76;
+  const BOX = 104;
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="grid gap-4 sm:grid-cols-3">
       {items.map((it) => {
         const [w, h] = parseDim(it.dim);
         const scale = BOX / Math.max(w, h);
         const on = value === it.id;
         return (
           <button key={it.id} type="button" onClick={() => onChange(it.id)} aria-pressed={on}
-                  className="flex w-[150px] flex-col items-center gap-2 rounded-xl border p-4 transition"
-                  style={cardStyle(on)}>
-            <div className="grid h-[80px] w-full place-items-center">
-              <div className="rounded-[3px] border-2"
+                  className="overflow-hidden p-0 text-left transition" style={cardStyle(on)}>
+            <div className="grid h-[136px] place-items-center"
+                 style={{ background: "var(--sunken)" }}>
+              <div className="rounded-[4px]"
                    style={{
-                     width: Math.max(10, w * scale), height: Math.max(10, h * scale),
-                     borderColor: on ? "var(--wdb-primary)" : "var(--border)",
-                     background: on ? "rgba(54,103,255,.10)" : "var(--wdb-card-bg)",
+                     width: Math.max(14, w * scale), height: Math.max(14, h * scale),
+                     background: "var(--surface)",
+                     border: `2px solid ${on ? "var(--accent)" : "var(--border-strong)"}`,
+                     boxShadow: "var(--shadow-card)",
                    }} />
             </div>
-            <div className="w-full text-center">
-              <div className="flex items-center justify-center text-[14px] font-semibold">
-                <span className="truncate">{label(it)}</span>
+            <div className="px-[18px] pt-4 pb-[18px]">
+              <div className="flex items-center gap-1.5">
+                <span className="t-card truncate">{label(it)}</span>
+                {recommended === it.id ? <Star /> : null}
               </div>
-              <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>{it.dim}</div>
-              {recommended === it.id ? <div className="mt-1"><Star /></div> : null}
+              <div className="t-sub mt-1 tabular-nums">{it.dim}</div>
             </div>
           </button>
         );

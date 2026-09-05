@@ -52,7 +52,8 @@
   --focus: var(--wdb-primary);
   --link: var(--wdb-primary);
   --success: #059669;
-  --warning: #b45309;  /* 흰 바탕 5.02:1 — #d97706 은 3.19:1 이라 12px 에서 안 읽혔다 */
+  --warning: #b45309;
+  --warn-soft: #fdf5e9;  /* 흰 바탕 5.02:1 — #d97706 은 3.19:1 이라 12px 에서 안 읽혔다 */
   --danger: #e11d48;
   --field-background: var(--sunken);
   --field-border: transparent;

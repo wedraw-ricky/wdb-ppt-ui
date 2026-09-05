@@ -461,7 +461,7 @@ function Confirm() {
                 />
                 <div>
                   <div className="mb-3 t-card">{T.hexOverride}</div>
-                  <div className="t-sub mb-3">
+                  <div className="t-sub mb-3 max-w-[52ch]">
                     후보에 마음에 드는 게 없으면 여기서 직접 넣으세요. 여섯 자리를
                     다 바꿔도 되고, 강조색 하나만 바꿔도 됩니다.
                   </div>
@@ -498,7 +498,7 @@ function Confirm() {
                   {/* 뼈대에서 고른 그 장들을 지금 색과 글꼴로 다시 그린다.
                       견본 한 장을 보여주면 "이 색이 내 장에 어떤가" 를 알 수 없다. */}
                   <div className="t-sect mb-1">확정하신 뼈대가 이 색으로 이렇게 나옵니다</div>
-                  <div className="t-sub mb-3">
+                  <div className="t-sub mb-3 max-w-[52ch]">
                     장 모양과 사진 자리는 앞에서 정하신 그대로입니다 — 색과 글꼴만 바뀝니다.
                   </div>
                   {outlineDoc?.rows?.length

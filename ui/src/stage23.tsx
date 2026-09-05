@@ -207,11 +207,11 @@ export function TypeSpecimen({
 
       <div className="flex items-baseline gap-3">
         <button type="button" onClick={() => setOpen((v) => !v)}
-                className="t-sub underline underline-offset-4"
+                className="t-sub -mx-2 min-h-[24px] rounded-lg px-2 underline underline-offset-4"
                 style={{ color: "var(--accent)" }}>
           {open ? "기본값으로 두기" : "층별로 직접 고치기"}
         </button>
-        <span className="t-sub">
+        <span className="t-sub max-w-[52ch]">
           본문을 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
         </span>
       </div>
@@ -263,7 +263,7 @@ export function DeckPreview({ rows, palette, typography, limit = 4 }: {
         ))}
       </div>
       {rows.length > limit ? (
-        <div className="t-sub mt-2">
+        <div className="t-sub mt-2 max-w-[52ch]">
           앞 {limit}장만 보여드립니다 — 모두 {rows.length}장이고 나머지도 같은 색과 글꼴로 나옵니다.
         </div>
       ) : null}
