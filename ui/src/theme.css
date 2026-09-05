@@ -122,17 +122,53 @@ body {
 }
 
 /* ==========================================================================
-   글자 위계.
+   글자 위계 — 원티드 디자인 시스템 값을 그대로 쓴다.
 
-   화면에 쓰인 글자 138곳 중 129곳이 10~15px 안에 몰려 있었다. 크기 차이가
-   5px 안이면 그건 위계가 아니라 그냥 다 작은 글씨다 — 무엇이 중요한지 눈이
-   못 고른다. 여섯 단으로 벌리고, 크기만이 아니라 굵기로도 벌린다.
+   왜 바꿨나: 화면 글자 138곳 중 129곳이 10~15px 안에 몰려 있었다. 크기 차이가
+   5px 안이면 위계가 아니라 그냥 다 작은 글씨다 — 무엇이 중요한지 눈이 못 고른다.
 
-   노트북 1440×900 기준. 본문 16px 는 한글에서 오래 읽어도 눈이 안 아픈 하한이다.
+   내 짐작과 실제 값이 세 군데 달랐고, 셋 다 "얇고 작아 보이는" 원인이었다.
+     · 본문 굵기 400 이 아니라 **500**. 한글은 400 에서 얇아 보인다
+     · 제목은 800 이 아니라 700(title) / 600(heading·headline)
+     · 자간은 큰 글자만 음수. 작은 글자는 **양수**로 벌린다 — 반대로 하고 있었다
+
+   출처: Wanted Design System handoff, colors_and_type.css.
    ========================================================================== */
-.t-page  { font-size: 30px; font-weight: 800; letter-spacing: -.03em; line-height: 1.3; }
-.t-sect  { font-size: 21px; font-weight: 700; letter-spacing: -.02em; line-height: 1.4; }
-.t-card  { font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.45; }
-.t-body  { font-size: 16px; font-weight: 400; line-height: 1.65; }
-.t-sub   { font-size: 14px; font-weight: 400; line-height: 1.6; color: var(--muted); }
-.t-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--faint); }
+:root {
+  --font-sans: Pretendard, "Pretendard Variable", "Malgun Gothic", sans-serif;
+
+  --t-title1-size:   32px; --t-title1-lh: 1.375; --t-title1-ls: -0.0253em; --t-title1-w: 700;
+  --t-title3-size:   24px; --t-title3-lh: 1.334; --t-title3-ls: -0.023em;  --t-title3-w: 700;
+  --t-heading2-size: 20px; --t-heading2-lh: 1.40;  --t-heading2-ls: -0.012em;  --t-heading2-w: 600;
+  --t-headline1-size: 18px; --t-headline1-lh: 1.445; --t-headline1-ls: -0.002em; --t-headline1-w: 600;
+  --t-headline2-size: 17px; --t-headline2-lh: 1.412; --t-headline2-ls: 0em;     --t-headline2-w: 600;
+  --t-body1-size: 16px; --t-body1-lh: 1.5;   --t-body1-ls: 0.0057em; --t-body1-w: 500;
+  --t-body1r-lh:  1.625;
+  --t-body2-size: 15px; --t-body2-lh: 1.467; --t-body2-ls: 0.0096em; --t-body2-w: 500;
+  --t-label1-size: 14px; --t-label1-lh: 1.429; --t-label1-ls: 0.0145em; --t-label1-w: 500;
+  --t-label2-size: 13px; --t-label2-lh: 1.385; --t-label2-ls: 0.0194em; --t-label2-w: 500;
+  --t-caption1-size: 12px; --t-caption1-lh: 1.334; --t-caption1-ls: 0.0252em; --t-caption1-w: 500;
+  --t-caption2-size: 11px; --t-caption2-lh: 1.273; --t-caption2-ls: 0.0311em; --t-caption2-w: 500;
+}
+
+/* 원티드 층 이름 그대로. 나중에 층을 더 쓰게 되면 여기 이름으로 부른다. */
+.t-title1    { font-size: var(--t-title1-size);    line-height: var(--t-title1-lh);    letter-spacing: var(--t-title1-ls);    font-weight: var(--t-title1-w); }
+.t-title3    { font-size: var(--t-title3-size);    line-height: var(--t-title3-lh);    letter-spacing: var(--t-title3-ls);    font-weight: var(--t-title3-w); }
+.t-heading2  { font-size: var(--t-heading2-size);  line-height: var(--t-heading2-lh);  letter-spacing: var(--t-heading2-ls);  font-weight: var(--t-heading2-w); }
+.t-headline1 { font-size: var(--t-headline1-size); line-height: var(--t-headline1-lh); letter-spacing: var(--t-headline1-ls); font-weight: var(--t-headline1-w); }
+.t-headline2 { font-size: var(--t-headline2-size); line-height: var(--t-headline2-lh); letter-spacing: var(--t-headline2-ls); font-weight: var(--t-headline2-w); }
+.t-body1     { font-size: var(--t-body1-size);     line-height: var(--t-body1-lh);     letter-spacing: var(--t-body1-ls);     font-weight: var(--t-body1-w); }
+.t-body2     { font-size: var(--t-body2-size);     line-height: var(--t-body2-lh);     letter-spacing: var(--t-body2-ls);     font-weight: var(--t-body2-w); }
+.t-label1    { font-size: var(--t-label1-size);    line-height: var(--t-label1-lh);    letter-spacing: var(--t-label1-ls);    font-weight: var(--t-label1-w); }
+.t-label2    { font-size: var(--t-label2-size);    line-height: var(--t-label2-lh);    letter-spacing: var(--t-label2-ls);    font-weight: var(--t-label2-w); }
+.t-caption1  { font-size: var(--t-caption1-size);  line-height: var(--t-caption1-lh);  letter-spacing: var(--t-caption1-ls);  font-weight: var(--t-caption1-w); }
+.t-caption2  { font-size: var(--t-caption2-size);  line-height: var(--t-caption2-lh);  letter-spacing: var(--t-caption2-ls);  font-weight: var(--t-caption2-w); }
+
+/* 이 화면이 쓰는 이름. 층 이름 대신 자리 이름으로 부르면 어디에 쓰는지가
+   코드에 남는다 — 나중에 층을 바꿔도 부르는 쪽은 그대로다. */
+.t-page  { font-size: var(--t-title1-size);    line-height: var(--t-title1-lh);    letter-spacing: var(--t-title1-ls);    font-weight: var(--t-title1-w); }
+.t-sect  { font-size: var(--t-heading2-size);  line-height: var(--t-heading2-lh);  letter-spacing: var(--t-heading2-ls);  font-weight: var(--t-heading2-w); }
+.t-card  { font-size: var(--t-headline2-size); line-height: var(--t-headline2-lh); letter-spacing: var(--t-headline2-ls); font-weight: var(--t-headline2-w); }
+.t-body  { font-size: var(--t-body1-size);     line-height: var(--t-body1-lh);     letter-spacing: var(--t-body1-ls);     font-weight: var(--t-body1-w); }
+.t-sub   { font-size: var(--t-label1-size);    line-height: var(--t-label1-lh);    letter-spacing: var(--t-label1-ls);    font-weight: var(--t-label1-w); color: var(--muted); }
+.t-label { font-size: var(--t-caption1-size);  line-height: var(--t-caption1-lh);  letter-spacing: var(--t-caption1-ls);  font-weight: var(--t-caption1-w); color: var(--faint); }
