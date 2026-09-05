@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { cardStyle, Star } from "./selectors";
 import { pickStyle } from "./shell";
+import { SlideArt } from "./outline/art";
 import aiArt from "./art/src-ai.png";
 import noneArt from "./art/src-none.png";
 import placeholderArt from "./art/src-placeholder.png";
@@ -214,6 +215,58 @@ export function TypeSpecimen({
           본문을 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
         </span>
       </div>
+    </div>
+  );
+}
+
+/* 뼈대에서 그린 그 장들을, 지금 고른 색과 글꼴로 다시 그린다.
+
+   여기가 안 맞았다. 뼈대 화면에서 장마다 모양과 사진 자리를 골라 놓고 넘어오면,
+   디자인 화면은 그것과 아무 상관 없는 견본 한 장만 보여줬다. 같은 덱을 두 화면이
+   서로 다른 그림으로 말하고 있었으니 "이 색을 고르면 내 장이 어떻게 되나" 를
+   볼 방법이 없었다.
+
+   SlideArt 는 CSS 변수 다섯 개로 그려진다. 고른 팔레트를 그 변수에 꽂으면 같은
+   그림이 새 색으로 다시 그려진다 — 미리보기를 따로 만들지 않아도 된다. */
+const SKIN_ROLES: [string, string][] = [
+  ["--surface", "background"],
+  ["--border", "secondary_bg"],
+  ["--wdb-charcoal", "body_text"],
+  ["--wdb-secondary", "primary"],
+  ["--wdb-primary", "accent"],
+];
+
+export function DeckPreview({ rows, palette, typography, limit = 4 }: {
+  rows: { n: number; title: string; shape: string; image: string }[];
+  palette: Dict; typography: Dict; limit?: number;
+}) {
+  if (!rows?.length) return null;
+  const skin: Dict = {};
+  for (const [cssVar, role] of SKIN_ROLES) {
+    if (palette?.[role]) skin[cssVar] = palette[role];
+  }
+  const shown = rows.slice(0, limit);
+  return (
+    <div>
+      <div className="grid gap-3 sm:grid-cols-4" style={skin}>
+        {shown.map((r) => (
+          <div key={r.n}>
+            <div className="overflow-hidden rounded-xl border"
+                 style={{ borderColor: "var(--border)" }}>
+              <SlideArt shape={r.shape} image={r.image} />
+            </div>
+            <div className="t-label mt-1.5 truncate"
+                 style={{ fontFamily: typography?.body?.css }}>
+              {r.n}. {r.title}
+            </div>
+          </div>
+        ))}
+      </div>
+      {rows.length > limit ? (
+        <div className="t-sub mt-2">
+          앞 {limit}장만 보여드립니다 — 모두 {rows.length}장이고 나머지도 같은 색과 글꼴로 나옵니다.
+        </div>
+      ) : null}
     </div>
   );
 }

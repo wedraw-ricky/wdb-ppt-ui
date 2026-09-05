@@ -17,7 +17,10 @@ import modeContinuous from "./art/mode-continuous.png";
 import modePlanNo from "./art/mode-plan-no.png";
 import modePlanYes from "./art/mode-plan-yes.png";
 import modeSplit from "./art/mode-split.png";
-import { PaletteChoice, HexGrid, TypeSpecimen, PageCount, ImageSourceChoice, StrategyChoice } from "./stage23";
+import {
+  DeckPreview, HexGrid, ImageSourceChoice, PageCount, PaletteChoice,
+  StrategyChoice, TypeSpecimen,
+} from "./stage23";
 import { AnchorPreview, ImagePreview, SkinPreview, stageSteps } from "./previews";
 import { Intake } from "./intake";
 import { OutlineEditor } from "./outline";
@@ -492,8 +495,17 @@ function Confirm() {
                     typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
                 />
                 <div>
-                  <div className="mb-3 text-base font-semibold">합쳐 놓으면 이렇게 보입니다</div>
-                  <SkinPreview state={state} />
+                  {/* 뼈대에서 고른 그 장들을 지금 색과 글꼴로 다시 그린다.
+                      견본 한 장을 보여주면 "이 색이 내 장에 어떤가" 를 알 수 없다. */}
+                  <div className="t-sect mb-1">확정하신 뼈대가 이 색으로 이렇게 나옵니다</div>
+                  <div className="t-sub mb-3">
+                    장 모양과 사진 자리는 앞에서 정하신 그대로입니다 — 색과 글꼴만 바뀝니다.
+                  </div>
+                  {outlineDoc?.rows?.length
+                    ? <DeckPreview rows={outlineDoc.rows}
+                                   palette={state.color?.palette || {}}
+                                   typography={state.typography || {}} />
+                    : <SkinPreview state={state} />}
                 </div>
               </div>
             </Section>
