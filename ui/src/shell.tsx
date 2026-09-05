@@ -99,6 +99,39 @@ export function Steps({ items, at }: { items: string[]; at: number }) {
   );
 }
 
+/** 한 장에 이어 붙인 구역들로 바로 가는 자리.
+ *
+ * 예전 `Steps` 는 "몇 번째 / 몇 개" 를 세는 자리였다. 한 장에 다 펴 놓으면
+ * 셀 것이 없어지고, 대신 긴 화면에서 원하는 데로 바로 가는 일이 필요해진다.
+ * 아직 안 정한 것은 표시해서, 무엇이 남았는지도 여기서 보이게 한다. */
+export function Jump({ steps }: {
+  steps: { key: string; title: string; required: boolean; filled: boolean }[];
+}) {
+  return (
+    <nav aria-label="구역 바로 가기"
+         className="mb-[var(--s-8)] flex flex-wrap items-center gap-2">
+      {steps.map((s) => {
+        const todo = s.required && !s.filled;
+        return (
+          <a key={s.key} href={`#sec-${s.key}`}
+             className="t-label inline-flex items-center gap-1.5 rounded-[var(--r-pill)] px-3
+                        transition"
+             style={{
+               minHeight: "var(--hit-min)",
+               border: `var(--w-hair) solid ${todo ? "var(--warn)" : "var(--line-strong)"}`,
+               color: todo ? "var(--warn)" : "var(--ink-muted)",
+               background: todo ? "var(--warn-soft)" : "var(--surface)",
+             }}>
+            {/* 아직 안 정한 것은 색만이 아니라 점으로도 말한다 (WCAG 1.4.1) */}
+            {todo ? <span aria-hidden="true">•</span> : null}
+            {s.title}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
 /** 큰 질문 하나와 그 아래 설명. 화면마다 같은 크기로 나온다. */
 export function Ask({ title, sub }: { title: string; sub?: React.ReactNode }) {
   return (

@@ -12,7 +12,7 @@ import {
   PresetField, RatioChoice, Star, ThumbChoice,
 } from "./selectors";
 import { Deriving, Disconnected, DoneArt, ErrorArt, LoadingArt } from "./states";
-import { Ask, Mid, Shell, Steps } from "./shell";
+import { Ask, Jump, Mid, Shell } from "./shell";
 import modeContinuous from "./art/mode-continuous.png";
 import modePlanNo from "./art/mode-plan-no.png";
 import modePlanYes from "./art/mode-plan-yes.png";
@@ -49,14 +49,22 @@ const useStep = () => useContext(StepCtx);
    들어가 있어서, 화면의 주인공이 질문이 아니라 카드였다. 이제 질문이 곧
    제목이다. 안내 문구는 첫 질문에서만 — 매 질문마다 같은 말을 반복하면
    정작 질문이 밀려난다. */
+/* 네 구역을 한 장에 이어 붙인다.
+
+   예전에는 한 번에 한 구역만 보여주고 «다음» 으로 넘겼다. 그러면 앞에서
+   무엇을 골랐는지 다시 보려면 뒤로 가야 하고, 고칠 것을 한꺼번에 말할 수도
+   없다. 계약(SKILL.md Step 4)도 원래 "한 번에 다 보여주고 한 번에 확정" 이
+   기본이고, 단계별 확인은 사용자가 따로 요청할 때만이다.
+
+   맨 위 목록은 이제 남은 것을 세는 자리가 아니라 **바로 가는 자리**다. */
 function Section({ k, title, children }: { k: string; title: string; children: React.ReactNode }) {
-  const { current, index } = useStep();
-  if (k !== current) return null;
+  const { index } = useStep();
+  const first = index(k) === 0;
   return (
-    <>
-      <Ask title={title} sub={index(k) === 0 ? T.hint : undefined} />
+    <section id={`sec-${k}`} className={first ? "" : "mt-[var(--s-16)] scroll-mt-[var(--s-6)]"}>
+      <Ask title={title} sub={first ? T.hint : undefined} />
       <div className="flex flex-col gap-9">{children}</div>
-    </>
+    </section>
   );
 }
 
@@ -371,26 +379,26 @@ function Confirm() {
     if (next) setStepKey(next.key);
   };
   const isLast = at >= steps.length - 1;
+  const left = steps.filter((s) => s.required && !s.filled).length;
 
   return (
     <Shell
       where={stageNum ? `디자인 정하기 · 3단계 중 ${stageNum}` : T.title}
       progress={stageProgress(stageNum, at, steps.length)}
-      footNote={`${at + 1} / ${steps.length}${isLast ? " · 마지막입니다" : ""}`}
+      footNote={
+        left
+          ? `아직 ${left}가지 남았습니다 — 그대로 두셔도 추천값으로 만듭니다`
+          : "네 가지 다 정하셨습니다"
+      }
       footActions={
         <>
-          {msg ? <span className="text-sm" style={{ color: "var(--danger)" }}>{msg}</span> : null}
-          <Button variant="secondary" isDisabled={at === 0} onPress={() => goTo(at - 1)}>
-            ← {T.prev}
+          {msg ? <span className="t-sub" style={{ color: "var(--danger)" }}>{msg}</span> : null}
+          <Button variant="primary" onPress={onPrimary}>
+            {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
           </Button>
-          {isLast
-            ? <Button variant="primary" onPress={onPrimary}>
-                {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
-              </Button>
-            : <Button variant="primary" onPress={() => goTo(at + 1)}>{T.next} →</Button>}
         </>
       }>
-      <Steps items={steps.map((s) => s.title)} at={at} />
+      <Jump steps={steps} />
       <StepCtx.Provider value={stepCtx}>
           {showAnchors && (
             <Section k="frame" title="어떤 틀로 만들까요?">
