@@ -14,6 +14,7 @@
 
 import { useMemo, useState } from "react";
 import { Shell } from "../shell";
+import { Empty } from "../../system/patterns";
 import { cardStyle } from "../selectors";
 import { SlideArt } from "./art";
 import {
@@ -565,6 +566,29 @@ export function OutlineEditor({ doc, onConfirm }: {
             </div>
           ) : null}
 
+          {/* 장이 하나도 없을 때. 빈 격자를 그냥 두면 고장인지 원래 그런지
+              모른다 (patterns.tsx ④).
+
+              "확인할 곳만" 을 켜서 아무것도 안 남는 경우는 여기 없다 — 0 이면
+              그 버튼이 꺼져서 누를 수가 없다. 빈 상태를 하나 써 뒀다가 도달할
+              수 없는 것을 확인하고 지웠다. 다 채웠다는 소식은 꺼진 버튼과
+              아래 "이대로 만드셔도 됩니다" 가 이미 말한다. */}
+          {rows.length === 0 ? (
+            <Empty title="아직 장이 없습니다"
+                   action={
+                     <button type="button"
+                             onClick={() => apply(addRow(rows, 0), 0)}
+                             className="rounded-[var(--r-ctl)] px-[var(--s-5)] t-card text-white"
+                             style={{ background: "var(--accent)",
+                                      minHeight: "var(--hit-ctl)" }}>
+                       첫 장 만들기
+                     </button>
+                   }>
+              자료에서 뼈대를 못 뽑았습니다. 직접 한 장 만들어 시작하시거나,
+              채팅으로 돌아가 자료를 다시 넣어주세요.
+            </Empty>
+          ) : null}
+
           {/* Why · How · What 을 띠로 묶고 그 안에 컷을 늘어놓는다. 15개가 각자
               테두리를 두르면 정작 묶여야 할 세 덩어리의 경계가 안 보인다. */}
           <div className="flex flex-col gap-7">
@@ -577,6 +601,8 @@ export function OutlineEditor({ doc, onConfirm }: {
                 .filter(({ row }) =>
                   (flat || onlyLook || row.layer === layer.id)
                   && (!onlyLook || needsLook(row)));
+              // 예전에는 여기서 null 을 돌려줘서 구역이 통째로 사라졌다.
+              // 사라지면 "왜 없지" 를 물을 데가 없다.
               if (!items.length) return null;
               return (
                 <section key={layer.id || "all"} className="flex flex-col gap-3">

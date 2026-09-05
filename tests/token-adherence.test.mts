@@ -124,3 +124,23 @@ describe("부품을 쓰고 있는가", () => {
     assert.ok(pick.includes("놓이는 면"), "pick.tsx 에 놓이는 면이 안 적혀 있다");
   });
 });
+
+describe("패턴을 지키고 있는가", () => {
+  it("네 가지 짜임이 적혀 있다", () => {
+    // 토큰은 "무슨 값", 부품은 "무엇을 놓는가", 패턴은 "어떻게 짜는가".
+    // 셋이 다 있어야 다음 화면을 만들 때 판단할 게 없다.
+    const src = readFileSync(new URL("../ui/system/patterns.tsx", import.meta.url).pathname, "utf8");
+    for (const need of ["묻는 화면", "다루는 화면", "알리는 화면", "비었을 때"]) {
+      assert.ok(src.includes(need), `패턴 «${need}» 이 안 적혀 있다`);
+    }
+  });
+
+  it("목록을 그리는 곳은 빈 경우를 말한다", () => {
+    // 빈 격자를 그냥 두면 쓰는 사람은 고장인지 원래 그런지 모른다.
+    const pick = readFileSync(new URL("../ui/system/pick.tsx", import.meta.url).pathname, "utf8");
+    assert.ok(/!items\.length/.test(pick) && pick.includes("<Empty"),
+      "Pick 이 빈 경우를 말하지 않는다");
+    const board = readFileSync(new URL("../ui/src/outline/index.tsx", import.meta.url).pathname, "utf8");
+    assert.ok(board.includes("<Empty"), "뼈대 화면이 빈 경우를 말하지 않는다");
+  });
+});

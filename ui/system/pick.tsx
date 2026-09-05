@@ -15,6 +15,7 @@
 
 import type React from "react";
 import { pickStyle } from "../src/shell";
+import { Empty } from "./patterns";
 
 export interface PickItem {
   id: string;
@@ -50,6 +51,16 @@ export function Pick({
     const cur = Array.isArray(value) ? value : [];
     onChange(cur.includes(id) ? cur.filter((v) => v !== id) : [...cur, id]);
   };
+
+  // 고를 것이 없으면 빈 격자가 나온다 — 쓰는 사람은 고장인지 원래 그런지
+  // 모른다. 무엇이 없는지 말한다 (patterns.tsx ④).
+  if (!items.length) {
+    return (
+      <Empty compact title={`${ariaLabel || "고를 것"}이 아직 없습니다`}>
+        자료를 더 읽으면 후보가 생깁니다. 계속 비어 있으면 채팅으로 알려주세요.
+      </Empty>
+    );
+  }
 
   return (
     <div role={multi ? "group" : "radiogroup"} aria-label={ariaLabel}
