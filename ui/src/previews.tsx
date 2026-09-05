@@ -9,6 +9,7 @@
 import type { Dict } from "./api";
 import { T } from "./i18n";
 import { MODE_SHAPES } from "./selectors";
+import { DECK_FALLBACK } from "./stage23";
 
 export interface Step {
   key: string;
@@ -137,7 +138,7 @@ export function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
 
       {mismatch ? (
         <div className="rounded-2xl p-5"
-             style={{ background: "var(--warn-soft, #fdf5e9)",
+             style={{ background: "var(--warn-soft)",
                       borderLeft: "4px solid var(--warning)" }}>
           <div className="t-card" style={{ color: "var(--warning)" }}>
             이 템플릿은 {deckDim || deckCanvas} 기준입니다
@@ -158,7 +159,7 @@ export function AnchorPreview({ state, cat, ack, onFixCanvas, onAck }: {
                     className="h-[44px] rounded-[14px] px-4 t-card"
                     style={{ border: "1.5px solid " + (ack ? "var(--accent)" : "var(--border)"),
                              background: ack ? "var(--accent)" : "var(--surface)",
-                             color: ack ? "#FFFFFF" : "var(--foreground)" }}>
+                             color: ack ? "var(--ink-on-accent)" : "var(--foreground)" }}>
               {ack ? "✓ 색·서체만 가져옵니다" : "구조 없이 색·서체만 가져오기"}
             </button>
           </div>
@@ -175,7 +176,8 @@ export function SkinPreview({ state }: { state: Dict }) {
   const bodySize = Number(state.typography?.body_size) || 24;
   return (
     <div className="rounded-xl p-6 shadow-lg"
-         style={{ background: pal.background || "#fff", color: pal.body_text || "#1a1a1a" }}>
+         style={{ background: pal.background || DECK_FALLBACK.background,
+                  color: pal.body_text || DECK_FALLBACK.body_text }}>
       <div style={{ fontFamily: headCss, fontSize: 30, fontWeight: 800, color: pal.primary }}>
         큰 제목 <span style={{ color: pal.accent }}>섹션 제목</span>
       </div>

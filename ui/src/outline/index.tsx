@@ -264,8 +264,11 @@ function IconBtn({ children, label, onClick, disabled }: {
   );
 }
 
+/* 입력칸은 눌린 면으로 말한다 — 선을 두 번 긋지 않는다 (tokens.css §2).
+   예전에는 흰 바탕에 --border 로 테두리를 그었는데, 그 선이 1.15:1 이라
+   조작 요소 경계로는 안 보였고(WCAG 1.4.11) 화면의 다른 입력칸과도 달랐다. */
 const fieldStyle = {
-  borderColor: "var(--border)", background: "var(--surface)",
+  borderColor: "var(--field-border)", background: "var(--field-background)",
   color: "var(--foreground)",
 } as const;
 
@@ -495,7 +498,7 @@ export function OutlineEditor({ doc, onConfirm }: {
                   className="h-[50px] rounded-[14px] px-6 text-[15px] font-bold tracking-tight
                              text-white transition disabled:opacity-40"
                   style={{ background: "var(--accent)",
-                           boxShadow: "0 6px 16px -8px rgba(54,103,255,.9)" }}>
+                           boxShadow: "var(--accent-glow)" }}>
             {busy ? "저장하는 중…" : "이 뼈대로 만들기 →"}
           </button>
         </>
@@ -526,7 +529,7 @@ export function OutlineEditor({ doc, onConfirm }: {
                         aria-pressed={flat === v}
                         className="px-3 py-1.5 text-[13px] transition"
                         style={flat === v
-                          ? { background: "var(--wdb-primary)", color: "#fff", fontWeight: 600 }
+                          ? { background: "var(--accent)", color: "var(--ink-on-accent)", fontWeight: 600 }
                           : { color: "var(--muted)" }}>
                   {label as string}
                 </button>
@@ -639,9 +642,9 @@ export function OutlineEditor({ doc, onConfirm }: {
           </div>
 
           <button type="button" onClick={() => apply(addRow(rows, rows.length - 1), rows.length)}
-                  className="mt-4 w-full rounded-2xl border border-dashed py-3.5 text-[14px]
+                  className="mt-4 w-full rounded-xl border border-dashed py-3.5 text-[14px]
                              font-semibold transition"
-                  style={{ borderColor: "var(--border)", color: "var(--faint)" }}>
+                  style={{ borderColor: "var(--line-strong)", color: "var(--muted)" }}>
             + 장 추가
           </button>
         </div>

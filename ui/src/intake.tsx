@@ -174,7 +174,7 @@ export function Intake({ draft, onDone }: {
         <button type="button" onClick={submit}
                 className="h-[50px] rounded-[14px] px-6 t-card tracking-tight text-white"
                 style={{ background: "var(--accent)",
-                         boxShadow: "0 6px 16px -8px rgba(54,103,255,.9)" }}>
+                         boxShadow: "var(--accent-glow)" }}>
           자료 읽고 기획 시작 →
         </button>
       }>

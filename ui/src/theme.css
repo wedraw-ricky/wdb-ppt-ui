@@ -1,66 +1,48 @@
 @import "tailwindcss";
 @import "@heroui/styles";
+@import "../system/tokens.css";
 
 /* ==========================================================================
-   WDB tokens mapped onto HeroUI v3 semantic variables.
-   Source: wdb-pptx skill §2 (60:30:10) and §1 (typography).
-   Setting these here means every HeroUI component inherits the brand — no
-   per-component colour work.
+   HeroUI 와 이 화면이 쓰는 이름을, 토큰 한 곳에서 끌어온다.
+
+   값은 [`ui/system/tokens.css`](../system/tokens.css) 에만 있다. 여기는
+   "그 값을 무엇이라 부르는가" 만 적는다 — 값이 두 곳에 손으로 적혀 있으면
+   언젠가 어긋난다. 실제로 카드 경계선이 한쪽은 1.15:1, 다른 쪽은 3.37:1 로
+   갈렸던 적이 있다.
    ========================================================================== */
 :root {
-  /* raw brand values */
-  --wdb-primary: #3667ff;   /* WDB Blue   — 10% tier */
-  --wdb-cyan: #00e5d6;      /* WDB Cyan   — 2nd accent */
-  --wdb-secondary: #4916e3; /* WDB Indigo — 30% tier */
-  --wdb-card-bg: #f5f7fa;   /* soft card  — 60% tier */
-  --wdb-charcoal: #1a1a1a;
-  --wdb-gray: #45515e;
-  --wdb-grad-from: #19007f;
-  --wdb-grad-to: #3667ff;
+  /* 원색을 예전 이름으로도 부를 수 있게 — 스킬 문서와 SVG 가 이 이름을 쓴다 */
+  --wdb-primary: var(--brand-blue);
+  --wdb-cyan: var(--brand-cyan);
+  --wdb-secondary: var(--brand-indigo);
+  --wdb-card-bg: var(--sunken);
+  --wdb-charcoal: var(--ink);
+  --wdb-gray: var(--ink-muted);
+  --wdb-grad-from: var(--brand-gradient-from);
+  --wdb-grad-to: var(--brand-blue);
 
-  /* 화면은 흰 바탕이 기본이고, 구역은 테두리가 아니라 옅은 면과 옅은 그림자로
-     나눈다. 예전에는 왼쪽에 남색→파랑 그러데이션 패널이 있었는데, 그 위에서
-     흰 글씨가 4.62:1 밖에 안 나와 위계를 주려고 흐리게 한 것이 전부 못 읽는
-     글씨가 됐다. 흰 바탕으로 오면 그 제약이 통째로 사라진다. */
-  --sunken: #f4f6f8;        /* 옅은 면. 입력칸·구역 나누기 */
-  --shadow-card: 0 1px 2px rgba(20, 25, 35, .05), 0 8px 24px -12px rgba(20, 25, 35, .10);
-  --shadow-lift: 0 2px 4px rgba(20, 25, 35, .06), 0 16px 32px -16px rgba(20, 25, 35, .16);
-
-  /* HeroUI semantic mapping */
-  --accent: var(--wdb-primary);
-  --accent-foreground: #ffffff;
-  --accent-soft: #eef3ff;
-  --background: #ffffff;
-  --foreground: #17191c;
-  --surface: #ffffff;
-  --surface-foreground: #17191c;
+  /* HeroUI 가 읽는 이름 */
+  --accent-foreground: var(--ink-on-accent);
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --surface-foreground: var(--ink);
   --default: var(--sunken);
-  --default-foreground: #17191c;
-  --muted: #5b6472;         /* 흰 바탕 6.4:1 */
-  /* 덜 중요한 글. 흰 바탕 4.94:1 · 옅은 면 위 4.56:1 — 크기와 상관없이
-     통과한다. 토스가 쓰는 #8B95A1 은 보기엔 예쁘지만 3.14:1 이라
-     "+ 장 추가" 같은 글이 실제로 안 읽혔다. */
-  --faint: #68717e;
-  --border: #eceff3;
-  /* 물건의 경계를 그리는 선. `--border` 는 흰 바탕에서 명암비 1.25:1 이라
-     WCAG 1.4.11(3:1)에 못 미치고, 저시력 사용자에게 카드 경계가 보이지
-     않는다. 색상은 그대로 두고 명도만 낮춰 흰 바탕 3.37:1 · 카드 바탕
-     3.14:1 로 맞춘 값. 나뉘는 것이 보여야 하는 곳에만 쓴다 — 장식 선은
-     계속 `--border` 다. */
-  --border-strong: #828d9b;
-  --separator: #eceff3;
-  --focus: var(--wdb-primary);
-  --link: var(--wdb-primary);
-  --success: #059669;
-  --warning: #b45309;
-  --warn-soft: #fdf5e9;  /* 흰 바탕 5.02:1 — #d97706 은 3.19:1 이라 12px 에서 안 읽혔다 */
-  --danger: #e11d48;
+  --default-foreground: var(--ink);
+  --muted: var(--ink-muted);
+  --faint: var(--ink-faint);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+  --separator: var(--line);
+  --focus: var(--accent);
+  --link: var(--accent);
+  --success: var(--ok);
+  --warning: var(--warn);
   --field-background: var(--sunken);
-  --field-border: transparent;
-  --radius: 14px;
-  /* 카드 모서리. 20px 은 뼈대 화면의 스토리보드 컷(8px)과 너무 달라
-     같은 앱에서 카드가 두 종류로 보였다. 12px 로 모은다. */
-  --radius-card: 12px;
+  --field-border: var(--field-line);
+  --radius: var(--r-ctl);
+  --radius-card: var(--r-md);
+  --shadow-card: none;              /* 쉬는 상태에는 그림자를 쓰지 않는다 */
+  --shadow-lift: var(--shadow-hover);
 }
 
 @font-face {
@@ -137,22 +119,6 @@ body {
 
    출처: Wanted Design System handoff, colors_and_type.css.
    ========================================================================== */
-:root {
-  --font-sans: Pretendard, "Pretendard Variable", "Malgun Gothic", sans-serif;
-
-  --t-title1-size:   32px; --t-title1-lh: 1.375; --t-title1-ls: -0.0253em; --t-title1-w: 700;
-  --t-title3-size:   24px; --t-title3-lh: 1.334; --t-title3-ls: -0.023em;  --t-title3-w: 700;
-  --t-heading2-size: 20px; --t-heading2-lh: 1.40;  --t-heading2-ls: -0.012em;  --t-heading2-w: 600;
-  --t-headline1-size: 18px; --t-headline1-lh: 1.445; --t-headline1-ls: -0.002em; --t-headline1-w: 600;
-  --t-headline2-size: 17px; --t-headline2-lh: 1.412; --t-headline2-ls: 0em;     --t-headline2-w: 600;
-  --t-body1-size: 16px; --t-body1-lh: 1.5;   --t-body1-ls: 0.0057em; --t-body1-w: 500;
-  --t-body1r-lh:  1.625;
-  --t-body2-size: 15px; --t-body2-lh: 1.467; --t-body2-ls: 0.0096em; --t-body2-w: 500;
-  --t-label1-size: 14px; --t-label1-lh: 1.429; --t-label1-ls: 0.0145em; --t-label1-w: 500;
-  --t-label2-size: 13px; --t-label2-lh: 1.385; --t-label2-ls: 0.0194em; --t-label2-w: 500;
-  --t-caption1-size: 12px; --t-caption1-lh: 1.334; --t-caption1-ls: 0.0252em; --t-caption1-w: 500;
-  --t-caption2-size: 11px; --t-caption2-lh: 1.273; --t-caption2-ls: 0.0311em; --t-caption2-w: 500;
-}
 
 /* 원티드 층 이름 그대로. 나중에 층을 더 쓰게 되면 여기 이름으로 부른다. */
 .t-title1    { font-size: var(--t-title1-size);    line-height: var(--t-title1-lh);    letter-spacing: var(--t-title1-ls);    font-weight: var(--t-title1-w); }

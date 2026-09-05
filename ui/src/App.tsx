@@ -78,7 +78,7 @@ function Candidates({
           className="rounded-xl border p-3 text-left transition"
           style={{
             borderColor: i === selected ? "var(--wdb-primary)" : "var(--border)",
-            boxShadow: i === selected ? "0 0 0 2px rgba(54,103,255,.18)" : "none",
+            boxShadow: i === selected ? "0 0 0 2px var(--accent-ring)" : "none",
             background: "var(--surface)",
           }}
         >

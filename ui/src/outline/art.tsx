@@ -232,8 +232,8 @@ function Body({ shape }: { shape: string }) {
           {[0, 1].map((c) => (
             <g key={c}>
               <rect x={12 + c * 70} y="32" width="66" height="46" rx="3"
-                    fill={c ? "#E11D48" : "#059669"} opacity="0.09" />
-              {bar(17 + c * 70, 36, 24, 5, 0.7, c ? "#E11D48" : "#059669")}
+                    fill={c ? "var(--danger)" : "var(--ok)"} opacity="0.09" />
+              {bar(17 + c * 70, 36, 24, 5, 0.7, c ? "var(--danger)" : "var(--ok)")}
               {[0, 1, 2].map((i) => bar(17 + c * 70, 48 + i * 9, 50, 3, 0.3))}
             </g>
           ))}

@@ -173,7 +173,7 @@ function Chips({
                   className="rounded-full border px-4 py-2 text-[15px] font-medium transition"
                   style={{
                     borderColor: on ? "var(--wdb-primary)" : "var(--border)",
-                    background: on ? "rgba(54,103,255,.10)" : "var(--surface)",
+                    background: on ? "var(--accent-wash)" : "var(--surface)",
                     color: on ? "var(--wdb-primary)" : "var(--foreground)",
                   }}>
             {p.label}

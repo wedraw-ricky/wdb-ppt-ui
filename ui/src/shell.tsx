@@ -85,7 +85,7 @@ export function Steps({ items, at }: { items: string[]; at: number }) {
       {items.map((s, i) => (
         <li key={s} className="flex items-center gap-1.5">
           {i ? <span className="mx-1 h-1 w-1 rounded-full"
-                     style={{ background: "#d5dae2" }} aria-hidden="true" /> : null}
+                     style={{ background: "var(--dot)" }} aria-hidden="true" /> : null}
           <span className="text-[12.5px]"
                 style={i === at
                   ? { color: "var(--accent)", fontWeight: 700 }

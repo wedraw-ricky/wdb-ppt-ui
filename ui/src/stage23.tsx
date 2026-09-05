@@ -26,22 +26,34 @@ function MiniSlide({ p, w = 190 }: { p: Palette; w?: number }) {
   return (
     <svg viewBox="0 0 320 180" width={w} height={h} role="img" aria-hidden="true"
          style={{ display: "block", borderRadius: 6, overflow: "hidden" }}>
-      <rect width="320" height="180" fill={g("background", "#FFFFFF")} />
-      <rect x="0" y="0" width="320" height="52" fill={g("primary", "#1B3F8F")} />
-      <rect x="18" y="18" width="128" height="10" rx="2" fill="#FFFFFF" opacity="0.95" />
-      <rect x="18" y="34" width="76" height="6" rx="2" fill={g("accent", "#00A651")} />
-      <rect x="18" y="70" width="150" height="8" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.85" />
-      <rect x="18" y="86" width="118" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.45" />
-      <rect x="18" y="98" width="134" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.45" />
-      <rect x="186" y="66" width="116" height="96" rx="8" fill={g("secondary_bg", "#EEF2F7")} />
-      <circle cx="212" cy="92" r="13" fill={g("accent", "#00A651")} />
-      <rect x="198" y="116" width="80" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.55" />
-      <rect x="198" y="130" width="58" height="6" rx="2" fill={g("body_text", "#1A1D1C")} opacity="0.3" />
-      <rect x="18" y="128" width="46" height="18" rx="9" fill={g("secondary_accent", "#6D6E71")} opacity="0.9" />
-      <rect x="18" y="158" width="284" height="2" fill={g("accent", "#00A651")} opacity="0.35" />
+      <rect width="320" height="180" fill={g("background", DECK_FALLBACK.background)} />
+      <rect x="0" y="0" width="320" height="52" fill={g("primary", DECK_FALLBACK.primary)} />
+      <rect x="18" y="18" width="128" height="10" rx="2" fill={DECK_FALLBACK.background} opacity="0.95" />
+      <rect x="18" y="34" width="76" height="6" rx="2" fill={g("accent", DECK_FALLBACK.accent)} />
+      <rect x="18" y="70" width="150" height="8" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.85" />
+      <rect x="18" y="86" width="118" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.45" />
+      <rect x="18" y="98" width="134" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.45" />
+      <rect x="186" y="66" width="116" height="96" rx="8" fill={g("secondary_bg", DECK_FALLBACK.secondary_bg)} />
+      <circle cx="212" cy="92" r="13" fill={g("accent", DECK_FALLBACK.accent)} />
+      <rect x="198" y="116" width="80" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.55" />
+      <rect x="198" y="130" width="58" height="6" rx="2" fill={g("body_text", DECK_FALLBACK.body_text)} opacity="0.3" />
+      <rect x="18" y="128" width="46" height="18" rx="9" fill={g("secondary_accent", DECK_FALLBACK.secondary_accent)} opacity="0.9" />
+      <rect x="18" y="158" width="284" height="2" fill={g("accent", DECK_FALLBACK.accent)} opacity="0.35" />
     </svg>
   );
 }
+/* 덱 팔레트의 대체값. 이건 화면 토큰이 아니라 **데이터**다 — 사용자가 아직
+   색을 안 골랐을 때 미리보기가 보여줄 값이라, 화면의 색 규칙과 다른 물건이다.
+   흩어져 있으면 화면 색으로 오해되므로 한 곳에 모아 이름을 붙인다. */
+export const DECK_FALLBACK = {
+  background: "#FFFFFF",
+  primary: "#1B3F8F",
+  accent: "#00A651",
+  body_text: "#1A1D1C",
+  secondary_bg: "#EEF2F7",
+  secondary_accent: "#6D6E71",
+} as const;
+
 
 export function PaletteChoice({
   candidates, selectedIndex, recommendedIndex, onSelect, nameOf, noteOf,
