@@ -24,7 +24,7 @@ Defined in `design_spec.md §VIII`. Status enum: see [`svg-image-embedding.md`](
 | Filename | Dimensions | Purpose | Type | Acquire Via | Status | Reference |
 |---|---|---|---|---|---|---|
 | cover.png | 1280x720 | Cover background | Background | `ai` | Pending | Modern tech abstract, deep blue gradient #0A2540 |
-| team.jpg | 800x600 | Team photo | Photography | `web` | Pending | Diverse engineering team in modern office |
+| team.jpg | 800x600 | Team photo | Photography | `web` | Pending | 한국인 개발팀, 현대적인 사무실 |
 | formula_001.png | 736x168 | Block equation on P03 | Latex Formula | `formula` | Rendered | `E = mc^2` |
 | spot_team.png | TBD after slicing | Team spot illustration | Illustration | `slice` | Pending | From `spot_sheet.png` cell 1,1 |
 
@@ -109,7 +109,7 @@ The `Reference` field is **intent**, not a query. Strategist writes free-form in
 
 | ✅ Intent | ❌ Pre-processed |
 |---|---|
-| `"Diverse engineering team in modern office, natural light"` | `"team office light"` |
+| `"한국인 개발팀, 현대적인 사무실, 자연광"` | `"team office light"` |
 | `"Abstract digital waves, deep navy gradient #0A2540"` | `"use openverse, search 'waves'"` |
 
 ---

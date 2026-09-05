@@ -14,7 +14,7 @@ Defined in the Design Specification & Content Outline; each image carries an `Ac
 | Filename | Dimensions | Purpose | Type | Acquire Via | Status | Reference |
 |----------|------------|---------|------|-------------|--------|-----------|
 | cover_bg.png | 1280x720 | Cover background | Background | ai | Pending | Modern tech abstract, deep blue gradient |
-| team.jpg | 800x600 | Team photo | Photography | web | Pending | Diverse engineering team in modern office |
+| team.jpg | 800x600 | Team photo | Photography | web | Pending | 한국인 개발팀, 현대적인 사무실 |
 | product.png | 600x400 | Page 3 product photo | Photography | user | Existing | - |
 | formula_001.png | 736x168 | Page 3 block equation | Latex Formula | formula | Rendered | `E = mc^2` |
 | chart.png | 600x400 | Page 5 placeholder | Illustration | placeholder | Placeholder | Team collaboration scene to be added later |

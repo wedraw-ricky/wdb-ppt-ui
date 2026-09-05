@@ -116,7 +116,7 @@ Do **not** loosen `required_terms` to generic category words just to improve cov
 | ✅ Good Reference (intent) | ❌ Avoid |
 |---|---|
 | "Offshore wind farm at dusk, aerial view, professional editorial photography" | "professional editorial photography background" |
-| "Diverse engineering team collaborating around a laptop, modern office, natural light" | "use Openverse, search 'team'" |
+| "한국인 개발팀이 노트북을 두고 논의, 현대적인 사무실, 자연광" | "use Openverse, search 'team'" |
 | "Sunlit forest path in autumn, clean composition, high-resolution photography" | "Hero image, dramatic lighting" |
 
 ---

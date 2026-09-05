@@ -942,3 +942,38 @@ class SameLayoutRun(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KoreanByDefault(unittest.TestCase):
+    """image-generator.md §5.2b — 사람과 장소는 한국이 기본.
+
+    한국어 자료에 서양 사람이 서 있는 것은 틀린 것이고, 그 자체가 "AI 가 만든
+    티" 로 읽힌다. 문제는 `diverse` 라는 낱말이었다 — 서구권 자료로 학습한
+    모델에게 그 말은 서양인 위주의 혼합을 뜻한다. 말하지 않으면 서양이
+    기본값이 되므로 말해야 한다.
+    """
+
+    REFS = Path(__file__).resolve().parents[1] / ".claude/skills/ppt-master/references"
+
+    def test_규칙이_계약에_있다(self):
+        t = (self.REFS / "image-generator.md").read_text(encoding="utf-8")
+        self.assertIn("§5.2b", t)
+        self.assertIn("Korean people", t)
+
+    def test_사람이_나오는_프롬프트에_diverse_가_남아_있지_않다(self):
+        # 규칙 본문(§5.2b 와 증상표)은 그 낱말을 설명하려고 쓰므로 뺀다.
+        bad = []
+        for p in sorted(self.REFS.rglob("*.md")):
+            for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+                if "diverse" not in line.lower():
+                    continue
+                if p.name == "image-generator.md" and ("§5.2b" in line or "Forbidden" in line
+                                                       or "diverse subjects" in line
+                                                       or "서양 사람이 나옴" in line):
+                    continue
+                bad.append(f"{p.name}:{i}")
+        self.assertEqual(bad, [], f"프롬프트에 'diverse' 가 남아 있다 — {bad}")
+
+    def test_실사_렌더링이_한국인을_명시한다(self):
+        t = (self.REFS / "image-renderings/corporate-photo.md").read_text(encoding="utf-8")
+        self.assertIn("Korean", t)

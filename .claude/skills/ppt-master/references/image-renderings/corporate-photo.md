@@ -4,7 +4,7 @@ Editorial photography style — real subjects, natural composition, professional
 
 ## 1. Style paragraph (paste-ready, 100 words)
 
-> Editorial photography style with natural composition and professional color grading. Subjects appear as real people, real products, real environments — captured with depth-of-field and intentional lighting. Composition follows photographic principles: rule of thirds, leading lines, deliberate foreground/background separation. Lighting is natural or studio-soft, never harsh. Color grading matches the deck's palette temperament — corporate decks lean cool and restrained, lifestyle decks lean warm and golden. Subjects in team or workplace contexts appear diverse and professionally attired. Background is contextual and slightly blurred to keep focus on the subject. Overall feel is authentic, premium, magazine-quality.
+> Editorial photography style with natural composition and professional color grading. Subjects appear as real people, real products, real environments — captured with depth-of-field and intentional lighting. Composition follows photographic principles: rule of thirds, leading lines, deliberate foreground/background separation. Lighting is natural or studio-soft, never harsh. Color grading matches the deck's palette temperament — corporate decks lean cool and restrained, lifestyle decks lean warm and golden. Subjects in team or workplace contexts are Korean and professionally attired (image-generator.md §5.2b — 말하지 않으면 서양이 기본값이 된다). Background is contextual and slightly blurred to keep focus on the subject. Overall feel is authentic, premium, magazine-quality.
 
 ---
 
@@ -24,7 +24,7 @@ Editorial photography style — real subjects, natural composition, professional
 
 corporate-photo **overrides** the global "simplified silhouettes / no realistic faces" rule (image-generator.md §5.2). For this rendering, append instead:
 
-> Diverse, professionally attired subjects rendered photorealistically. Editorial photography composition, natural light or soft studio lighting. Subjects appear authentic and contemporary — no posed stock-photo stiffness, no exaggerated expressions, no fashion-shoot artificiality.
+> Korean subjects, professionally attired, rendered photorealistically. East Asian faces and features, contemporary Korean styling. Editorial photography composition, natural light or soft studio lighting. Subjects appear authentic and contemporary — no posed stock-photo stiffness, no exaggerated expressions, no fashion-shoot artificiality.
 
 All other renderings keep the simplified-figure rule.
 
@@ -43,4 +43,4 @@ corporate-photo's relationship to HEX is **color grading**, not color fills:
 
 **Snippet A — team workplace photo, text_policy: none**
 
-> Editorial photography of a small modern team collaborating around a laptop in a contemporary office. Three to four diverse, professionally attired adults — varied ethnicities, varied ages — engaged in genuine conversation, no posed stock-photo stiffness. Natural window light from the side, soft shadows. Color grading is cool-corporate — image is subtly graded toward deep blue tones echoing the deck's primary `#1E3A5F`, with the background carrying soft light gray `#F8F9FA` walls and a single accent of warm wood or amber from a desk lamp echoing the accent `#D4AF37`. Shallow depth of field — subjects sharp, background gently blurred. Composed as a 1200×600 hero band with 8% inner padding. Diverse, professionally attired subjects rendered photorealistically. Editorial photography composition. Authentic, not stock-photo artificial. Color values are rendering guidance — HEX codes themselves do not appear in the image as text.
+> Editorial photography of a small modern team collaborating around a laptop in a contemporary office. Three to four Korean adults, professionally attired, varied ages — engaged in genuine conversation, no posed stock-photo stiffness. Natural window light from the side, soft shadows. Color grading is cool-corporate — image is subtly graded toward deep blue tones echoing the deck's primary `#1E3A5F`, with the background carrying soft light gray `#F8F9FA` walls and a single accent of warm wood or amber from a desk lamp echoing the accent `#D4AF37`. Shallow depth of field — subjects sharp, background gently blurred. Composed as a 1200×600 hero band with 8% inner padding. Korean subjects, professionally attired, rendered photorealistically. Contemporary Korean office setting. Editorial photography composition. Authentic, not stock-photo artificial. Color values are rendering guidance — HEX codes themselves do not appear in the image as text.

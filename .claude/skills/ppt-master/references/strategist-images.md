@@ -251,7 +251,7 @@ After the user picks a candidate, scan the outline and surface any pages where t
 
 | ✅ Intent description | ❌ Avoid |
 |---|---|
-| "Diverse engineering team collaborating around a laptop, modern office, natural light" | "team laptop office" |
+| "한국인 개발팀이 노트북을 두고 논의, 현대적인 사무실, 자연광" | "team laptop office" |
 | "Abstract atmospheric backdrop for academic-defense cover, calm center for text overlay, hint of campus skyline" | "use openverse, search 'office'" |
 | "Sunlit forest path in autumn" | "team photo" |
 
@@ -276,7 +276,7 @@ After the user picks a candidate, scan the outline and surface any pages where t
 
 | Mode | Good Reference |
 |---|---|
-| `web` | "Diverse team collaborating at a modern office desk, professional editorial photography, natural light, laptop visible" |
+| `web` | "Korean team collaborating at a modern office desk, professional editorial photography, natural light, laptop visible" |
 | `ai` | "Atmospheric backdrop suggesting digital innovation; calm central area reserved for slide title overlay; light geometric anchor at one edge" |
 | `ai` | "Four-stage value chain from raw input to R&D output; icons should suggest tax-form → cost-reduction → equipment-upgrade → innovation; no text labels (SVG overlays them)" |
 
