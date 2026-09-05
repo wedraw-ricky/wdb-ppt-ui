@@ -5,7 +5,9 @@
    image source as the kind of picture it produces — never as a name plus a
    row of chips the reader has to imagine assembled. */
 
+import { useState } from "react";
 import { cardStyle, Star } from "./selectors";
+import { pickStyle } from "./shell";
 import aiArt from "./art/src-ai.png";
 import noneArt from "./art/src-none.png";
 import placeholderArt from "./art/src-placeholder.png";
@@ -113,6 +115,21 @@ const RAMP: { key: string; ko: string; sample: string }[] = [
   { key: "annotation", ko: "작은 설명", sample: "출처와 각주는 이 크기" },
 ];
 
+/* 파워포인트는 pt 로 센다. 화면 px 는 그 0.75배다 — 1280×720 캔버스가
+   13.333×7.5 인치이므로 96dpi 에서 정확히 맞아떨어진다. 안에서는 px 로 다루되
+   사람에게는 pt 로 말한다. 본문 24px 라고 하면 아무도 크기를 짐작 못 하지만
+   18pt 라고 하면 파워포인트를 써 본 사람은 바로 안다. */
+const toPt = (px: number) => Math.round(px * 0.75);
+const toPx = (pt: number) => Math.round(pt / 0.75);
+
+/* 가장 많이 쓰는 세 가지. 기본은 18pt — 발표자료 본문의 표준이다.
+   디자이너는 매번 네 숫자를 정하지 않는다. 기본에서 시작해 필요할 때만 만진다. */
+const BODY_PT = [
+  { pt: 16, ko: "작게", hint: "글이 많을 때" },
+  { pt: 18, ko: "기본", hint: "발표자료 표준" },
+  { pt: 20, ko: "크게", hint: "멀리서 볼 때" },
+];
+
 export function TypeSpecimen({
   typography, onBody, onRole,
 }: {
@@ -120,43 +137,82 @@ export function TypeSpecimen({
   onBody: (v: string) => void;
   onRole: (role: string, v: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const headCss = typography?.heading?.css;
   const bodyCss = typography?.body?.css;
   const px = (k: string) =>
-    k === "body" ? Number(typography?.body_size) || 16 : Number(typography?.sizes?.[k]) || 0;
-  // the canvas is 1280 wide; the specimen column is ~640, so halve to keep the
-  // ladder honest rather than showing every role at its raw px
-  const SCALE = 0.5;
+    k === "body" ? Number(typography?.body_size) || 24 : Number(typography?.sizes?.[k]) || 0;
+  const bodyPt = toPt(px("body"));
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border p-5" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <div role="radiogroup" className="grid gap-3 sm:grid-cols-3">
+        {BODY_PT.map((b) => {
+          const on = bodyPt === b.pt;
+          return (
+            <button key={b.pt} type="button" role="radio" aria-checked={on}
+                    onClick={() => onBody(String(toPx(b.pt)))}
+                    className="px-4 py-3.5 text-left transition" style={pickStyle(on)}>
+              <div className="flex items-baseline gap-2">
+                <span className="t-card">{b.ko}</span>
+                <span className="t-label">본문 {b.pt}pt</span>
+              </div>
+              <div className="t-sub mt-1">{b.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-2xl border p-5"
+           style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         {RAMP.map((r) => (
           <div key={r.key} className="flex items-baseline gap-3 border-b py-2.5 last:border-0"
                style={{ borderColor: "var(--border)" }}>
-            <span className="w-16 shrink-0 text-[13px]" style={{ color: "var(--muted)" }}>{r.ko}</span>
+            <span className="w-16 shrink-0 t-label">{r.ko}</span>
             <span className="min-w-0 flex-1 truncate"
                   style={{
                     fontFamily: r.key === "title" || r.key === "subtitle" ? headCss : bodyCss,
-                    fontSize: Math.max(11, px(r.key) * SCALE),
-                    fontWeight: r.key === "title" ? 700 : r.key === "subtitle" ? 600 : 400,
+                    // 미리보기는 실제 pt 값을 그대로 화면 px 로 쓴다. 슬라이드는
+                    // 이보다 크지만 층 사이의 비율은 그대로라, 위계는 정직하게 보인다.
+                    fontSize: Math.max(11, toPt(px(r.key))),
+                    fontWeight: r.key === "title" ? 700 : r.key === "subtitle" ? 600 : 500,
                     color: "var(--foreground)",
                   }}>
               {r.sample}
             </span>
-            <input
-              value={String(r.key === "body" ? (typography?.body_size ?? "") : (typography?.sizes?.[r.key] ?? ""))}
-              onChange={(e) => (r.key === "body" ? onBody(e.target.value) : onRole(r.key, e.target.value))}
-              inputMode="decimal"
-              className="w-16 shrink-0 rounded border bg-transparent px-2 py-1 text-right text-[15px] outline-none"
-              style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
-            <span className="w-6 shrink-0 text-[13px]" style={{ color: "var(--muted)" }}>px</span>
+            {open ? (
+              <>
+                <input
+                  value={String(toPt(px(r.key)) || "")}
+                  onChange={(e) => {
+                    const pt = Number(String(e.target.value).replace(/[^0-9.]/g, ""));
+                    if (!pt) return;
+                    const v = String(toPx(pt));
+                    r.key === "body" ? onBody(v) : onRole(r.key, v);
+                  }}
+                  inputMode="decimal" aria-label={`${r.ko} 크기 (pt)`}
+                  className="w-16 shrink-0 rounded-lg border bg-transparent px-2 py-1 text-right t-body outline-none"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
+                <span className="w-6 shrink-0 t-label">pt</span>
+              </>
+            ) : (
+              <span className="w-[5.5rem] shrink-0 text-right t-label tabular-nums">
+                {toPt(px(r.key))}pt
+              </span>
+            )}
           </div>
         ))}
       </div>
-      <div className="t-sub" style={{ color: "var(--muted)" }}>
-        본문 크기를 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
-        화면 px는 파워포인트 pt의 약 0.75배입니다 — 본문 {px("body")}px ≈ {Math.round(px("body") * 0.75 * 10) / 10}pt.
+
+      <div className="flex items-baseline gap-3">
+        <button type="button" onClick={() => setOpen((v) => !v)}
+                className="t-sub underline underline-offset-4"
+                style={{ color: "var(--accent)" }}>
+          {open ? "기본값으로 두기" : "층별로 직접 고치기"}
+        </button>
+        <span className="t-sub">
+          본문을 바꾸면 제목·부제목·작은 설명이 지금 비율 그대로 따라 움직입니다.
+        </span>
       </div>
     </div>
   );

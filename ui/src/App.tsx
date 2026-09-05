@@ -138,6 +138,11 @@ const stageProgress = (stageNum: number, at: number, len: number) => {
   return Math.round([54, 68, 82][stageNum - 1] + within * 12);
 };
 
+/* 발표자료·문서가 쓰는 크기. 나머지는 카드뉴스 쪽 형식이라 이 화면에 안 낸다. */
+const DECK_FORMATS = new Set(["ppt169", "ppt43", "a4"]);
+const DECK_CANVAS = (cat: Dict) =>
+  (cat.canvas || []).filter((c: Dict) => DECK_FORMATS.has(String(c.id)));
+
 const derivingProgress = (target: number) =>
   target === 0 ? 16 : target === 1 ? 48 : target === 2 ? 68 : 82;
 
@@ -385,9 +390,10 @@ function Confirm() {
       <Steps items={steps.map((s) => s.title)} at={at} />
       <StepCtx.Provider value={stepCtx}>
           {showAnchors && (
-            <>
-              {cat.templates?.length > 1 && (
-                <Section k="template" title={T.secTemplate}>
+            <Section k="frame" title="어떤 틀로 만들까요?">
+              <div>
+                <div className="t-sect mb-3">이미 있는 디자인</div>
+
                   <ThumbChoice
                     items={cat.templates} value={state.template}
                     onChange={(v) => set("template", v)} recommended={R.template}
@@ -395,10 +401,14 @@ function Confirm() {
                       it.id === "free" ? null
                         : `/api/template_preview/${encodeURIComponent(it.id)}?lang=ko`}
                   />
-                </Section>
-              )}
-              <Section k="canvas" title={T.secCanvas}>
-                <RatioChoice items={cat.canvas || []} value={state.canvas}
+              </div>
+              <div>
+                <div className="t-sect mb-3">크기</div>
+
+                {/* 발표자료가 쓰는 크기만 남긴다. 인스타·위챗·샤오홍슈·모먼츠·
+                    스토리·배너는 카드뉴스 형식이라 이 화면과 상관이 없다 —
+                    고를 수 없는 것을 늘어놓으면 고르는 사람이 헤맨다. */}
+                <RatioChoice items={DECK_CANVAS(cat)} value={state.canvas}
                              onChange={(v) => set("canvas", v)} recommended={R.canvas} />
                 {/* 고른 크기가 실제로 어떤 비율인지, 그리고 템플릿과 안 맞으면
                     여기서 막는다. 예전에는 이 경고가 화면 왼쪽 패널에 있어
@@ -406,28 +416,13 @@ function Confirm() {
                 <AnchorPreview state={state} cat={cat} ack={mismatchAck}
                                onFixCanvas={(id) => set("canvas", id)}
                                onAck={() => setMismatchAck((v) => !v)} />
-              </Section>
-              <Section k="audience" title={T.secAudience}>
-                <PresetField
-                  legend="가까운 것을 고르고 필요하면 고쳐 쓰세요"
-                  presets={AUDIENCE_PRESETS} value={state.audience}
-                  onChange={(v) => set("audience", v)} placeholder={T.phAudience} />
-                <PresetField
-                  legend={T.subDivergence}
-                  hint="비워 두면 알아서 균형을 잡습니다"
-                  presets={DIVERGENCE_PRESETS} value={state.content_divergence}
-                  onChange={(v) => set("content_divergence", v)} placeholder={T.phDivergence} />
-                {isPpt && (
-                  <div>
-                    <div className="mb-3 text-base font-semibold">{T.subDelivery}</div>
-                    <DiagramChoice items={cat.delivery_purpose || []}
-                                   value={state.delivery_purpose}
-                                   onChange={(v) => set("delivery_purpose", v)}
-                                   recommended={R.delivery_purpose} />
-                  </div>
-                )}
-              </Section>
-              <Section k="style" title={T.secStyle}>
+              </div>
+            </Section>
+          )}
+
+          {showDesign && (
+            <Section k="look" title="어떤 느낌으로 만들까요?">
+
                 <div>
                   <div className="mb-3 text-base font-semibold">{T.subMode}</div>
                   <DiagramChoice items={cat.modes || []} value={state.mode}
@@ -447,18 +442,9 @@ function Confirm() {
                           onChange={(v) => set("template_adherence", v)}
                           recommended={R.template_adherence} />
                 )}
-              </Section>
-            </>
-          )}
+              <div>
+                <div className="t-sect mb-3">색</div>
 
-          {showDesign && (
-            <>
-              {outlineSlides ? null : (
-                <Section k="pages" title={T.secPages}>
-                  <PageCount value={state.page_count} onChange={(v) => set("page_count", v)} />
-                </Section>
-              )}
-              <Section k="color" title={T.secColor}>
                 <PaletteChoice
                   candidates={rec.color?.candidates || []}
                   selectedIndex={(rec.color?.candidates || []).findIndex(
@@ -472,17 +458,25 @@ function Confirm() {
                 />
                 <div>
                   <div className="mb-3 t-card">{T.hexOverride}</div>
+                  <div className="t-sub mb-3">
+                    후보에 마음에 드는 게 없으면 여기서 직접 넣으세요. 여섯 자리를
+                    다 바꿔도 되고, 강조색 하나만 바꿔도 됩니다.
+                  </div>
                   <HexGrid palette={state.color?.palette || {}} roles={T.roles}
                            onChange={(role, v) =>
                              setState((s) => ({ ...s,
                                color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))} />
                 </div>
-              </Section>
-              <Section k="icons" title={T.secIcons}>
+              </div>
+              <div>
+                <div className="t-sect mb-3">아이콘</div>
+
                 <IconChoice items={cat.icons || []} value={state.icons}
                             onChange={(v) => set("icons", v)} recommended={R.icons} />
-              </Section>
-              <Section k="type" title={T.secType}>
+              </div>
+              <div>
+                <div className="t-sect mb-3">글씨 크기</div>
+
                 <TypeSpecimen
                   typography={state.typography || {}}
                   onBody={(v) => setState((s) => {
@@ -501,17 +495,14 @@ function Confirm() {
                   <div className="mb-3 text-base font-semibold">합쳐 놓으면 이렇게 보입니다</div>
                   <SkinPreview state={state} />
                 </div>
-              </Section>
-              <Section k="formula" title={T.secFormula}>
-                <Choice items={cat.formula_policy || []} value={state.formula_policy}
-                        onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
-              </Section>
-            </>
+              </div>
+            </Section>
           )}
 
           {showImages && (
             <>
               <Section k="images" title={T.secImages}>
+
                 <ImageSourceChoice
                   items={cat.image_usage || []} value={state.image_usage}
                   onChange={(v) => set("image_usage", v)}
@@ -543,7 +534,16 @@ function Confirm() {
                     고르는 곳과 보는 곳이 떨어져 있어 대조가 안 됐다. */}
                 <ImagePreview state={state} />
               </Section>
-              <Section k="genmode" title={T.secMode}>
+              <Section k="finish" title="마무리">
+                <div>
+                  <div className="t-sect mb-3">{T.secFormula}</div>
+
+                <Choice items={cat.formula_policy || []} value={state.formula_policy}
+                        onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
+                </div>
+                <div>
+                  <div className="t-sect mb-3">{T.secMode}</div>
+
                 <ArtChoice
                   items={(cat.generation_mode || []).map((m: Dict) => ({
                     id: String(m.id), label: String(m.label_ko || m.id),
@@ -553,8 +553,10 @@ function Confirm() {
                   onChange={(v) => set("generation_mode", v)}
                   recommended={R.generation_mode}
                   art={{ continuous: modeContinuous, split: modeSplit }} />
-              </Section>
-              <Section k="refine" title={T.secRefine}>
+                </div>
+                <div>
+                  <div className="t-sect mb-3">{T.secRefine}</div>
+
                 {/* 켬/끔 스위치였다. 두 갈래가 어떻게 다른지는 스위치가 말해주지
                     못해서, 켠 상태의 글을 읽어야만 알 수 있었다. 카드 둘로
                     바꾸니 고르기 전에 차이가 보인다. */}
@@ -568,6 +570,7 @@ function Confirm() {
                   value={state.refine_spec ? "yes" : "no"}
                   onChange={(v) => set("refine_spec", v === "yes")}
                   art={{ yes: modePlanYes, no: modePlanNo }} />
+                </div>
               </Section>
             </>
           )}

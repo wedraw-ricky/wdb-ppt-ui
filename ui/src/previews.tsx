@@ -19,40 +19,36 @@ export interface Step {
 
 /** Which steps this stage carries, and whether each is answered yet. */
 export function stageSteps(stageNum: number, state: Dict, cat: Dict, isPpt: boolean,
-                           outlineSlides?: number): Step[] {
+                           outlineSlides?: number, askedAudience?: boolean): Step[] {
   const anchors = stageNum === 0 || stageNum === 1;
   const design = stageNum === 0 || stageNum === 2;
   const images = stageNum === 0 || stageNum === 3;
   const out: Step[] = [];
   const has = (v: any) => Boolean(String(v ?? "").trim());
 
+  // 열한 개로 쪼개 놓았던 것을 넷으로 묶는다. 디자이너는 문항에 답하지 않는다 —
+  // 틀을 잡고, 룩을 고르고, 이미지를 정하고, 마무리한다. 색과 글꼴과 아이콘을
+  // 따로 묻는 것은 "어떻게 보이게 할까" 하나를 셋으로 쪼갠 것이고, 셋을 따로
+  // 고르면 합쳐 놓았을 때 어떤지는 아무도 안 본다.
   if (anchors) {
-    if ((cat.templates || []).length > 1)
-      out.push({ key: "template", title: T.secTemplate, required: false, filled: has(state.template) });
-    out.push({ key: "canvas", title: T.secCanvas, required: true, filled: has(state.canvas) });
-    out.push({ key: "audience", title: T.secAudience, required: true, filled: has(state.audience) });
-    out.push({ key: "style", title: T.secStyle, required: true,
-               filled: has(state.mode) && has(state.visual_style) && (!isPpt || has(state.delivery_purpose)) });
+    out.push({ key: "frame", title: "어떤 틀로 만들까요?", required: true,
+               filled: has(state.canvas) });
   }
   if (design) {
-    // 뼈대를 확정했으면 장 수는 이미 정해졌다. 방금 7장짜리 스토리보드를
-    // 확정한 사람에게 "몇 장으로 만들까요" 를 다시 묻는 건 앞 화면을 안 본
-    // 것이고, 답이 다르게 들어오면 확정한 뼈대와 어긋난다.
-    if (!outlineSlides)
-      out.push({ key: "pages", title: T.secPages, required: true, filled: has(state.page_count) });
-    out.push({ key: "color", title: T.secColor, required: true, filled: Boolean(state.color?.palette) });
-    out.push({ key: "icons", title: T.secIcons, required: false, filled: has(state.icons) });
-    out.push({ key: "type", title: T.secType, required: true, filled: Boolean(state.typography) });
-    out.push({ key: "formula", title: T.secFormula, required: false, filled: has(state.formula_policy) });
+    out.push({ key: "look", title: "어떤 느낌으로 만들까요?", required: true,
+               filled: has(state.mode) && has(state.visual_style)
+                       && Boolean(state.color?.palette) && Boolean(state.typography) });
   }
   if (images) {
     out.push({ key: "images", title: T.secImages, required: true,
                filled: Array.isArray(state.image_usage) && state.image_usage.length > 0 });
-    out.push({ key: "genmode", title: T.secMode, required: false, filled: has(state.generation_mode) });
-    out.push({ key: "refine", title: T.secRefine, required: false, filled: true });
+    out.push({ key: "finish", title: "마무리", required: false, filled: true });
   }
+  // 쪽수는 뼈대가, 대상은 인터뷰가 이미 정했다. 방금 답한 것을 다시 묻지 않는다.
+  void outlineSlides; void askedAudience; void cat; void isPpt;
   return out;
 }
+
 
 /** The whole three-stage journey.
 
