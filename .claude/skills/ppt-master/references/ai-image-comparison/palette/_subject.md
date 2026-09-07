@@ -10,7 +10,14 @@
 
 ## Subject
 
-> A confident professional standing beside an upward growth chart, looking forward — single dominant subject occupying 60-70% of the canvas. This is the "single-subject hero" composition described as [`image-generator.md`](../../image-generator.md) §4.1 Primitive A, used here as a stable baseline because a single dominant subject makes palette color behavior read most clearly.
+**Nationality is stated on purpose.** `image-generator.md` §5.2b makes Korean
+people and Korean places the default, but this brief left nationality unsaid and
+the model filled the gap with Western subjects. That rule was written for images
+the pipeline *generates* for a deck; these frames are what the **confirm screen
+shows the user**, and the screen is held to the same rule (`DESIGN.md` 그림).
+Regenerating this set without this word reintroduces the fault.
+
+> A confident **Korean** professional standing beside an upward growth chart, looking forward — single dominant subject occupying 60-70% of the canvas. This is the "single-subject hero" composition described as [`image-generator.md`](../../image-generator.md) §4.1 Primitive A, used here as a stable baseline because a single dominant subject makes palette color behavior read most clearly.
 
 ## On HEX values
 
