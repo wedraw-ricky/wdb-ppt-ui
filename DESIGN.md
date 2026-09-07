@@ -20,45 +20,91 @@ tool makes you read a menu and hope. This one shows you the slide.
 - **Mood:** the tool should look like the decks it produces. A person who has
   seen a WDB deck should recognise this screen as the same family.
 
-## Color — the 60:30:10 rule
+## 컨셉 — 이 화면은 자기가 만드는 장표처럼 생겼다
 
-Straight from the `wdb-pptx` skill §2. It is an **area** rule, not a palette
-list: the tier decides how much of the screen a colour may cover.
+위의 *Mood* 는 2026-09-05 까지 문장으로만 있었고 화면에는 없었다. 2026-09-07
+에 재 봤더니 요소 818개 중 **브랜드색으로 칠해진 면이 0개**였다. 흰 면과 회색
+면뿐이다. 그런데 대비·글자 크기·누름 크기 검사는 전부 100점으로 통과한다 —
+**무채색 화면이 대비 검사를 제일 잘 통과하기 때문**이다. 검사로는 못 잡는
+자리라서, 규칙으로 적어 둔다.
 
-| Tier | Token | Value | Where |
+PPT 마스터의 화면이 아무 관리자 화면과 구별되지 않으면 컨셉이 없는 것이다.
+셋으로 만든다.
+
+**① 16:9 가 반복된다.**
+고르는 것을 보여주는 자리는 예외 없이 **16:9 장표**다. 장표를 만드는 도구니까
+화면의 기본 단위도 장표여야 한다. 지금은 한 격자 안에서 16:9 · 1.4:1 · 2.5:1 ·
+1:1 이 섞여 `object-fit: cover` 로 잘려 들어간다 — 그래서 크기가 제각각으로
+보인다. 원본이 16:9 가 아닌 그림은 **16:9 안에 여백째로 앉힌다.** 자르지
+않는다.
+
+**② 고른 색이 화면을 칠한다.**
+색을 골랐으면 견본 여섯 칸이 아니라 **미리보기 면이 그 색으로 칠해진다.**
+이것이 빠져 있던 10% 이자, 동시에 컨셉이다 — 도구가 자기가 만드는 것을 입고
+있다. 색을 아직 안 골랐으면 브랜드 파랑이 그 자리를 지킨다. **한 화면에
+칠해진 면이 최소 하나는 있어야 한다.**
+
+**③ 장표의 가구를 화면의 가구로 쓴다.**
+장표에는 제목 자리, 본문 자리, 쪽번호가 있다. 화면도 그 자리를 빌린다 —
+구역 제목은 장표 제목이 앉는 곳에, 구역 번호는 쪽번호처럼. 새 장식을
+만들지 않는다. 이미 덱이 쓰는 문법을 쓴다.
+
+## Color — 60:30:10 은 팔레트가 아니라 **면적** 규칙
+
+`wdb-pptx` 스킬 §2 에서 그대로 온다. 어떤 색을 쓰느냐가 아니라 **화면의 몇
+할을 덮어도 되느냐**를 정한다. 값은 전부 [`ui/system/tokens.css`](ui/system/tokens.css)
+에 있고, 화면 코드에 색을 직접 적지 않는다.
+
+| 몫 | 토큰 | 값 | 어디 |
 |---|---|---|---|
-| 60% dominant | `--wdb-card-bg`, white | `#F5F7FA`, `#FFFFFF` | page ground, card fills |
-| 30% secondary | `--wdb-secondary` | `#4916E3` | step number badges |
-| 10% accent | `--wdb-primary` | `#3667FF` | selection, focus ring, CTA |
-| 10% second accent | `--wdb-cyan` | `#00E5D6` | the ★ recommended badge only |
-| text | `--wdb-charcoal` / `--wdb-gray` | `#1A1A1A` / `#45515E` | body / secondary |
-| hero gradient | `--wdb-grad-from` → `--wdb-grad-to` | `#19007F` → `#3667FF` | **exactly one surface** |
+| 60% 바탕 | `--bg` · `--surface` · `--sunken` | `#FFFFFF` · `#F4F6F8` | 화면 바닥, 카드 면, 눌린 면 |
+| 30% 둘째 | `--brand-indigo` | `#4916E3` | 구역 번호, 칠해진 큰 면 |
+| 10% 강조 | `--accent` (`--brand-blue`) | `#3667FF` | 고른 표시, 초점 테, 넘기는 버튼 |
+| 10% 둘째 강조 | `--brand-cyan` | `#00E5D6` | ★ 추천 표시에만 |
+| 글 | `--ink` / `--ink-muted` / `--ink-faint` | `#17191C` / `#5B6472` / `#68717E` | 본문 / 보조 / 라벨 |
+| 그러데이션 | `--brand-gradient-from` → `--accent` | `#19007F` → `#3667FF` | **덱 표지에만.** 화면에는 안 쓴다 |
 
-**Rules**
-- `primary` never fills a large area. A full-bleed fill is the `secondary`
-  tier's job, or the gradient's.
-- The hero gradient appears **once per screen** — here, the left preview panel.
-- Semantic colours (`#059669` success, `#E11D48` danger, `#D97706` warning)
-  carry meaning only. Never decoration.
-- Everything maps onto HeroUI's semantic variables in `ui/src/theme.css`
-  (`--accent`, `--background`, `--surface`, `--border`…). Components inherit the
-  brand; never colour a component by hand.
+**규칙**
+- **한 화면에 칠해진 면이 최소 하나.** 이 줄이 없어서 8,461px 짜리 화면에
+  칠해진 면이 0개였고, 어떤 검사도 그걸 잡지 못했다. 이 화면에서 그 자리는
+  **확정한 뼈대 미리보기** — 고른 색이 있으면 그 색으로, 없으면 브랜드 파랑으로.
+- `accent` 로 넓은 면을 채우지 않는다. 넓은 면은 `--brand-indigo` 나
+  그러데이션의 몫이다.
+- 상태 색(`--ok` · `--danger` · `--warn`)은 **뜻으로만.** 장식으로 쓰지 않는다.
+  그리고 색 하나로 말하지 않는다 — 늘 글이나 모양이 함께 간다 (WCAG 1.4.1).
+- 선은 두 가지뿐이다. `--line`(1.15:1)은 칸막이·장식, `--line-strong`(3.37:1)은
+  조작 요소의 경계. 이 둘을 섞어 쓴 것이 카드 경계선 사고의 원인이었다.
+- 부품에 색을 손으로 칠하지 않는다. 토큰에서 물려받는다.
 
 ## Typography
 
-- **One family:** Paperlogy, fallback Pretendard, then system.
-- Hierarchy comes from **weight and size only** — never a second typeface.
-- Bundled as `woff2` in `static/fonts/` (SIL OFL 1.1) so the screen matches the
-  decks on any machine, offline. `local()` is listed first so an installed copy
-  loads without a download.
+- **글꼴은 하나 — Pretendard.** `CLAUDE.md` 의 글꼴 정책과 같은 값이다. 덱과
+  화면이 같은 얼굴이어야 «이 화면이 저 덱을 만든다» 가 보인다.
+- 위계는 **굵기와 크기로만**. 두 번째 글꼴을 들이지 않는다.
+- 크기표는 원티드 것을 통째로 옮겼다 (`ui/system/tokens.css` §3). 크기·굵기·
+  자간이 **함께** 온다 — 크기만 가져오면 "다 작아 보인다" 가 그대로 남는다.
+  실제로 그랬다.
+- **제목과 본문 사이에 한 단이 있어야 한다.** 32 → 17 로 바로 떨어지면 제목을
+  지난 뒤 전부 같은 목소리가 된다. 2026-09-07 실측: 글자 800여 개 중 136개가
+  17px·14px, 곧 **3px 폭 안에** 본문 전체가 들어 있었다. 24px 또는 20px 단을
+  실제로 쓴다.
+- 크기·굵기 조합은 **토큰에 있는 것만**. 같은 실측에서 15가지가 쓰였고 그중
+  6가지가 표 밖의 값이었다.
+- `woff2` 로 `static/fonts/` 에 담아 둔다 (SIL OFL 1.1). 어느 기계에서나,
+  인터넷이 없어도 덱과 같은 글자가 나오게. `local()` 을 먼저 적어 이미 깔려
+  있으면 내려받지 않는다.
 
 ## Layout
 
-- **Two panes.** Left: the gradient hero with a live preview of the current
-  choices. Right: the form. The left pane exists so the person sees the
-  consequence of a choice while making it.
-- **Sections are cards** with a numbered badge, in the `secondary` tier.
-- Max one idea per section. A section that needs a scroll is too big.
+- **한 칸이다.** 위 얇은 띠(지금 어디) · 가운데 본문 · 아래 고정 버튼. 셋뿐.
+  왼쪽 패널은 없앴다 — 화면마다 골격이 달라(인터뷰는 가운데 한 줄, 뼈대는 흰
+  패널 2열, 디자인은 파란 그러데이션 2열) 같은 서비스로 안 보였다. 한 화면만
+  다시 그려서는 고쳐지지 않는 종류의 문제였다. (`ui/src/shell.tsx`)
+- 기준 크기는 **노트북 1440×900**, 본문 폭 1040px. 한글은 한 줄 45자쯤에서
+  눈이 다음 줄 첫 글자를 놓친다.
+- 어디까지 왔는지는 맨 위 **3px 막대와 한 줄 글**이 맡는다. 왼쪽 패널이 하던
+  일이다.
+- 한 구역에 한 가지 생각. 스크롤이 필요한 구역은 너무 크다.
 
 ## Interaction — the rule this screen exists to follow
 
@@ -111,11 +157,14 @@ the single-pass form, per CLAUDE.md's hard rule.
 
 ### The preview must track the current decision
 
-The left panel shows what is being chosen **right now**, not a fixed sample. It
-reads stage-1 fields in stage 1 (the deck preview at the chosen aspect ratio,
-plus the narrative-shape diagram), the skin in stage 2, and the image direction
-in stage 3. A preview that only ever reads colour and typography looks
-hardcoded while someone is picking a template, because nothing moves.
+미리보기 자리는 **지금 고르고 있는 것**을 보여준다. 고정된 견본이 아니다.
+1단계에서는 1단계 항목(고른 비율의 덱 미리보기, 서술 모양 그림), 2단계에서는
+껍데기, 3단계에서는 이미지 방향을 읽는다. 색과 글꼴만 읽는 미리보기는 누가
+시안을 고르는 동안 아무것도 안 움직여서, 박아 넣은 그림처럼 보인다.
+
+왼쪽 패널에 있던 자리다. 패널을 없앤 뒤로는 **본문 안, 그 질문 바로 옆**에
+있다. 그리고 컨셉 ② 에 따라 **칠해지는 면은 여기다** — 고른 색이 있으면 그
+색으로, 없으면 브랜드 파랑으로.
 
 **Which field belongs to which stage is `PREVIEW_FIELDS` in
 [`ui/src/api.ts`](ui/src/api.ts), not this paragraph.** Prose could not stop the
@@ -124,10 +173,11 @@ before stages 2 and 3 either. The map is checked: every field a stage payload
 sends must be claimed by exactly one stage, so adding a field to one screen and
 forgetting the others fails `tests/preview-contract.test.mts` by name.
 
-### The rail names what is still needed
+### 무엇이 남았는지 말한다
 
-The left panel lists this stage's steps with 필수 / 선택 and a check once
-answered, so a person can see how much is left without scrolling the form.
+한 장에 이어 붙인 지금은 **맨 위 바로가기 줄**이 그 일을 한다 (`Jump`,
+`ui/src/shell.tsx`). 구역마다 필수인지, 채워졌는지를 표시하고 누르면 그리로
+간다. 안 채워진 것은 색만이 아니라 점으로도 말한다 (WCAG 1.4.1).
 
 ### The preview never lies about what it is showing
 
@@ -136,11 +186,12 @@ takes the chosen ratio and the deck preview sits inside it whole (`object-contai
 line saying which ratio the template was built for. Cropping to fill would hide slide content
 and imply the template reflows on its own.
 
-### The rail says what is coming, not only what is due
+### 앞으로 무엇을 묻는지도 말한다
 
-The left panel names all three stages and what each one owns, with the current stage marked.
-A rail that lists only the current stage cannot answer "will it ask me about colour?" — the
-user has to guess whether a missing control arrives later or does not exist.
+지금 단계만 늘어놓으면 "색은 물어보나?" 에 답이 안 된다 — 없는 것인지 나중에
+오는 것인지 대표가 짐작해야 한다. 그래서 세 단계 전체와 각 단계가 무엇을
+맡는지를 **맨 위 한 줄**이 말한다. 한 장에 다 펴 놓은 지금은 바로가기 줄이
+같은 일을 한다.
 
 ### The skeleton screen obeys the design stages' rules
 
@@ -194,6 +245,66 @@ picked against a different canvas can contribute colour, type and rules, but not
 The screen says exactly that, offers the one-click canvas fix, and refuses to advance until the
 user picks one of the two real options. Copy that describes a capability the pipeline lacks is a
 defect, not a wording problem.
+
+## 그림 — 한 격자에는 한 종류만
+
+*Interaction* 의 "고르는 것을 보여준다" 는 옳은데, **무엇으로** 보여주는지는
+정해 두지 않았다. 그래서 한 화면에 그림이 여섯 종류가 됐다 (2026-09-07 실측,
+그림 39장):
+
+| 종류 | 무엇 | 원본 비율 | 어디서 |
+|---|---|---|---|
+| 장표 캡처 | 시안 미리보기 5장 | 16:9 | `/api/template_preview/<id>` |
+| 손그림 SVG | 화면 분위기 18장 | 16:9 | `static/style_previews/<id>.svg` |
+| 입체 일러스트 | 이미지 출처 5장 | 1.40 ~ 1.60:1 | `static/app/confirm-src-*.png` |
+| 입체 일러스트 | 마무리 3장 | 1.36 ~ 2.56:1 | `static/app/confirm-mode-*.png` |
+| 스톡 사진 | 이미지 느낌 7장 | 16:9 | `references/ai-image-comparison/**` |
+| 글자 그림 | 글씨 크기 1장 | 3.74:1 | 인라인 |
+
+같은 격자에 장표 캡처와 손그림과 사진이 나란히 앉고, 비율이 안 맞는 것은
+잘려 들어간다. 화면에 그려진 크기가 **12가지**가 된 이유다.
+
+**규칙**
+- **고르는 카드의 그림 자리는 언제나 16:9.** 장표를 만드는 도구의 기본
+  단위다 (컨셉 ①). 원본이 16:9 가 아니면 **여백째로 앉힌다. 자르지 않는다.**
+- **한 격자 안에서는 같은 종류.** 사진을 보여주는 격자에 손그림을 섞지
+  않는다. 섞어야 할 만큼 자료가 없으면, 그 질문이 너무 큰 것이다.
+- **사람이 나오면 한국 사람, 한국 장소가 기본.**
+  이 규칙은 [`image-generator.md` §5.2b](.claude/skills/ppt-master/references/image-generator.md)
+  에 이미 있었지만 *만들어 내는 이미지* 에만 걸려 있었다. **화면이 보여주는
+  견본도 이 규칙 안에 있다** — 지금 이미지 느낌 카드 일곱 장이 전부 서양
+  사람인 것은, 그 사진들이 가져다 쓴 파이프라인의 자산
+  (`references/ai-image-comparison/`)이고 규칙 밖이었기 때문이다.
+- 계산되는 것은 그린다. 비율·서술 모양은 자산이 필요 없다 — 그림 파일은
+  진짜 도형의 나쁜 복사본일 뿐이다.
+
+## 흐름 — 디자이너가 클라이언트와 이야기하는 모양
+
+지금은 8,461px 에 고를 것 56개가 **전부 같은 무게로** 놓여 있다. 시안 6개와
+아이콘 6개가 같은 크기 카드로, 같은 간격으로. 디자이너는 그렇게 일하지
+않는다. 카탈로그를 통째로 넘기는 것은 고르라는 게 아니라 **떠넘기는 것**이다.
+
+**순서는 이렇다.**
+
+| | 디자이너가 하는 말 | 화면이 하는 일 |
+|---|---|---|
+| ① | "여기까지 이해했습니다" | 확정한 뼈대를 **가장 크게** 보여준다 |
+| ② | "이렇게 가겠습니다, 왜냐면" | 제안 하나 + 이유 한 줄 |
+| ③ | "이렇게도 됩니다" | 대안은 **둘까지** |
+| ④ | "회사 색이 정해져 있나요?" | 정말 못 정하는 것만 묻는다 |
+| ⑤ | "나머지는 제가 정했습니다" | 한 줄 + «바꾸기» 로 접어 둔다 |
+
+**규칙**
+- **정해진 것은 접혀 있다.** `색 · 플래티넘 그레이 [바꾸기]` 한 줄. 눌러야
+  펴진다. 아래에서 "네 가지 다 정하셨습니다" 라고 말하면서 위에서 전부
+  펼쳐 놓는 것은 앞뒤가 안 맞는다.
+- **펼쳐져 있는 것은 대표가 정말 정해야 하는 것뿐.**
+- **후보는 셋까지.** 열여덟 개를 늘어놓지 않는다. 이 자료에 맞는 셋을 고르고
+  (안전한 것 · 추천 · 과감한 것) 나머지는 «더 보기» 뒤로.
+- **대표가 몰라도 되는 것은 묻지 않는다.** "이미지를 어디서 만들까요" 는
+  결과가 같으면 물을 이유가 없다. 알아서 정하고, 바꿀 수 있게만 둔다.
+- **무게는 결과에 미치는 영향 순서로.** 색과 이미지가 결과를 좌우한다.
+  아이콘은 아니다. 같은 크기 카드로 놓으면 그 사실이 지워진다.
 
 ## Copy
 
@@ -289,3 +400,10 @@ defect, not a wording problem.
 | 2026-09-05 | 글만 있던 질문 둘을 그림 카드로 | "한 번에/나눠서" 와 "계획서 먼저" 가 라디오와 스위치라 갈래가 어떻게 다른지 읽어야 알았다. 이 화면의 약속("고르는 것은 그려서 보여준다")을 정작 이 화면이 어기고 있었다 |
 | 2026-09-05 | `--faint` #8a929e → #68717e | 토스가 쓰는 옅은 회색은 흰 바탕 3.14:1 이라 "+ 장 추가" 가 실제로 안 읽혔다. 새 값은 4.94:1 |
 | 2026-09-05 | 빈 곳 판정을 "위쪽 여백" 에서 **무게중심**으로 | 화면마다 맨 위에 띠가 생기자 위쪽 여백이 늘 0 이 되어 가운데 정렬 판정이 죽었다. 내용 넓이를 세로 위치로 가중한 무게중심이 35~65%면 균형 잡힌 화면이다 |
+| 2026-09-07 | 이 화면은 자기가 만드는 장표처럼 생긴다 — 16:9 반복 · 고른 색이 화면을 칠함 · 장표의 가구를 씀 | «덱과 같은 식구로 보인다» 가 2026-09-05 까지 문장으로만 있었고 화면에는 없었다. 실측하니 요소 818개 중 브랜드색으로 칠해진 면이 0개. 컨셉을 문장이 아니라 세 개의 실행 규칙으로 적어야 다음 화면에서도 지켜진다 |
+| 2026-09-07 | 한 화면에 칠해진 면이 최소 하나 — 이 화면에서는 확정한 뼈대 미리보기 | 60:30:10 은 «넘지 마라» 만 말하고 «최소» 를 말하지 않았다. 그래서 8,461px 을 무채색으로 만들고도 모든 검사를 100점으로 통과했다. 무채색 화면이 대비 검사를 제일 잘 통과한다 — 검사로 못 잡는 자리는 규칙으로 적는다 |
+| 2026-09-07 | 고르는 카드의 그림 자리는 언제나 16:9, 자르지 않고 여백째 앉힌다. 한 격자에는 한 종류만 | 한 화면에 그림이 여섯 종류(장표 캡처·손그림·입체 일러스트·스톡 사진), 원본 비율이 1.36:1 부터 3.74:1 까지 섞여 `cover` 로 잘려 들어갔다. 그려진 크기가 12가지가 됐다. 장표를 만드는 도구의 기본 단위는 장표여야 한다 |
+| 2026-09-07 | «한국 사람이 기본» 은 화면이 보여주는 견본에도 걸린다 | 규칙은 `image-generator.md` §5.2b 에 있었지만 *만들어 내는 이미지* 에만 걸려 있었다. 이미지 느낌 카드 일곱 장은 가져다 쓴 파이프라인의 견본(`references/ai-image-comparison/`)이라 규칙 밖이었고, 그래서 전부 서양 사람이다. 대표가 보는 것에는 예외가 없다 |
+| 2026-09-07 | 화면은 디자이너가 클라이언트와 이야기하는 순서를 따른다 — 이해한 것 → 제안과 이유 → 대안 둘 → 정말 못 정하는 것만 질문 → 나머지는 접어서 알림 | 56개를 같은 무게로 늘어놓는 것은 고르라는 게 아니라 떠넘기는 것이다. 시안 6개와 아이콘 6개가 같은 크기 카드였다 — 결과를 좌우하는 것과 아닌 것의 차이가 지워졌다. 후보는 셋까지, 정해진 것은 «바꾸기» 뒤로 접는다 |
+| 2026-09-07 | 제목과 본문 사이에 한 단을 실제로 쓴다. 크기·굵기 조합은 토큰 안의 것만 | 글자 800여 개 중 136개가 17px·14px — 본문 전체가 3px 폭 안에 있었다. 32 에서 17 로 바로 떨어져 제목을 지나면 한 목소리가 된다. 쓰인 조합 15가지 중 6가지가 토큰 표 밖의 값이었다 |
+| 2026-09-07 | DESIGN.md 의 새 내용은 한국어로 적는다 | 이 문서를 읽고 결정하는 사람은 대표다. 결정 기록은 이미 한국어로 넘어와 있었는데 본문만 영어로 남아 있었고, 그 영어 본문이 두 칸 패널·Paperlogy·번호 배지처럼 **없어진 화면**을 설명하고 있었다. 안 읽히는 문서는 안 고쳐진다 |
