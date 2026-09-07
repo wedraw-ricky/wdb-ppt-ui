@@ -249,9 +249,16 @@ const SKIN_ROLES: [string, string][] = [
   ["--wdb-primary", "accent"],
 ];
 
-export function DeckPreview({ rows, palette, typography, limit = 4 }: {
+export function DeckPreview({ rows, palette, typography, limit = 4, note = true, cols = 4 }: {
   rows: { n: number; title: string; shape: string; image: string }[];
   palette: Dict; typography: Dict; limit?: number;
+  /** 한 줄에 몇 장. 제안 자리에서는 2 — 넉 장을 한 줄에 늘어놓으면 장 하나가
+      230px 라 «이 색이 내 장에 어떤가» 를 볼 수 없다. 두 줄로 앉히면 470px 다. */
+  cols?: 2 | 4;
+  /** 아래 «앞 4장만 보여드립니다» 줄. 칠해진 판 위에 놓을 때는 끄고, 부르는
+      쪽이 흰 바탕에 직접 적는다 — 판 색은 대표가 고르는 값이라 그 위의 글은
+      명암비를 보장할 수 없다. */
+  note?: boolean;
 }) {
   if (!rows?.length) return null;
   const skin: Dict = {};
@@ -261,22 +268,27 @@ export function DeckPreview({ rows, palette, typography, limit = 4 }: {
   const shown = rows.slice(0, limit);
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-4" style={skin}>
+      <div className={`grid gap-3 ${cols === 2 ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
+           style={skin}>
         {shown.map((r) => (
-          <div key={r.n}>
-            <div className="overflow-hidden rounded-xl border"
-                 style={{ borderColor: "var(--border)" }}>
+          /* 장 하나가 흰 카드다. 예전에는 장 그림만 카드였고 제목은 바깥에
+             떠 있었는데, 이 묶음을 칠해진 판 위에 올리자 제목이 남색 바탕에
+             2.92:1 로 묻혔다. 제목을 카드 안으로 들여놓으면 판을 무슨 색으로
+             칠하든 글은 흰 바탕에 남는다. */
+          <div key={r.n} className="overflow-hidden rounded-[var(--r-md)]"
+               style={{ background: "var(--surface)" }}>
+            <div className="overflow-hidden border-b" style={{ borderColor: "var(--border)" }}>
               <SlideArt shape={r.shape} image={r.image} />
             </div>
-            <div className="t-label mt-1.5 truncate"
-                 style={{ fontFamily: typography?.body?.css }}>
+            <div className="t-label truncate px-[var(--s-2)] py-[var(--s-2)]"
+                 style={{ fontFamily: typography?.body?.css, color: "var(--ink-muted)" }}>
               {r.n}. {r.title}
             </div>
           </div>
         ))}
       </div>
-      {rows.length > limit ? (
-        <div className="t-sub mt-2 max-w-[52ch]">
+      {note && rows.length > limit ? (
+        <div className="t-sub mt-2" style={{ maxWidth: "var(--measure)" }}>
           앞 {limit}장만 보여드립니다 — 모두 {rows.length}장이고 나머지도 같은 색과 글꼴로 나옵니다.
         </div>
       ) : null}
@@ -349,7 +361,7 @@ export function ImageSourceChoice({
       ? (cur.includes("none") ? next.filter((v) => v !== "none") : ["none"])
       : next.filter((v) => v !== "none"));
   return (
-    <Pick cols={3} artHeight={112} multi value={cur} onChange={set}
+    <Pick cols={3} multi value={cur} onChange={set}
           ariaLabel="이미지를 어디서 가져올지"
           items={items.map((it) => ({
             id: String(it.id),
@@ -357,7 +369,7 @@ export function ImageSourceChoice({
             note: desc(it) || undefined,
             star: recommended.includes(String(it.id)),
             art: <img src={SOURCE_ART[String(it.id)] ?? SOURCE_ART.none} alt=""
-                      draggable={false} className="h-[84px] w-auto object-contain" />,
+                      draggable={false} className="h-full w-full object-contain p-[var(--s-3)]" />,
           }))} />
   );
 }
@@ -378,13 +390,22 @@ export function StrategyChoice({
           <button key={i} type="button" onClick={() => onSelect(i)} aria-pressed={on}
                   className="overflow-hidden rounded-xl border p-0 text-left transition"
                   style={cardStyle(on)}>
-            <div className="grid grid-cols-2 border-b" style={{ borderColor: "var(--border)" }}>
-              {[["rendering", c.rendering], ["palette", c.palette]].map(([kind, id]) => (
-                <img key={kind as string} loading="lazy" alt=""
-                     src={`/ai-image-comparison/${kind}/${encodeURIComponent(String(id))}.jpg`}
-                     className="aspect-square w-full object-cover"
-                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
-              ))}
+            {/* 그림 자리는 16:9 한 칸 — 그림체를 보여주는 참고 사진이 들어간다.
+                예전에는 그림체와 색조 사진 두 장을 나란히 놓고 각각 **정사각으로
+                잘라** 썼다. 원본이 640×360 이라 위아래가 잘려 나갔고, 카드마다
+                크기도 달라 보였다. 색조는 사진을 또 한 장 놓는 대신 아래 띠로
+                — 색은 잘라도 되는 것이고, 사람이 나오는 사진은 아니다. */}
+            <div className="overflow-hidden" style={{ aspectRatio: "16 / 9", background: "var(--sunken)" }}>
+              <img loading="lazy" alt=""
+                   src={`/ai-image-comparison/rendering/${encodeURIComponent(String(c.rendering))}.jpg`}
+                   className="h-full w-full object-contain"
+                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
+            </div>
+            <div className="h-6 overflow-hidden border-b" style={{ borderColor: "var(--line)" }}>
+              <img loading="lazy" alt=""
+                   src={`/ai-image-comparison/palette/${encodeURIComponent(String(c.palette))}.jpg`}
+                   className="h-full w-full object-cover"
+                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
             </div>
             <div className="p-4">
               <div className="flex items-center t-card">

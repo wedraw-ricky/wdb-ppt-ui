@@ -22,7 +22,7 @@ export interface PickItem {
   label: string;
   /** 카드 아래 한두 줄. 없으면 이름만 나온다. */
   note?: string;
-  /** 카드 위쪽 시각 영역. 그림·도형·비율 상자 무엇이든. */
+  /** 카드 위쪽 그림 자리에 들어갈 것. 그림·도형 무엇이든 16:9 안에 앉는다. */
   art?: React.ReactNode;
   /** 추천 표시. 하나만 붙인다. */
   star?: boolean;
@@ -30,7 +30,7 @@ export interface PickItem {
 }
 
 export function Pick({
-  items, value, onChange, multi = false, cols = 3, artHeight = 112,
+  items, value, onChange, multi = false, cols = 3, art = "slide",
   ariaLabel,
 }: {
   items: PickItem[];
@@ -38,9 +38,18 @@ export function Pick({
   value: string | string[];
   onChange: (v: any) => void;
   multi?: boolean;
-  cols?: 2 | 3 | 4;
-  /** 시각 영역 높이(px). 0 이면 시각 영역 없이 글만. */
-  artHeight?: number;
+  cols?: 1 | 2 | 3 | 4;
+  /** 그림 자리. "slide" = 16:9 장표 (기본) · "none" = 글만.
+   *
+   *  예전에는 높이를 픽셀로 받았고 부르는 쪽마다 148 · 136 · 112 · 104 · 72 ·
+   *  184 로 달랐다. 게다가 안의 그림을 `object-cover` 로 **잘라** 채웠다.
+   *  원본 비율이 16:9 · 1.4:1 · 2.5:1 · 1:1 로 섞여 있어서 화면에 그려진
+   *  크기가 열두 가지가 됐다 — "크기가 다 제각각" 이 이것이다.
+   *
+   *  장표를 만드는 도구의 기본 단위는 장표다 (DESIGN.md 컨셉 ①). 그림
+   *  자리는 언제나 16:9 이고, 비율이 안 맞는 그림은 **자르지 않고 여백째**
+   *  앉힌다. */
+  art?: "slide" | "none";
   ariaLabel?: string;
 }) {
   const chosen = (id: string) =>
@@ -75,9 +84,9 @@ export function Pick({
                   onClick={() => toggle(it.id)}
                   className="overflow-hidden p-0 text-left transition disabled:opacity-40"
                   style={pickStyle(on)}>
-            {artHeight > 0 ? (
-              <div className="grid place-items-center"
-                   style={{ height: artHeight, background: "var(--sunken)" }}>
+            {art === "slide" ? (
+              <div className="grid place-items-center overflow-hidden"
+                   style={{ aspectRatio: "16 / 9", background: "var(--sunken)" }}>
                 {it.art}
               </div>
             ) : null}

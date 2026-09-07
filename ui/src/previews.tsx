@@ -9,7 +9,67 @@
 import type { Dict } from "./api";
 import { T } from "./i18n";
 import { MODE_SHAPES } from "./selectors";
-import { DECK_FALLBACK } from "./stage23";
+import { DECK_FALLBACK, DeckPreview } from "./stage23";
+
+/** 제안 — 화면에서 제일 먼저, 제일 크게, 그리고 유일하게 **칠해진 면**.
+ *
+ *  왜 생겼나. 두 가지가 같은 자리에서 틀어져 있었다.
+ *
+ *  ① 이 화면에서 «결과가 이렇게 나옵니다» 를 말하는 물건은 이것 하나인데,
+ *     맨 아래 «글씨 크기» 안에 폭 160px 로 들어가 있었다. 제일 중요한 것이
+ *     제일 작았다.
+ *  ② 2026-09-07 실측: 요소 818개 중 브랜드색으로 칠해진 면이 0개였다. 흰
+ *     면과 회색 면뿐인데 대비 검사는 100점으로 통과한다 — 무채색 화면이
+ *     대비 검사를 제일 잘 통과하기 때문이다.
+ *
+ *  둘을 한 번에 고친다. 고른 색이 이 판을 칠하고, 그 위에 확정한 장들이
+ *  놓인다. 도구가 자기가 만드는 것을 입고 있다 (DESIGN.md 컨셉 ②).
+ *
+ *  글은 칠해진 면 **위에 올리지 않는다.** 색은 대표가 고르는 값이라 밝을
+ *  수도 어두울 수도 있어서, 그 위에 글을 얹으면 명암비를 보장할 수 없다.
+ *  제목과 설명은 흰 바탕에 둔다.
+ *
+ *  놓이는 면: 흰 면(`--surface`) 위. */
+export function Proposal({ rows, state }: {
+  rows?: { n: number; title: string; shape: string; image: string }[];
+  state: Dict;
+}) {
+  const palette: Dict = state.color?.palette || {};
+  const paint = palette.primary || palette.accent || "var(--accent)";
+  const said = [
+    state.color?.name,
+    state.visual_style ? String(state.visual_style) : null,
+    state.canvas ? String(state.canvas).replace("_", ":") : null,
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <section aria-label="지금까지 정해진 모습" className="mb-[var(--s-10)]">
+      <h2 className="t-sect mb-1.5">
+        {rows?.length
+          ? `확정하신 뼈대 ${rows.length}장이 이렇게 나옵니다`
+          : "고르신 것이 이렇게 나옵니다"}
+      </h2>
+      <p className="t-sub mb-[var(--s-4)]" style={{ maxWidth: "var(--measure)" }}>
+        장 모양과 사진 자리는 앞에서 정하신 그대로입니다 — 색과 글꼴만 바뀝니다.
+        바꾸실 것이 있으면 아래에서 열어 고치세요.
+      </p>
+      <div className="rounded-[var(--r-md)] p-[var(--s-6)]" style={{ background: paint }}>
+        {rows?.length
+          ? <DeckPreview rows={rows} palette={palette} note={false} cols={2}
+                         typography={state.typography || {}} limit={4} />
+          : <SkinPreview state={state} />}
+      </div>
+      {rows && rows.length > 4 ? (
+        <p className="t-sub mt-[var(--s-3)]" style={{ maxWidth: "var(--measure)" }}>
+          앞 4장만 보여드립니다 — 모두 {rows.length}장이고 나머지도 같은 색과 글꼴로 나옵니다.
+        </p>
+      ) : null}
+      {said ? (
+        <p className="t-label mt-[var(--s-2)]" style={{ color: "var(--ink-faint)" }}>{said}</p>
+      ) : null}
+    </section>
+  );
+}
 
 export interface Step {
   key: string;

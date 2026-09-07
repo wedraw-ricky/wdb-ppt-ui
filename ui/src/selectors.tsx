@@ -39,7 +39,7 @@ export function ThumbChoice({
   tags?: Record<string, string>; cols?: number;
 }) {
   return (
-    <Pick cols={(cols as 2 | 3 | 4)} artHeight={148} value={value} onChange={onChange}
+    <Pick cols={(cols as 1 | 2 | 3 | 4)} value={value} onChange={onChange}
           ariaLabel="시안 고르기"
           items={items.map((it) => {
             const src = srcFor(it);
@@ -50,10 +50,56 @@ export function ThumbChoice({
               note: [tags?.[String(it.id)], desc(it)].filter(Boolean).join(" — ") || undefined,
               art: src
                 ? <img src={src} alt="" loading="lazy"
-                       className="h-full w-full object-cover object-top" />
+                       className="h-full w-full object-contain" />
                 : <span className="t-sub">빈 화면에서 시작</span>,
             };
           })} />
+  );
+}
+
+/** 화면 분위기 — 열여덟 개를 늘어놓지 않는다.
+
+    후보를 전부 넘기는 것은 고르라는 게 아니라 **떠넘기는 것**이다. 카드
+    혜택 소개서를 만드는 중인데 픽셀아트·멤피스·진·빈티지 포스터가 같은 크기
+    카드로 놓여 있었고, 그 한 질문이 화면의 절반(4,181px)을 먹었다.
+
+    먼저 보이는 것은 **정한 것 + AI 추천 + 스펙트럼(안전·추천·과감)** 뿐이다.
+    스펙트럼은 추천을 만드는 쪽이 붙여 주는데, 안 붙어 오는 날도 있다 — 그때는
+    추천 하나만 서고 나머지는 «더 보기» 뒤로 간다. 없는 후보를 지어내지 않고,
+    고를 길도 막지 않는다. */
+export function StyleShortlist({
+  items, value, onChange, recommended, spectrum,
+}: {
+  items: Dict[]; value: string; onChange: (v: string) => void;
+  recommended?: string; spectrum?: Record<string, string>;
+}) {
+  const [all, setAll] = useState(false);
+  const first = new Set<string>();
+  for (const id of Object.keys(spectrum || {})) first.add(id);
+  if (recommended) first.add(String(recommended));
+  if (value) first.add(String(value));
+
+  const short = items.filter((it) => first.has(String(it.id)));
+  const rest = items.length - short.length;
+  const shown = all || !short.length ? items : short;
+  // 세 장이면 3열, 두 장이면 2열, 한 장이면 그 한 장을 폭 가득. 3열 격자에
+  // 한 장만 서 있으면 «고를 게 없다» 가 아니라 «덜 그려졌다» 로 보인다.
+  const cols = all || shown.length >= 3 ? 3 : (shown.length as 1 | 2);
+
+  return (
+    <>
+      <ThumbChoice items={shown} value={value} onChange={onChange}
+                   recommended={recommended} tags={spectrum} cols={cols}
+                   srcFor={(it) => `/static/style_previews/${encodeURIComponent(String(it.id))}.svg`} />
+      {rest > 0 && short.length ? (
+        <button type="button" onClick={() => setAll((v) => !v)}
+                className="t-label mt-[var(--s-4)] rounded-[var(--r-pill)] border px-4"
+                style={{ minHeight: "var(--hit-min)", borderColor: "var(--line-strong)",
+                         color: "var(--accent-ink)", background: "var(--surface)" }}>
+          {all ? "추천만 보기" : `다른 ${rest}가지도 보기`}
+        </button>
+      ) : null}
+    </>
   );
 }
 
@@ -74,7 +120,7 @@ export function RatioChoice({
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
   const BOX = 104;
   return (
-    <Pick cols={3} artHeight={136} value={value} onChange={onChange}
+    <Pick cols={3} value={value} onChange={onChange}
           ariaLabel="크기 고르기"
           items={items.map((it) => {
             const [w, h] = parseDim(it.dim);
@@ -258,7 +304,7 @@ export function DiagramChoice({
   items, value, onChange, recommended,
 }: { items: Dict[]; value: string; onChange: (v: string) => void; recommended?: string }) {
   return (
-    <Pick cols={3} artHeight={104} value={value} onChange={onChange}
+    <Pick cols={3} value={value} onChange={onChange}
           ariaLabel="이야기 방식 고르기"
           items={items.map((it) => ({
             id: String(it.id),
@@ -286,7 +332,7 @@ export function IconChoice({
       .then((r) => r.json()).then(setPreviews).catch(() => {});
   }, []);
   return (
-    <Pick cols={3} artHeight={72} value={value} onChange={onChange}
+    <Pick cols={3} value={value} onChange={onChange}
           ariaLabel="아이콘 고르기"
           items={items.map((it) => {
             const glyphs = previews[String(it.id)] || [];
@@ -326,12 +372,12 @@ export function ArtChoice({
   return (
     // 갈래가 둘뿐인 질문이라 한 칸이 넓다. 그림을 작게 넣으면 카드가 대부분
     // 빈 채로 남아 화면이 휑해진다.
-    <Pick cols={2} artHeight={184} value={value} onChange={onChange}
+    <Pick cols={2} value={value} onChange={onChange}
           ariaLabel="고르기"
           items={items.map((it) => ({
             id: it.id, label: it.label, note: it.note, star: recommended === it.id,
             art: <img src={art[it.id]} alt="" draggable={false}
-                      className="h-[140px] w-auto object-contain" />,
+                      className="h-full w-full object-contain p-[var(--s-3)]" />,
           }))} />
   );
 }
@@ -349,7 +395,7 @@ export function Choice({
       {legend ? <div className="t-card mb-3">{legend}</div> : null}
       {/* 라디오 목록이었다. 같은 앱에서 고르는 방식이 두 가지면 어떤 것이
           눌리는지 매번 다시 배워야 한다 — 시각 영역 없는 카드로 통일한다. */}
-      <Pick cols={2} artHeight={0} value={value} onChange={onChange}
+      <Pick cols={2} art="none" value={value} onChange={onChange}
             ariaLabel={legend}
             items={items.map((it) => ({
               id: String(it.id),

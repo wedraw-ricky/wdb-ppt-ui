@@ -9,10 +9,11 @@ import { T, label, desc, candName, candNote } from "./i18n";
 import {
   ArtChoice, AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
   IMAGE_PRESETS,
-  PresetField, RatioChoice, Star, ThumbChoice,
+  PresetField, RatioChoice, Star, StyleShortlist, ThumbChoice,
 } from "./selectors";
 import { Deriving, Disconnected, DoneArt, ErrorArt, LoadingArt } from "./states";
 import { Ask, Jump, Mid, Shell } from "./shell";
+import { Fold } from "../system/patterns";
 import modeContinuous from "./art/mode-continuous.png";
 import modePlanNo from "./art/mode-plan-no.png";
 import modePlanYes from "./art/mode-plan-yes.png";
@@ -21,7 +22,7 @@ import {
   DeckPreview, HexGrid, ImageSourceChoice, PageCount, PaletteChoice,
   StrategyChoice, TypeSpecimen,
 } from "./stage23";
-import { AnchorPreview, ImagePreview, SkinPreview, stageSteps } from "./previews";
+import { AnchorPreview, ImagePreview, Proposal, stageSteps } from "./previews";
 import { Intake } from "./intake";
 import { OutlineEditor } from "./outline";
 import {
@@ -63,9 +64,19 @@ function Section({ k, title, children }: { k: string; title: string; children: R
   return (
     <section id={`sec-${k}`} className={first ? "" : "mt-[var(--s-16)] scroll-mt-[var(--s-6)]"}>
       <Ask title={title} sub={first ? T.hint : undefined} />
-      <div className="flex flex-col gap-9">{children}</div>
+      <div className="flex flex-col gap-[var(--s-3)]">{children}</div>
     </section>
   );
+}
+
+/** 접힌 줄에 보이는 «지금 고른 값». 목록에서 이름을 찾아 준다.
+    못 찾으면 정하지 않은 것이니 그렇게 말한다 — 빈 줄을 두면 고장인지
+    안 정한 것인지 모른다. */
+const NOT_SET = "아직 정하지 않음";
+function named(list: any[] | undefined, id: any): string {
+  if (id === undefined || id === null || id === "") return NOT_SET;
+  const it = (list || []).find((x: Dict) => String(x.id) === String(id));
+  return it ? label(it) : String(id);
 }
 
 /** Generative candidates (colour / typography / image style) as pickable cards. */
@@ -398,64 +409,72 @@ function Confirm() {
           </Button>
         </>
       }>
+      {/* 제안이 먼저다. 디자이너는 «여기까지 이해했습니다» 를 보여주고 나서
+          바꿀 것을 묻는다 (DESIGN.md 흐름 ①). 예전에는 이 미리보기가 맨 아래
+          «글씨 크기» 안에 폭 160px 로 들어 있었다 — 제일 중요한 것이 제일
+          작았다. 칠해진 면도 여기 하나다 (컨셉 ②). */}
+      <Proposal rows={outlineDoc?.rows} state={state} />
       <Jump steps={steps} />
       <StepCtx.Provider value={stepCtx}>
           {showAnchors && (
             <Section k="frame" title="어떤 틀로 만들까요?">
-              <div>
-                <div className="t-sect mb-3">이미 있는 디자인</div>
-
-                  <ThumbChoice
-                    items={cat.templates} value={state.template}
-                    onChange={(v) => set("template", v)} recommended={R.template}
-                    srcFor={(it) =>
-                      it.id === "free" ? null
-                        : `/api/template_preview/${encodeURIComponent(it.id)}?lang=ko`}
-                  />
-              </div>
-              <div>
-                <div className="t-sect mb-3">크기</div>
-
-                {/* 발표자료가 쓰는 크기만 남긴다. 인스타·위챗·샤오홍슈·모먼츠·
-                    스토리·배너는 카드뉴스 형식이라 이 화면과 상관이 없다 —
-                    고를 수 없는 것을 늘어놓으면 고르는 사람이 헤맨다. */}
+              <Fold name="시안" open={!state.template} warn={!state.template}
+                    value={named(cat.templates, state.template)}>
+                <ThumbChoice
+                  items={cat.templates} value={state.template}
+                  onChange={(v) => set("template", v)} recommended={R.template}
+                  srcFor={(it) =>
+                    it.id === "free" ? null
+                      : `/api/template_preview/${encodeURIComponent(it.id)}?lang=ko`}
+                />
+              </Fold>
+              {/* 발표자료가 쓰는 크기만 남긴다. 인스타·위챗·샤오홍슈·모먼츠·
+                  스토리·배너는 카드뉴스 형식이라 이 화면과 상관이 없다 —
+                  고를 수 없는 것을 늘어놓으면 고르는 사람이 헤맨다. */}
+              <Fold name="크기" open={!state.canvas} warn={!state.canvas}
+                    value={named(DECK_CANVAS(cat), state.canvas)}>
                 <RatioChoice items={DECK_CANVAS(cat)} value={state.canvas}
                              onChange={(v) => set("canvas", v)} recommended={R.canvas} />
                 {/* 고른 크기가 실제로 어떤 비율인지, 그리고 템플릿과 안 맞으면
-                    여기서 막는다. 예전에는 이 경고가 화면 왼쪽 패널에 있어
-                    질문에서 눈을 떼야 보였다. */}
+                    여기서 막는다. */}
                 <AnchorPreview state={state} cat={cat} ack={mismatchAck}
                                onFixCanvas={(id) => set("canvas", id)}
                                onAck={() => setMismatchAck((v) => !v)} />
-              </div>
+              </Fold>
             </Section>
           )}
 
           {showDesign && (
             <Section k="look" title="어떤 느낌으로 만들까요?">
+              <Fold name="서술 방식" open={!state.mode} warn={!state.mode}
+                    value={named(cat.modes, state.mode)}>
+                <DiagramChoice items={cat.modes || []} value={state.mode}
+                               onChange={(v) => set("mode", v)} recommended={R.mode} />
+              </Fold>
 
-                <div>
-                  <div className="mb-3 text-base font-semibold">{T.subMode}</div>
-                  <DiagramChoice items={cat.modes || []} value={state.mode}
-                                 onChange={(v) => set("mode", v)} recommended={R.mode} />
-                </div>
-                <div>
-                  <div className="mb-3 text-base font-semibold">{T.subVisual}</div>
-                  <ThumbChoice
-                    items={styleItems} value={state.visual_style}
-                    onChange={(v) => set("visual_style", v)} recommended={R.visual_style}
-                    tags={spectrum} cols={3}
-                    srcFor={(it) => `/static/style_previews/${encodeURIComponent(it.id)}.svg`} />
-                </div>
-                {state.template_adherence && (
+              {/* 후보를 열여덟 개 늘어놓는 것은 고르라는 게 아니라 떠넘기는
+                  것이다 (DESIGN.md 흐름). 정해 둔 것과 «안전 · 추천 · 과감»
+                  후보만 먼저 보이고, 나머지는 더 보기 뒤로. */}
+              <Fold name="화면 분위기" open={!state.visual_style} warn={!state.visual_style}
+                    value={named(styleItems, state.visual_style)}>
+                <StyleShortlist
+                  items={styleItems} value={state.visual_style}
+                  onChange={(v) => set("visual_style", v)} recommended={R.visual_style}
+                  spectrum={spectrum} />
+              </Fold>
+
+              {state.template_adherence && (
+                <Fold name="시안 따르기"
+                      value={named(cat.template_adherence, state.template_adherence)}>
                   <Choice legend={T.subAdherence} items={cat.template_adherence || []}
                           value={state.template_adherence}
                           onChange={(v) => set("template_adherence", v)}
                           recommended={R.template_adherence} />
-                )}
-              <div>
-                <div className="t-sect mb-3">색</div>
+                </Fold>
+              )}
 
+              <Fold name="색" open={!state.color?.name} warn={!state.color?.name}
+                    value={state.color?.name || NOT_SET}>
                 <PaletteChoice
                   candidates={rec.color?.candidates || []}
                   selectedIndex={(rec.color?.candidates || []).findIndex(
@@ -467,9 +486,9 @@ function Confirm() {
                     set("color", { name: candName(c), palette: { ...c.palette } });
                   }}
                 />
-                <div>
+                <div className="mt-[var(--s-6)]">
                   <div className="mb-3 t-card">{T.hexOverride}</div>
-                  <div className="t-sub mb-3 max-w-[52ch]">
+                  <div className="t-sub mb-3" style={{ maxWidth: "var(--measure)" }}>
                     후보에 마음에 드는 게 없으면 여기서 직접 넣으세요. 여섯 자리를
                     다 바꿔도 되고, 강조색 하나만 바꿔도 됩니다.
                   </div>
@@ -478,16 +497,16 @@ function Confirm() {
                              setState((s) => ({ ...s,
                                color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))} />
                 </div>
-              </div>
-              <div>
-                <div className="t-sect mb-3">아이콘</div>
+              </Fold>
 
+              <Fold name="아이콘" value={named(cat.icons, state.icons)}>
                 <IconChoice items={cat.icons || []} value={state.icons}
                             onChange={(v) => set("icons", v)} recommended={R.icons} />
-              </div>
-              <div>
-                <div className="t-sect mb-3">글씨 크기</div>
+              </Fold>
 
+              <Fold name="글씨 크기"
+                    value={state.typography?.body_size
+                      ? `본문 ${state.typography.body_size}pt` : NOT_SET}>
                 <TypeSpecimen
                   typography={state.typography || {}}
                   onBody={(v) => setState((s) => {
@@ -502,43 +521,34 @@ function Confirm() {
                   onRole={(role, v) => setState((s) => ({ ...s,
                     typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
                 />
-                <div>
-                  {/* 뼈대에서 고른 그 장들을 지금 색과 글꼴로 다시 그린다.
-                      견본 한 장을 보여주면 "이 색이 내 장에 어떤가" 를 알 수 없다. */}
-                  <div className="t-sect mb-1">확정하신 뼈대가 이 색으로 이렇게 나옵니다</div>
-                  <div className="t-sub mb-3 max-w-[52ch]">
-                    장 모양과 사진 자리는 앞에서 정하신 그대로입니다 — 색과 글꼴만 바뀝니다.
-                  </div>
-                  {outlineDoc?.rows?.length
-                    ? <DeckPreview rows={outlineDoc.rows}
-                                   palette={state.color?.palette || {}}
-                                   typography={state.typography || {}} />
-                    : <SkinPreview state={state} />}
-                </div>
-              </div>
+              </Fold>
             </Section>
           )}
 
           {showImages && (
             <>
               <Section k="images" title={T.secImages}>
+                <Fold name="어디서" open={!(state.image_usage || []).length}
+                      warn={!(state.image_usage || []).length}
+                      value={(Array.isArray(state.image_usage) ? state.image_usage : [])
+                        .map((u: string) => named(cat.image_usage, u)).join(" · ") || NOT_SET}>
+                  <ImageSourceChoice
+                    items={cat.image_usage || []} value={state.image_usage}
+                    onChange={(v) => set("image_usage", v)}
+                    recommended={Array.isArray(R.image_usage) ? R.image_usage : [R.image_usage].filter(Boolean)} />
+                </Fold>
 
-                <ImageSourceChoice
-                  items={cat.image_usage || []} value={state.image_usage}
-                  onChange={(v) => set("image_usage", v)}
-                  recommended={Array.isArray(R.image_usage) ? R.image_usage : [R.image_usage].filter(Boolean)} />
-                <PresetField
-                  legend={T.subImageNotes}
-                  hint="가까운 것을 고르고 필요하면 고쳐 쓰세요"
-                  presets={IMAGE_PRESETS} value={state.image_notes}
-                  onChange={(v) => set("image_notes", v)} placeholder={T.phImageNotes} />
+                <Fold name="더 할 말" value={String(state.image_notes || "").trim() || "없음"}>
+                  <PresetField
+                    legend={T.subImageNotes}
+                    hint="가까운 것을 고르고 필요하면 고쳐 쓰세요"
+                    presets={IMAGE_PRESETS} value={state.image_notes}
+                    onChange={(v) => set("image_notes", v)} placeholder={T.phImageNotes} />
+                </Fold>
+
                 {aiOn && (
                   <>
-                    <Choice legend={T.subImagePath} items={cat.image_ai_path || []}
-                            value={state.image_ai_path}
-                            onChange={(v) => set("image_ai_path", v)} recommended={R.image_ai_path} />
-                    <div>
-                      <div className="mb-3 text-base font-semibold">{T.subImageStrategy}</div>
+                    <Fold name="이미지 느낌" value={state.image_strategy?.name || NOT_SET}>
                       <StrategyChoice
                         candidates={rec.image_strategy?.candidates || []}
                         selectedIndex={(rec.image_strategy?.candidates || []).findIndex(
@@ -547,50 +557,52 @@ function Confirm() {
                         nameOf={candName} noteOf={candNote}
                         onSelect={(i) => set("image_strategy", { ...rec.image_strategy.candidates[i] })}
                       />
-                    </div>
+                      <div className="mt-[var(--s-6)]"><ImagePreview state={state} /></div>
+                    </Fold>
+
+                    {/* 어디서 만들지는 결과가 같다 — 대표가 정할 일이 아니다.
+                        정해 두고 바꿀 길만 열어 둔다 (DESIGN.md 흐름 ⑤). */}
+                    <Fold name="만드는 곳" value={named(cat.image_ai_path, state.image_ai_path)}>
+                      <Choice legend={T.subImagePath} items={cat.image_ai_path || []}
+                              value={state.image_ai_path}
+                              onChange={(v) => set("image_ai_path", v)} recommended={R.image_ai_path} />
+                    </Fold>
                   </>
                 )}
-                {/* 고른 이미지 방향이 실제로 어떤 그림인지. 옆 패널에 있을 때는
-                    고르는 곳과 보는 곳이 떨어져 있어 대조가 안 됐다. */}
-                <ImagePreview state={state} />
               </Section>
+
               <Section k="finish" title="마무리">
-                <div>
-                  <div className="t-sect mb-3">{T.secFormula}</div>
+                <Fold name="수식" value={named(cat.formula_policy, state.formula_policy)}>
+                  <Choice items={cat.formula_policy || []} value={state.formula_policy}
+                          onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
+                </Fold>
 
-                <Choice items={cat.formula_policy || []} value={state.formula_policy}
-                        onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
-                </div>
-                <div>
-                  <div className="t-sect mb-3">{T.secMode}</div>
-
-                <ArtChoice
-                  items={(cat.generation_mode || []).map((m: Dict) => ({
-                    id: String(m.id), label: String(m.label_ko || m.id),
-                    note: String(m.desc_ko || m.note_ko || ""),
-                  }))}
-                  value={state.generation_mode}
-                  onChange={(v) => set("generation_mode", v)}
-                  recommended={R.generation_mode}
-                  art={{ continuous: modeContinuous, split: modeSplit }} />
-                </div>
-                <div>
-                  <div className="t-sect mb-3">{T.secRefine}</div>
+                <Fold name="만들기" value={named(cat.generation_mode, state.generation_mode)}>
+                  <ArtChoice
+                    items={(cat.generation_mode || []).map((m: Dict) => ({
+                      id: String(m.id), label: String(m.label_ko || m.id),
+                      note: String(m.desc_ko || m.note_ko || ""),
+                    }))}
+                    value={state.generation_mode}
+                    onChange={(v) => set("generation_mode", v)}
+                    recommended={R.generation_mode}
+                    art={{ continuous: modeContinuous, split: modeSplit }} />
+                </Fold>
 
                 {/* 켬/끔 스위치였다. 두 갈래가 어떻게 다른지는 스위치가 말해주지
-                    못해서, 켠 상태의 글을 읽어야만 알 수 있었다. 카드 둘로
-                    바꾸니 고르기 전에 차이가 보인다. */}
-                <ArtChoice
-                  items={[
-                    { id: "yes", label: T.refineOn,
-                      note: "기획서를 먼저 확인하고, 고칠 것을 고친 뒤에 슬라이드를 만듭니다" },
-                    { id: "no", label: T.refineOff,
-                      note: "기획서를 건너뛰고 바로 슬라이드까지 만듭니다" },
-                  ]}
-                  value={state.refine_spec ? "yes" : "no"}
-                  onChange={(v) => set("refine_spec", v === "yes")}
-                  art={{ yes: modePlanYes, no: modePlanNo }} />
-                </div>
+                    못해서, 켠 상태의 글을 읽어야만 알 수 있었다. */}
+                <Fold name="계획서" value={state.refine_spec ? T.refineOn : T.refineOff}>
+                  <ArtChoice
+                    items={[
+                      { id: "yes", label: T.refineOn,
+                        note: "기획서를 먼저 확인하고, 고칠 것을 고친 뒤에 슬라이드를 만듭니다" },
+                      { id: "no", label: T.refineOff,
+                        note: "기획서를 건너뛰고 바로 슬라이드까지 만듭니다" },
+                    ]}
+                    value={state.refine_spec ? "yes" : "no"}
+                    onChange={(v) => set("refine_spec", v === "yes")}
+                    art={{ yes: modePlanYes, no: modePlanNo }} />
+                </Fold>
               </Section>
             </>
           )}

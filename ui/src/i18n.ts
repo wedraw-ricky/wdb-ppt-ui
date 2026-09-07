@@ -2,7 +2,7 @@
    questions, descriptions say what you get, no pipeline jargon. */
 export const T = {
   title: "PPT 만들기 — 디자인 정하기",
-  hint: "네 가지를 한 장에 폈습니다. 위 꼬리표를 누르면 그 자리로 바로 갑니다 — 그대로 두셔도 추천값으로 만듭니다.",
+  hint: "정해 놓은 것은 한 줄로 접어 두었습니다. 바꾸실 것만 «바꾸기» 로 여세요 — 그대로 두셔도 그 값으로 만듭니다.",
   stages: ["1단계 · 무엇을, 누구에게", "2단계 · 어떤 모습으로", "3단계 · 이미지와 마무리"],
   loading: "불러오는 중…",
   errCanvasMismatch: "고르신 크기가 템플릿 기준과 다릅니다. 왼쪽에서 크기를 맞추거나, 구조 없이 색·서체만 가져오기를 눌러 확인해 주세요.",

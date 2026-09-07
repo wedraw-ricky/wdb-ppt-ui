@@ -17,7 +17,14 @@
  *    고를 것이 없다. 여는 중·기다리는 중·못 읽음·다 됐어요.
  *    그림 하나 + 무슨 일인지 + (무엇을 하면 되는지).
  *
- * ④ 비었을 때        `Empty`
+ * ④ 정해진 것       `Fold`
+ *    이미 정해진 것은 **접혀 있다.** 한 줄(이름 · 고른 값 · «바꾸기») 이고,
+ *    누르면 펴진다. 아직 안 정한 것만 펴 둔다.
+ *
+ *    왜: 56개를 같은 무게로 늘어놓는 것은 고르라는 게 아니라 떠넘기는 것이다.
+ *    디자이너는 «나머지는 제가 정했습니다» 라고 말하고 바꿀 길만 열어 둔다.
+ *
+ * ⑤ 비었을 때        `Empty`
  *    있어야 할 것이 없다. **빈 격자를 그냥 두지 않는다** — 쓰는 사람은
  *    고장인지 원래 그런지 모른다. 아래를 반드시 말한다.
  *      · 무엇이 없는지
@@ -28,7 +35,53 @@
  * 전부 흰 면(`--surface`) 위. 파란 면 위에 놓는 짜임은 이제 없다.
  */
 
-import type React from "react";
+import React from "react";
+
+/** 정해진 것 하나 — 접힌 한 줄. 눌러야 펴진다 (짜임 ④).
+ *
+ * 닫힌 모습:  ● 색      플래티넘 그레이            바꾸기 ▾
+ * 열린 모습:  같은 줄 + 아래에 고르는 자리.
+ *
+ * 아직 안 정한 것은 `open` 을 처음부터 켜서 보낸다 — 접어 두면 «안 정했다» 는
+ * 사실이 화면에서 사라진다. */
+export function Fold({ name, value, children, open: openInit = false, warn = false }: {
+  /** 무엇을 정하는 자리인지. 두세 글자. */
+  name: string;
+  /** 지금 정해져 있는 값. 접힌 줄에서 이것만 보인다. */
+  value: React.ReactNode;
+  children: React.ReactNode;
+  open?: boolean;
+  /** 아직 안 정했다 — 색만이 아니라 점으로도 말한다 (WCAG 1.4.1). */
+  warn?: boolean;
+}) {
+  const [open, setOpen] = React.useState(openInit);
+  return (
+    <div className="rounded-[var(--r-md)] border"
+         style={{ borderColor: warn ? "var(--warn)" : "var(--line-strong)",
+                  background: "var(--surface)" }}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)}
+              className="flex w-full items-center gap-[var(--s-3)] px-[var(--s-5)] text-left"
+              style={{ minHeight: "var(--hit-ctl)" }}>
+        {warn ? <span aria-hidden="true" style={{ color: "var(--warn)" }}>•</span> : null}
+        <span className="t-sub shrink-0" style={{ color: "var(--ink-faint)", minWidth: "6em" }}>
+          {name}
+        </span>
+        <span className="t-card truncate" style={{ color: warn ? "var(--warn)" : "var(--ink)" }}>
+          {value}
+        </span>
+        <span className="t-label ml-auto shrink-0" style={{ color: "var(--accent-ink)" }}>
+          {open ? "접기 ▴" : "바꾸기 ▾"}
+        </span>
+      </button>
+      {open ? (
+        <div className="border-t px-[var(--s-5)] pb-[var(--s-6)] pt-[var(--s-5)]"
+             style={{ borderColor: "var(--line)" }}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function Empty({
   title, children, action, compact = false,
