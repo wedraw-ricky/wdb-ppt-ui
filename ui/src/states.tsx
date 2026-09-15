@@ -1,231 +1,162 @@
-/* Waiting and finished states.
+/* 알리는 화면 셋: 7 만드는 중, 8 완성, 멈췄을 때. DESIGN.md «알리는 화면»:
+   무엇을 했고 무엇이 남았는지만. 몇 % 는 적지 않는다. 재는 게 없다.
 
-   Drawn, not generated. DESIGN.md's own rule — "draw it if it can be computed"
-   — applies: inline SVG inherits the colour tokens (so a palette change follows
-   automatically), stays flat by construction where a generated illustration kept
-   coming back isometric, and costs about a kilobyte instead of a megabyte.
-
-   The waiting screen shows no percentage. The agent's work is not instrumented,
-   so any number would be invented. What it shows instead is true: an
-   indeterminate bar (something is running), an elapsed counter (it is still
-   running), and the name of the stage being prepared. */
+   «만드는 중» 은 파이프라인이 다음 것을 쓰는 동안(기획서, 뼈대, 다음 단계
+   후보) 보인다. 남은 일은 /api/progress 가 준 메모로 채운다. 멈췄을 때는
+   서버 심장박동이 두 번 연속 끊겼을 때다. 한 번 끊긴 건 알리지 않는다. */
 
 import { useEffect, useState } from "react";
+import { Shell } from "./shell";
+import { Panel, Empty } from "../system/patterns";
+import { Storyboard } from "./slides";
+import type { Row } from "./outline/model";
+import type { Palette } from "./slides";
 import * as api from "./api";
-import { T } from "./i18n";
-import doneArt from "./art/done.png";
-import errorArt from "./art/error.png";
-import loadingArt from "./art/loading.png";
 
-const PANEL = "var(--wdb-card-bg)";
-const LINE = "var(--border)";
-const INDIGO = "var(--wdb-secondary)";
-const BLUE = "var(--wdb-primary)";
-const CYAN = "var(--wdb-cyan)";
-const GRAY = "var(--wdb-gray)";
+const PROGRESS_POLL_MS = 3000;
 
-const CYCLE = "3.6s";
-
-// Often enough that a note lands while the person is still looking at the
-// step before it; rare enough to be invisible next to the 1s stage poll.
-const PROGRESS_POLL_MS = 2_000;
-
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const on = () => setReduced(m.matches);
-    on();
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
-  }, []);
-  return reduced;
-}
-
-/** Seconds since mount. The only honest progress signal available: it proves
-    the page is live without claiming to know how much work is left. */
-function Elapsed() {
+function useElapsed(): number {
   const [s, setS] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setS((v) => v + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const mm = Math.floor(s / 60), ss = s % 60;
-  return (
-    <span className="tabular-nums text-[13px]" style={{ color: "var(--muted)" }}>
-      {mm}:{String(ss).padStart(2, "0")} 경과
-    </span>
-  );
+  useEffect(() => { const t = setInterval(() => setS((v) => v + 1), 1000); return () => clearInterval(t); }, []);
+  return s;
 }
+const fmt = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}분 ${s % 60}초` : `${s}초`);
 
-/** Indeterminate bar. A band sweeps the track; it never claims a percentage. */
-function Sweep({ animate }: { animate: boolean }) {
-  return (
-    <div className="h-1.5 w-[260px] overflow-hidden rounded-full"
-         style={{ background: "var(--border)" }}>
-      <div className={animate ? "wdb-sweep h-full w-2/5 rounded-full" : "h-full w-full rounded-full"}
-           style={{ background: `linear-gradient(90deg, ${INDIGO}, ${BLUE}, ${CYAN})` }} />
-    </div>
-  );
-}
-
-/** A page being composed: the title rules in, body lines fill, the image lands,
-    then the palette is swatched — the order the work actually happens in. */
-export function WaitingArt({ animate = true }: { animate?: boolean }) {
-  const A = (props: Record<string, string>) =>
-    animate ? <animate dur={CYCLE} repeatCount="indefinite" {...props} /> : null;
-
-  return (
-    <svg viewBox="0 0 220 132" className="h-[132px] w-[220px]" role="img"
-         aria-label="다음 단계를 준비하는 중">
-      <rect x="14" y="10" width="192" height="108" rx="5"
-            fill={PANEL} stroke={LINE} strokeWidth="1" />
-
-      <g>
-        {/* the whole composition clears before the next pass, so nothing snaps */}
-        {A({ attributeName: "opacity", values: "1;1;0;0",
-             keyTimes: "0;0.90;0.97;1" })}
-
-        <rect x="28" y="26" height="11" rx="2" fill={INDIGO} width={animate ? 0 : 74}>
-          {A({ attributeName: "width", values: "0;0;74;74;74",
-               keyTimes: "0;0.04;0.20;0.9;1", calcMode: "spline",
-               keySplines: "0.4 0 0.2 1;0.4 0 0.2 1;0 0 1 1;0 0 1 1" })}
-        </rect>
-
-        <rect x="28" y="46" height="6" rx="2" fill={GRAY} opacity="0.35" width={animate ? 0 : 66}>
-          {A({ attributeName: "width", values: "0;0;66;66;66",
-               keyTimes: "0;0.20;0.34;0.9;1", calcMode: "spline",
-               keySplines: "0 0 1 1;0.4 0 0.2 1;0 0 1 1;0 0 1 1" })}
-        </rect>
-        <rect x="28" y="58" height="6" rx="2" fill={GRAY} opacity="0.35" width={animate ? 0 : 50}>
-          {A({ attributeName: "width", values: "0;0;50;50;50",
-               keyTimes: "0;0.26;0.40;0.9;1", calcMode: "spline",
-               keySplines: "0 0 1 1;0.4 0 0.2 1;0 0 1 1;0 0 1 1" })}
-        </rect>
-
-        <rect x="124" y="26" width="68" height="50" rx="3" fill={BLUE}
-              opacity={animate ? 0 : 1}>
-          {A({ attributeName: "opacity", values: "0;0;1;1;1",
-               keyTimes: "0;0.42;0.56;0.9;1" })}
-        </rect>
-
-        {/* the palette, swatched one at a time */}
-        {[INDIGO, BLUE, CYAN, GRAY].map((c, i) => (
-          <rect key={i} x={28 + i * 17} y="90" width="13" height="13" rx="2" fill={c}
-                opacity={animate ? 0 : 1}>
-            {A({ attributeName: "opacity", values: "0;0;1;1;1",
-                 keyTimes: `0;${(0.58 + i * 0.06).toFixed(2)};${(0.66 + i * 0.06).toFixed(2)};0.9;1` })}
-          </rect>
-        ))}
-      </g>
-    </svg>
-  );
-}
-
-/** What the agent has actually done since this wait began.
-
-    A stage label alone stops reading as movement within about half a minute —
-    the elapsed counter proves the page is alive, but not that the *work* is.
-    These are the agent's own notes, and they are strictly a record: the last
-    one is what is happening now, the ones above it already finished. Nothing
-    counts what is left, because nothing here knows. */
-function useProgress(): string[] {
+/** 이번 기다림에 속한 메모만. 이전 단계의 메모가 섞이지 않게 나이로 거른다. */
+function useNotes(): string[] {
   const [notes, setNotes] = useState<string[]>([]);
+  const [started] = useState(() => Date.now());
   useEffect(() => {
-    const startedAt = Date.now();
     let stopped = false;
     async function read() {
       const all = await api.progressNotes();
       if (stopped) return;
-      // Only notes from this wait. An older one would describe work that
-      // finished before the person even got here.
-      const waited = (Date.now() - startedAt) / 1000 + 2;
+      const waited = (Date.now() - started) / 1000 + PROGRESS_POLL_MS / 1000;
       setNotes(all.filter((n) => n.age_seconds <= waited).map((n) => n.note));
     }
     read();
     const id = setInterval(read, PROGRESS_POLL_MS);
     return () => { stopped = true; clearInterval(id); };
-  }, []);
+  }, [started]);
   return notes;
 }
 
-function ProgressTrail({ notes }: { notes: string[] }) {
-  if (notes.length === 0) return null;
-  const last = notes.length - 1;
+export type WaitKind = "plan" | "outline" | "stage" | "final";
+const WAIT: Record<WaitKind, { band: "기획" | "발표"; step: string; pct: number; title: string; sub: string; steps: string[]; done: string[] }> = {
+  plan:    { band: "기획", step: "3 · 기획서", pct: 26, title: "기획서를 쓰고 있어요", sub: "1~2분쯤 걸려요. 창을 닫아도 계속돼요.",
+             steps: ["자료 다시 읽기", "제목과 거버닝 메시지 쓰기", "틀의 절마다 채우기", "없는 숫자는 확인 필요로"], done: ["자료 읽음", "인터뷰 답 저장"] },
+  outline: { band: "발표", step: "5 · 뼈대", pct: 52, title: "뼈대를 짜고 있어요", sub: "1분쯤 걸려요. 창을 닫아도 계속돼요.",
+             steps: ["흐름 정하기", "장으로 나누기", "장마다 모양과 사진 자리", "결론이 문서와 같은지 검사"], done: ["자료 읽음", "인터뷰 답", "기획서"] },
+  stage:   { band: "발표", step: "6 · 디자인", pct: 66, title: "다음 후보를 준비하고 있어요", sub: "30초쯤 걸려요. 고르신 것에 맞춰 색과 글꼴 후보를 다시 골라요.",
+             steps: ["고른 것 저장", "색 후보 셋 고르기", "글꼴과 아이콘 맞추기"], done: ["자료 읽음", "인터뷰 답", "기획서", "뼈대"] },
+  final:   { band: "발표", step: "7 · 만드는 중", pct: 86, title: "만들고 있어요", sub: "몇 분 걸려요. 창을 닫아도 계속돼요.",
+             steps: ["사진 만들기", "장 그리기", "글자 넘침과 대비 검사", "파워포인트로 내보내기"], done: ["자료 읽음", "인터뷰 답", "기획서", "뼈대", "색과 사진 정함"] },
+};
+
+export function Making({ kind, rows, palette, onStop }: { kind: WaitKind; rows: Row[]; palette?: Palette | null; onStop?: () => void }) {
+  const w = WAIT[kind];
+  const elapsed = useElapsed();
+  const notes = useNotes();
   return (
-    <ul className="flex w-[320px] flex-col gap-1.5" aria-live="polite">
-      {notes.map((note, i) => (
-        <li key={`${i}-${note}`} className="flex items-baseline gap-2 text-[13px]"
-            style={{ color: i === last ? "var(--foreground)" : "var(--muted)",
-                     fontWeight: i === last ? 600 : 400 }}>
-          <span aria-hidden="true" style={{ color: i === last ? CYAN : GRAY }}>
-            {i === last ? "▸" : "✓"}
-          </span>
-          <span className="min-w-0 flex-1">{note}</span>
-        </li>
-      ))}
-    </ul>
+    <Shell band={w.band} step={w.step} pct={w.pct} title={w.title} sub={w.sub}
+      say={<>순서는 이래요.<ol>{w.steps.map((s) => <li key={s}>{s}</li>)}</ol>끝나는 대로 아래에 채워져요.</>}
+      side={
+        <>
+          <Panel label="지난 시간">
+            <div className="big">{fmt(elapsed)}</div>
+            <div className="k">몇 %인지는 적지 않아요. 재는 게 없거든요.<br />무엇을 했는지가 살아 있다는 증거예요.</div>
+          </Panel>
+          <Panel label="서버가 끊기면">
+            <div style={{ fontSize: 14, lineHeight: 1.7 }}>두 번 연속 대답이 없을 때 여기서 말해요.<br />한 번 끊긴 건 알리지 않아요. 결정하는 중에 경고가 번쩍이면 안 되니까요.</div>
+          </Panel>
+        </>
+      }
+      footNote={notes.length ? notes[notes.length - 1] : "채팅 창의 진행도 여기 함께 보여요"}
+      actions={onStop ? [{ label: "멈추기", kind: "ghost", onClick: onStop }] : []}>
+      {kind === "final" && rows.length ? (
+        <Panel label="결과물 · 채워지는 스토리보드" kind="out">
+          <Storyboard rows={rows} palette={palette} done={0} />
+          <div className="k">장이 완성되는 순서는 파이프라인이 아직 알려 주지 않아요. 끝나면 한 번에 채워져요.</div>
+        </Panel>
+      ) : null}
+      <Panel label="지금까지 한 것">
+        <ul className="c" style={{ fontSize: 15, gap: 8 }}>
+          {w.done.map((d) => <li key={d}>{d}</li>)}
+          {notes.map((n, i) => <li key={i} className={i === notes.length - 1 ? "now" : ""}>{n}</li>)}
+          {!notes.length ? <li className="now">{w.steps[0]}</li> : null}
+          {w.steps.slice(notes.length ? 0 : 1).map((s) => <li key={s} className="todo">{s}</li>)}
+        </ul>
+      </Panel>
+    </Shell>
   );
 }
 
-/** The waiting screen: art, an honest bar, what is being prepared, elapsed. */
-export function Deriving({ target }: { target: number }) {
-  const reduced = useReducedMotion();
-  const notes = useProgress();
-  const what = target === 0 ? "자료를 읽고 기획 뼈대를 짜는 중"
-             : target === 2 ? "색과 글꼴 후보를 고르는 중"
-             : target === 3 ? "이미지 방향을 정리하는 중"
-             : "다음 단계를 준비하는 중";
+const REVERT: [string, string, string][] = [
+  ["기획으로 · 내용과 결론", "남아요: 답, 자료", "바뀌어요: 기획서부터 전부"],
+  ["뼈대로 · 장 순서와 제목", "남아요: 기획서, 색, 사진", "바뀌어요: 장 구성"],
+  ["디자인으로 · 색과 사진", "남아요: 글, 순서, 사진 자리", "바뀌어요: 색, 글꼴, 사진"],
+  ["사진만 다시 만들기", "남아요: 전부", "바뀌어요: 사진만"],
+];
+
+export function Done({ rows, palette, docToo }: { rows: Row[]; palette?: Palette | null; docToo: boolean }) {
   return (
-    <div className="grid h-full place-items-center px-8">
-      <div className="flex flex-col items-center gap-5">
-      <WaitingArt animate={!reduced} />
-      <div className="flex flex-col items-center gap-2.5">
-        <div className="text-[15px] font-bold" style={{ color: "var(--foreground)" }}>
-          {target === 0 ? "기획" : `${target}단계`} · {what}
+    <Shell band="발표" step="8 · 완성" pct={100} title="다 정했어요"
+      sub={<>고르신 것이 저장됐어요. 이 창을 닫고 채팅으로 돌아가면 파이프라인이 만들기를 이어가요.<br />고칠 게 있으면 채팅에서 «디자인 다시»라고 하면 그 단계로 돌아가요.</>}
+      say={<>{rows.length ? <>{rows.length}장, </> : null}{docToo ? "워드 문서와 함께 " : ""}만들어요.<br />다 되면 채팅에 PPTX 와 PDF 가 와요. 파워포인트에서 글자 하나까지 고칠 수 있게 만들어요.</>}
+      side={
+        <>
+          <Panel label="넘기기 전에 볼 것" kind="memo">
+            <Empty title="완성되면 여기에 적어요">확인 필요가 남은 장, 잘 나온 장, 걱정되는 장. 지금은 파이프라인이 이 메모를 아직 안 써요.</Empty>
+          </Panel>
+          <Panel label="검사 결과">
+            <ul className="c"><li>결론 = 문서 결론 (뼈대에서 검사)</li><li>글꼴 Pretendard</li><li className="todo">글자 넘침 · 대비는 만든 뒤 검사</li></ul>
+          </Panel>
+        </>
+      }
+      footNote="받는 것은 채팅으로 와요. 화면에서 바로 받는 자리는 아직 없어요."
+      actions={[{ label: "PPTX 내려받기", kind: "pri", disabled: true }]}>
+      <Panel label="결과물 · 발표자료" kind="out">
+        {rows.length ? <Storyboard rows={rows} palette={palette} /> : <Empty title="뼈대가 없어서 장을 못 보여줘요" />}
+      </Panel>
+      <Panel label="고칠 게 있나요">
+        <div className="k">처음부터가 아니라 그 단계로. 앞 답은 남아요. 지금은 채팅에서 말해야 해요.</div>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          {REVERT.map(([t, keep, change]) => (
+            <div className="card" key={t}><div className="nm"><span>{t}</span></div><div className="dt">{keep}<br />{change}</div></div>
+          ))}
         </div>
-        <Sweep animate={!reduced} />
-        <Elapsed />
-      </div>
-      <ProgressTrail notes={notes} />
-      <div className="max-w-[380px] text-center text-[13px] leading-relaxed"
-           style={{ color: "var(--muted)" }}>
-        {/* Once the trail is running it already says what is happening; repeating
-            it here just pushes the one instruction that matters further down. */}
-        {notes.length > 0
-          ? "창을 닫지 마세요."
-          : "고르신 내용을 읽고 다음 단계 후보를 만들고 있습니다. 창을 닫지 마세요."}
-      </div>
-      </div>
-    </div>
+      </Panel>
+    </Shell>
   );
 }
 
-/** The same stack, settled, with the check that says it is done. */
-/* 상태 그림 셋. 예전에는 <rect> 를 쌓아 만들었는데, 그건 그린 게 아니라
-   자리만 잡아둔 티가 나서 오히려 "기계가 만든 화면" 으로 읽혔다. 세 장을 한
-   세트로 그려 붙인다 — 같은 장 더미, 같은 선 굵기, 같은 정면 시점.
-   글자를 대신하는 그림이 아니라 옆의 문장을 거드는 그림이라 alt 는 비운다. */
-function StateArt({ src }: { src: string }) {
-  return <img src={src} alt="" className="h-[132px] w-auto" draggable={false} />;
-}
-
-export function LoadingArt() { return <StateArt src={loadingArt} />; }
-export function ErrorArt() { return <StateArt src={errorArt} />; }
-export function DoneArt() { return <StateArt src={doneArt} />; }
-
-/** Says the server went away — the one thing this screen cannot recover from
-    on its own. It stays a banner rather than a blocking overlay because the
-    choices already made are still on screen and still readable; the person
-    reopens the page from chat and finds the same questions waiting. */
-export function Disconnected() {
+/** 멈췄을 때. 제 쪽 문제라고 말하고, 무엇이 남았는지부터. */
+export function Broken({ reason, kept, onRetry }: { reason: "server" | "load"; kept: string[]; onRetry: () => void }) {
   return (
-    <div role="status"
-         className="fixed inset-x-0 top-0 z-50 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center"
-         style={{ background: "var(--ink)", color: "var(--ink-on-accent)" }}>
-      <span className="text-[13px] font-bold">{T.offlineTitle}</span>
-      <span className="text-[13px]" style={{ opacity: 0.82 }}>{T.offlineHint}</span>
-      <span className="text-[12px]" style={{ opacity: 0.6 }}>{T.offlineRetry}</span>
-    </div>
+    <Shell band="발표" step="멈췄을 때" pct={0} title="제 쪽 문제예요"
+      sub={<>대표님이 하신 건 다 남아 있어요.<br />다시 해 볼게요.</>}
+      say={reason === "server"
+        ? <>화면을 받쳐 주는 쪽이 두 번 연속 대답을 안 했어요. 대표님 자료나 설정 때문이 아니에요.<br />고르신 것은 이 화면에 그대로 있어요. 채팅으로 돌아가 화면을 다시 열면 여기서 이어져요.</>
+        : <>자료를 읽지 못했어요. 채팅으로 돌아가 다시 시도해 주세요.<br />답하신 것과 기획서는 파일로 남아 있어요.</>}
+      side={
+        <>
+          <Panel label="남아 있는 것">
+            {kept.length ? <ul className="c">{kept.map((k) => <li key={k}>{k}</li>)}</ul> : <Empty title="아직 저장된 것이 없어요" />}
+          </Panel>
+          <Panel label="무슨 일이었나">
+            <div style={{ fontSize: 14, lineHeight: 1.7 }}>{reason === "server" ? "심장박동이 두 번 끊겼어요. 기록은 남겨 뒀어요." : "추천 파일이나 목록을 못 읽었어요."}</div>
+          </Panel>
+        </>
+      }
+      footNote="다시 연결해 보는 중이에요"
+      actions={[{ label: "다시 해 보기", kind: "pri", onClick: onRetry }]}>
+      <Panel label="어떻게 할까요">
+        <div className="k">추천은 첫 번째예요.</div>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <button className="card on" onClick={onRetry}><div className="nm"><span>다시 해 보기</span><span className="tag rec">추천</span></div><div className="dt">여기서 이어져요. 고른 것은 그대로</div></button>
+          <div className="card"><div className="nm"><span>채팅으로 돌아가기</span></div><div className="dt">화면을 다시 열면 같은 자리예요</div></div>
+        </div>
+      </Panel>
+    </Shell>
   );
 }

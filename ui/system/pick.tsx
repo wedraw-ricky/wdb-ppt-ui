@@ -1,115 +1,81 @@
-/* 고르는 카드 — 이 화면에서 무언가를 고르는 자리는 전부 이것이다.
- *
- * 왜 생겼나. 고르는 부품이 일곱 개였다 — 템플릿 · 크기 · 서술 방식 · 아이콘 ·
- * 목록 · 그림 카드 · 이미지 출처. 하는 일은 같은데(격자에 카드를 놓고 하나
- * 또는 여럿을 고른다) 각각 따로 쓰여서, 어떤 것은 그림자가 있고 어떤 것은
- * 없고, 모서리가 제각각이고, 고른 표시도 달랐다. 화면마다 다르게 보이던
- * 이유가 이것이다.
- *
- * 다른 것은 **가운데에 무엇이 들어가느냐** 뿐이다. 그래서 그 자리만 비워 둔다.
- *
- * 놓이는 면: 흰 면(`--surface`) 위. 파란 면 위에는 쓰지 않는다 — 예전에
- * 파란 패널용으로 만든 부품을 흰 화면에 옮겼다가 배경과 같은 색이 되어
- * 사라진 적이 있어서, 부품마다 어디 놓이는지를 적어 둔다.
- */
+/* 고르는 부품은 이것 하나다.
+
+   고르는 부품이 일곱이던 때가 있었다. 하는 일은 같은데 각각 따로 쓰여서
+   그림자·모서리·고른 표시가 제각각이었다. 지금은 모양이 둘뿐이다.
+
+   - chip: 이름만으로 고를 수 있을 때 (크기, 서술 방식, 만드는 방식).
+   - card: 보고 골라야 할 때 (색, 분위기, 사진 느낌, 장 모양). 축소판은 늘 16:9.
+
+   놓이는 면: 흰 판(--white) 위. 종이(--paper) 위에 바로 놓으면 칩의 흰 면이
+   판처럼 보이니 판 안에서만 쓴다. 남색 무대 위에는 놓지 않는다.
+
+   추천은 골드 꼬리표 하나로만 말한다. 고른 것은 남색이다. 둘이 다른 색인
+   이유는 «추천을 골랐다» 와 «추천이지만 안 골랐다» 가 한눈에 갈려야 해서다. */
 
 import type React from "react";
-import { pickStyle } from "../src/shell";
-import { Empty } from "./patterns";
+import { Empty, Tag } from "./patterns";
 
 export interface PickItem {
   id: string;
   label: string;
-  /** 카드 아래 한두 줄. 없으면 이름만 나온다. */
+  /** 카드 아래 한 줄 설명. 칩에는 안 보인다. */
   note?: string;
-  /** 카드 위쪽 그림 자리에 들어갈 것. 그림·도형 무엇이든 16:9 안에 앉는다. */
-  art?: React.ReactNode;
-  /** 추천 표시. 하나만 붙인다. */
-  star?: boolean;
-  disabled?: boolean;
+  /** 카드의 16:9 축소판. 없으면 카드가 이름만 있는 카드가 된다. */
+  thumb?: React.ReactNode;
+  /** 지금은 고를 수 없음 (점선). 이유는 note 에. */
+  off?: boolean;
 }
 
-export function Pick({
-  items, value, onChange, multi = false, cols = 3, art = "slide",
-  ariaLabel,
-}: {
+export function Pick({ items, value, onChange, kind = "chip", cols = 4, recommended, multi = false, small = false, emptyTitle = "고를 것이 없어요", emptyNote }: {
   items: PickItem[];
-  /** 하나 고르기면 문자열, 여럿이면 배열. */
-  value: string | string[];
-  onChange: (v: any) => void;
+  /** 하나면 id, 여럿이면 id 배열. */
+  value: string | string[] | null | undefined;
+  onChange: (next: any) => void;
+  kind?: "chip" | "card";
+  cols?: number;
+  recommended?: string | string[] | null;
   multi?: boolean;
-  cols?: 1 | 2 | 3 | 4;
-  /** 그림 자리. "slide" = 16:9 장표 (기본) · "none" = 글만.
-   *
-   *  예전에는 높이를 픽셀로 받았고 부르는 쪽마다 148 · 136 · 112 · 104 · 72 ·
-   *  184 로 달랐다. 게다가 안의 그림을 `object-cover` 로 **잘라** 채웠다.
-   *  원본 비율이 16:9 · 1.4:1 · 2.5:1 · 1:1 로 섞여 있어서 화면에 그려진
-   *  크기가 열두 가지가 됐다 — "크기가 다 제각각" 이 이것이다.
-   *
-   *  장표를 만드는 도구의 기본 단위는 장표다 (DESIGN.md 컨셉 ①). 그림
-   *  자리는 언제나 16:9 이고, 비율이 안 맞는 그림은 **자르지 않고 여백째**
-   *  앉힌다. */
-  art?: "slide" | "none";
-  ariaLabel?: string;
+  small?: boolean;
+  emptyTitle?: string;
+  emptyNote?: string;
 }) {
-  const chosen = (id: string) =>
-    multi ? (Array.isArray(value) ? value.includes(id) : false) : value === id;
-
+  if (!items.length) return <Empty title={emptyTitle}>{emptyNote}</Empty>;
+  const picked = new Set(Array.isArray(value) ? value.map(String) : value ? [String(value)] : []);
+  const rec = new Set(Array.isArray(recommended) ? recommended.map(String) : recommended ? [String(recommended)] : []);
   const toggle = (id: string) => {
-    if (!multi) return onChange(id);
-    const cur = Array.isArray(value) ? value : [];
-    onChange(cur.includes(id) ? cur.filter((v) => v !== id) : [...cur, id]);
+    if (!multi) { onChange(id); return; }
+    const next = new Set(picked);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    onChange([...next]);
   };
-
-  // 고를 것이 없으면 빈 격자가 나온다 — 쓰는 사람은 고장인지 원래 그런지
-  // 모른다. 무엇이 없는지 말한다 (patterns.tsx ④).
-  if (!items.length) {
+  if (kind === "chip") {
     return (
-      <Empty compact title={`${ariaLabel || "고를 것"}이 아직 없습니다`}>
-        자료를 더 읽으면 후보가 생깁니다. 계속 비어 있으면 채팅으로 알려주세요.
-      </Empty>
+      <div className="row" style={{ gap: "var(--gap-chip)" }} role={multi ? "group" : "radiogroup"}>
+        {items.map((it) => (
+          <button key={it.id} type="button" disabled={it.off} title={it.note}
+                  role={multi ? "checkbox" : "radio"} aria-checked={picked.has(it.id)}
+                  className={`chip${picked.has(it.id) ? " on" : ""}${it.off ? " off" : ""}${small ? " sm" : ""}`}
+                  onClick={() => toggle(it.id)}>
+            {it.label}
+          </button>
+        ))}
+      </div>
     );
   }
-
   return (
-    <div role={multi ? "group" : "radiogroup"} aria-label={ariaLabel}
-         className="grid gap-4"
-         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
-      {items.map((it) => {
-        const on = chosen(it.id);
-        return (
-          <button key={it.id} type="button" disabled={it.disabled}
-                  role={multi ? "checkbox" : "radio"}
-                  aria-checked={on}
-                  onClick={() => toggle(it.id)}
-                  className="overflow-hidden p-0 text-left transition disabled:opacity-40"
-                  style={pickStyle(on)}>
-            {art === "slide" ? (
-              <div className="grid place-items-center overflow-hidden"
-                   style={{ aspectRatio: "16 / 9", background: "var(--sunken)" }}>
-                {it.art}
-              </div>
-            ) : null}
-            <div className="px-[var(--s-4)] pt-[var(--s-4)] pb-[var(--s-4)]">
-              <div className="flex items-center gap-1.5">
-                <span className="t-card truncate">{it.label}</span>
-                {it.star ? <Star /> : null}
-              </div>
-              {it.note ? <div className="t-sub mt-1.5 line-clamp-3">{it.note}</div> : null}
-            </div>
-          </button>
-        );
-      })}
+    <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }} role={multi ? "group" : "radiogroup"}>
+      {items.map((it) => (
+        <button key={it.id} type="button" disabled={it.off}
+                role={multi ? "checkbox" : "radio"} aria-checked={picked.has(it.id)}
+                className={`card${picked.has(it.id) ? " on" : ""}`} onClick={() => toggle(it.id)}>
+          {it.thumb !== undefined ? <div className="th">{it.thumb}</div> : null}
+          <div className="nm">
+            <span>{it.label}</span>
+            {rec.has(it.id) ? <Tag kind="rec">추천</Tag> : null}
+          </div>
+          {it.note ? <div className="dt">{it.note}</div> : null}
+        </button>
+      ))}
     </div>
-  );
-}
-
-/** 추천 표시. 색 하나로 말하지 않게 별과 글이 함께 간다 (WCAG 1.4.1). */
-export function Star() {
-  return (
-    <span className="t-label shrink-0 rounded-[var(--r-pill)] px-2 py-0.5"
-          style={{ background: "var(--accent-soft)", color: "var(--accent-ink)" }}>
-      ★ 추천
-    </span>
   );
 }

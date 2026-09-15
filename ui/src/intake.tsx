@@ -1,15 +1,18 @@
-/* Intake — the one round of questions only the user can answer.
+/* 2 인터뷰. DESIGN.md «원칙 다섯» ③: 답은 미리 채우고 확실·짐작·모름 꼬리표를
+   붙인다. 자료에 없는 것(언제, 누가 쓰나)은 짐작으로 채우지 않고 비워 두고
+   먼저 묻는다.
 
-   DESIGN.md's rule holds here too: show the thing being chosen. A purpose is
-   abstract, so each card draws the chain of sections that purpose produces —
-   picking "성과 보고" shows you the report skeleton you are about to get,
-   before any of it is written. */
+   intake.json 이 이미 있으면(파이프라인이 자료를 읽고 채운 것) 그 값이
+   «제 짐작이에요» 다. 아직 없으면 꼬리표 없이 빈 칸이다. 자료에서 확실한
+   것과 짐작을 갈라 주는 근거는 파이프라인이 아직 넘겨주지 않아서, 채워진 답은
+   전부 짐작으로 표시한다. 걸린 것도 같은 이유로 비어 있다. */
 
-import { useId, useState } from "react";
-import { Ask, Shell, Steps } from "./shell";
+import { useMemo, useState } from "react";
+import { Shell } from "./shell";
+import { Panel, Q, Field, Empty } from "../system/patterns";
+import { Pick } from "../system/pick";
 import * as api from "./api";
 import type { IntakeData } from "./api";
-import { cardStyle, PresetField } from "./selectors";
 
 type Dict = Record<string, any>;
 
@@ -20,7 +23,7 @@ type Dict = Record<string, any>;
  *  document than the person will get — it did exactly that when the planning
  *  chain grew from 8 sections to 12 and this list stayed put.
  *
- *  `tests/intake-chain.test.mts` compares the two: same length, and every label
+ *  `tests/test_planning.py` compares the two: same length, and every label
  *  here has to be the real section name or a shortening of it. */
 const PURPOSES: {
   id: string; short: string; note: string; chain: string[]; split?: boolean;
@@ -63,220 +66,149 @@ const PURPOSES: {
 ];
 
 const ASSIGNMENTS = [
-  { id: "지시수명", label: "과제를 받았습니다", note: "위에서 내려온 일을 정리해 올립니다" },
-  { id: "신규제안", label: "제가 제안합니다", note: "아이디어에서 출발해 설득합니다" },
+  { id: "지시수명", label: "과제를 받았어요" },
+  { id: "신규제안", label: "직접 제안해요" },
 ];
-
 const DOC_KINDS = [
-  { id: "발표자료", note: "화면에 띄우고 말합니다" },
-  { id: "보고서", note: "읽는 문서로 결재에 올립니다" },
-  { id: "둘 다", note: "같은 재료로 둘 다 만듭니다" },
+  { id: "발표자료", note: "장 7~14" },
+  { id: "보고서", note: "워드 3~6쪽" },
+  { id: "둘 다", note: "같은 결론으로 둘 다" },
 ];
-
 const INTERESTS = [
   "ROI · 수익성", "리스크 · 안정성", "실행 가능성", "비용 · 예산",
   "성장성 · 시장성", "차별성 · 경쟁력", "사회적 가치", "트렌드 · 혁신성",
 ];
-
-const AUDIENCE_PRESETS = [
-  { id: "exec", label: "사내 경영진", text: "사내 경영진 — 결정을 내려야 하는 자리" },
-  { id: "invest", label: "투자자 · 심사역", text: "투자자·심사역 — 외부에서 처음 보는 사람" },
-  { id: "staff", label: "실무 담당자", text: "실무 담당자 — 실행을 맡을 사람" },
-  { id: "learner", label: "강의 수강생", text: "강의 수강생 — 처음 배우는 사람" },
-  { id: "client", label: "고객 · 클라이언트", text: "고객·클라이언트 — 우리를 아직 모르는 사람" },
+const AUDIENCES = [
+  { id: "사내 경영진", label: "경영진" },
+  { id: "실무 담당자", label: "실무 담당자" },
+  { id: "고객 · 클라이언트", label: "고객" },
+  { id: "투자자 · 심사역", label: "투자자" },
+  { id: "강의 수강생", label: "수강생" },
+];
+const WHEN = ["오늘 안에", "내일", "이번 주", "여유 있어요"];
+const PRESENTER = ["대표님이 직접", "다른 분이", "읽는 자료예요"];
+/** 분량 네 단계 (DESIGN.md 2026-09-16). 지금은 뼈대가 장 수를 정하므로
+    여기서 고른 것은 기록만 남는다. */
+const LENGTHS = [
+  { id: "short", label: "짧게 · 15장 미만" },
+  { id: "normal", label: "보통 · 15~30장" },
+  { id: "long", label: "길게 · 30~50장" },
+  { id: "huge", label: "그 이상 · 50장 넘게" },
 ];
 
-/** Draw the section chain a purpose produces. */
-function Chain({ steps }: { steps: string[] }) {
-  return (
-    <svg viewBox={`0 0 ${steps.length * 46} 34`} className="h-[34px] w-full" aria-hidden="true">
-      {steps.map((_, i) => (
-        <g key={i}>
-          <rect x={i * 46 + 3} y="10" width="34" height="14" rx="3"
-                fill="var(--wdb-secondary)" opacity={0.16 + (i / steps.length) * 0.6} />
-          {i < steps.length - 1 && (
-            <path d={`M${i * 46 + 38} 17 L${i * 46 + 45} 17`}
-                  stroke="var(--border)" strokeWidth="1.5" />
-          )}
-        </g>
-      ))}
-    </svg>
-  );
+/** intake.json 에 더 적는 두 가지. 파이프라인은 아직 안 읽지만 기록은 남는다. */
+export interface IntakeExtra extends IntakeData {
+  when?: string;
+  presenter?: string;
+  length?: string;
 }
 
-function Field({ label, hint, children }: {
-  label: string; hint?: string; children: React.ReactNode;
+export function Interview({ draft, onDone, onBack }: {
+  draft: Partial<IntakeExtra>; onDone: (v: IntakeExtra) => Promise<void>; onBack?: () => void;
 }) {
-  // 제목을 눈에만 보여주면 화면 낭독기는 칸에 이름이 없다고 읽는다. 묶음에
-  // 제목을 붙여 그 안의 것들이 무엇을 묻는 칸인지 함께 들리게 한다.
-  const id = useId();
-  return (
-    <div className="flex flex-col gap-2.5" role="group" aria-labelledby={id}>
-      <div>
-        <div id={id} className="t-card">{label}</div>
-        {hint ? (
-          <div className="mt-0.5 text-[13px]" style={{ color: "var(--muted)" }}>{hint}</div>
-        ) : null}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Chips({ options, value, onToggle }: {
-  options: string[]; value: string[]; onToggle: (v: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2.5">
-      {options.map((o) => (
-        <button key={o} type="button" onClick={() => onToggle(o)}
-                aria-pressed={value.includes(o)}
-                className="rounded-full border px-4 py-2 text-[15px] transition"
-                style={cardStyle(value.includes(o))}>
-          {o}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function Intake({ draft, onDone }: {
-  draft: Partial<IntakeData>;
-  onDone: (v: IntakeData) => void;
-}) {
-  const [v, setV] = useState<IntakeData>({ ...api.EMPTY_INTAKE, ...draft });
-  const [msg, setMsg] = useState("");
-  const set = (k: keyof IntakeData, val: any) => {
-    setV((s) => ({ ...s, [k]: val }));
-    setMsg("");
-  };
-  const needsAssignment = api.NEEDS_ASSIGNMENT.has(v.purpose);
+  const [v, setV] = useState<IntakeExtra>({ ...api.EMPTY_INTAKE, ...draft });
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  // 처음 열었을 때 채워져 있던 답이 «짐작» 이다. 사람이 고치면 꼬리표는 그대로 둔다 —
+  // 고친 뒤에도 원래 짐작이었다는 사실은 변하지 않는다.
+  const prefilled = useMemo(() => ({
+    purpose: Boolean(draft.purpose), emphasis: Boolean(draft.emphasis),
+    conclusion: Boolean(draft.conclusion), audience: Boolean(draft.audience),
+    interests: Boolean(draft.interests?.length), doc_kind: Boolean(draft.doc_kind),
+  }), []);
+  const guess = (k: keyof typeof prefilled) => (prefilled[k] ? "guess" : undefined);
+  const set = (k: keyof IntakeExtra, val: any) => setV((s) => ({ ...s, [k]: val }));
   const picked = PURPOSES.find((p) => p.id === v.purpose);
+  const needsAssignment = api.NEEDS_ASSIGNMENT.has(v.purpose);
+  const audienceCustom = v.audience && !AUDIENCES.some((a) => a.id === v.audience);
+  const answered = [v.purpose, v.conclusion.trim(), v.audience, v.doc_kind].filter(Boolean).length;
 
-  function submit() {
-    const err = api.validateIntake(v);
-    if (err) { setMsg(err); return; }
-    onDone({ ...v, assignment: needsAssignment ? v.assignment : "" });
+  async function submit() {
+    const bad = api.validateIntake(v);
+    if (bad) { setErr(bad); return; }
+    setErr(""); setBusy(true);
+    try { await onDone(v); } catch { setErr("저장이 안 됐어요. 다시 눌러 주세요."); setBusy(false); }
   }
 
+  const say = (
+    <>
+      {picked
+        ? <>«{picked.short}» 자료로 읽혀요. <strong>{picked.chain.length}절 틀</strong>로 갈게요. 틀은 여기서 정해지고 다시 묻지 않아요.</>
+        : <>자료를 읽고 아홉 가지를 여쭤볼게요. 자료에서 확실한 건 채워 두고, 짐작한 건 «제 짐작이에요» 라고 적어요.</>}
+      <br />①은 자료에 없어서 먼저 여쭤요. 그다음 짐작이라고 적힌 것만 봐 주시면 돼요.
+    </>
+  );
+
   return (
-    <Shell
-      where="시작하기"
-      progress={8}
-      footNote={
-        <span style={{ color: msg ? "var(--danger)" : "var(--muted)" }}>
-          {msg || (picked
-            ? `${picked.short} · ${picked.chain.length}단 구성으로 짭니다`
-            : "무엇을 위한 자료인지부터 골라 주세요")}
-        </span>
+    <Shell band="기획" step="2 · 인터뷰" pct={16}
+      title="아홉 가지만 여쭤볼게요"
+      sub={<>자료에서 확실한 건 채워 뒀어요.<br />①은 자료에 없어서 먼저 여쭤요. 그다음 <b>제 짐작</b>이라고 적힌 것만 봐 주세요.</>}
+      say={say}
+      side={
+        <>
+          <Panel label="자료에서 읽은 것">
+            <Empty title="아직 읽은 것을 넘겨받지 못해요">자료를 읽고 요약해 주는 자리는 파이프라인에 아직 없어요. 지금은 채워진 답이 읽은 것의 전부예요.</Empty>
+          </Panel>
+          <Panel label="읽다가 걸린 것" kind="warn">
+            <Empty title="걸린 것을 적어 주는 단계가 아직 없어요">자료에서 숫자가 두 개면 여기서 고르게 할 거예요. 지어내지 않아요.</Empty>
+          </Panel>
+          <Panel label="틀">
+            {picked
+              ? <><div style={{ fontWeight: 700 }}>{picked.short}</div>
+                  <ol className="n">{picked.chain.map((c) => <li key={c}>{c}</li>)}</ol>
+                  <div className="k">②에서 정해져요. 다시 묻지 않아요</div></>
+              : <Empty title="②를 고르면 틀이 정해져요" />}
+          </Panel>
+        </>
       }
-      footActions={
-        <button type="button" onClick={submit}
-                className="h-[50px] rounded-[14px] px-6 t-card tracking-tight text-white"
-                style={{ background: "var(--accent)",
-                         boxShadow: "var(--accent-glow)" }}>
-          자료 읽고 기획 시작 →
-        </button>
-      }>
-      <Steps items={["시작", "기획서", "뼈대", "디자인"]} at={0} />
-      <Ask title="먼저, 이 자료가 무엇인지만 알려주세요"
-           sub="나머지는 자료를 읽고 제가 채운 다음, 고르실 수 있게 보여드립니다. 채운 게 마음에 안 드시면 그 자리에서 바꾸시면 됩니다." />
-      <div className="flex flex-col gap-9">
-
-          <Field label="이 자료는 무엇을 위한 건가요?"
-                 hint="고르시면 어떤 뼈대로 짜이는지 아래 막대로 보여드립니다">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {PURPOSES.map((p) => {
-                const on = v.purpose === p.id;
-                return (
-                  <button key={p.id} type="button" aria-pressed={on}
-                          onClick={() => { set("purpose", p.id); set("assignment", ""); }}
-                          className="overflow-hidden rounded-xl border p-0 text-left transition"
-                          style={cardStyle(on)}>
-                    <div className="px-4 pt-4">
-                      <div className="t-card">{p.short}</div>
-                      <div className="t-sub mt-1.5"
-                           style={{ color: "var(--muted)" }}>{p.note}</div>
-                    </div>
-                    <div className="px-4 pb-3 pt-3">
-                      <Chain steps={p.chain} />
-                      <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
-                        {p.chain.length}단 구성 · {p.chain[0]}부터
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </Field>
-
-          {needsAssignment ? (
-            <Field label="과제를 받으신 건가요, 직접 제안하시는 건가요?"
-                   hint="같은 목적이라도 출발점이 다르면 뼈대가 달라집니다">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {ASSIGNMENTS.map((a) => (
-                  <button key={a.id} type="button" aria-pressed={v.assignment === a.id}
-                          onClick={() => set("assignment", a.id)}
-                          className="rounded-xl border p-4 text-left transition"
-                          style={cardStyle(v.assignment === a.id)}>
-                    <div className="t-card">{a.label}</div>
-                    <div className="t-sub mt-1.5"
-                         style={{ color: "var(--muted)" }}>{a.note}</div>
-                  </button>
-                ))}
-              </div>
-            </Field>
-          ) : null}
-
-          <Field label="결론적으로 무엇을 말하고 싶으신가요?"
-                 hint="한 문장이면 됩니다. 이 문장이 덱 전체의 기준이 됩니다">
-            <textarea value={v.conclusion} onChange={(e) => set("conclusion", e.target.value)}
-                      aria-label="결론적으로 무엇을 말하고 싶으신가요?"
-                      rows={2} placeholder="예: 시범 성과가 확인됐으니 전사로 확대해야 합니다"
-                      className="w-full rounded-lg border px-4 py-3 text-[15px] leading-relaxed outline-none"
-                      style={{ borderColor: "var(--border)", background: "var(--surface)",
-                               color: "var(--foreground)" }} />
-          </Field>
-
-          <Field label="이 자료에서 무엇을 중요하게 보시나요?"
-                 hint="비워 두시면 제가 자료에서 찾아 제안드립니다">
-            <textarea value={v.emphasis} onChange={(e) => set("emphasis", e.target.value)}
-                      aria-label="이 자료에서 무엇을 중요하게 보시나요?"
-                      rows={2} placeholder="예: 신고 건수보다 재해 감소가 핵심입니다"
-                      className="w-full rounded-lg border px-4 py-3 text-[15px] leading-relaxed outline-none"
-                      style={{ borderColor: "var(--border)", background: "var(--surface)",
-                               color: "var(--foreground)" }} />
-          </Field>
-
-          <Field label="누구에게 보여줍니까?">
-            <PresetField legend="" ariaLabel="누구에게 보여줍니까?" presets={AUDIENCE_PRESETS} value={v.audience}
-                         onChange={(t: string) => set("audience", t)}
-                         placeholder="가까운 것을 고르고 필요하면 고쳐 쓰세요" />
-          </Field>
-
-          <Field label="그 청중이 무엇을 궁금해합니까?" hint="여러 개 고르셔도 됩니다">
-            <Chips options={INTERESTS} value={v.interests}
-                   onToggle={(o) => set("interests",
-                     v.interests.includes(o) ? v.interests.filter((x) => x !== o)
-                                             : [...v.interests, o])} />
-          </Field>
-
-          <Field label="어떤 형태로 만들까요?">
-            <div className="grid gap-4 sm:grid-cols-3">
-              {DOC_KINDS.map((d) => (
-                <button key={d.id} type="button" aria-pressed={v.doc_kind === d.id}
-                        onClick={() => set("doc_kind", d.id)}
-                        className="rounded-xl border p-4 text-left transition"
-                        style={cardStyle(v.doc_kind === d.id)}>
-                  <div className="t-card">{d.id}</div>
-                  <div className="t-sub mt-1.5"
-                       style={{ color: "var(--muted)" }}>{d.note}</div>
-                </button>
-              ))}
-            </div>
-          </Field>
-
-      </div>
+      footNote={`답 ${answered}/4 · 답을 바꾸면 기획서가 달라져요. 틀은 다시 묻지 않아요.`}
+      error={err}
+      actions={[...(onBack ? [{ label: "뒤로", onClick: onBack }] : []), { label: "기획서 쓰기", kind: "pri" as const, onClick: submit, disabled: busy }]}>
+      <Panel label="고르기 · 아홉 가지">
+        <Q n={1} title="언제, 누가 쓰나요" why="속도와 말투를 정해요" conf="unk">
+          <div className="kv">
+            <span>언제</span><Pick items={WHEN.map((w) => ({ id: w, label: w }))} value={v.when} onChange={(x) => set("when", x)} />
+            <span>발표는</span><Pick items={PRESENTER.map((w) => ({ id: w, label: w }))} value={v.presenter} onChange={(x) => set("presenter", x)} />
+          </div>
+          <div className="k">급하시면 확인 필요한 곳부터 같이 채워요. 직접 발표하시면 발표자 노트를 대표님 말투로 써요. 읽는 자료면 글을 조금 더 넣어요.</div>
+        </Q>
+        <Q n={2} title="이 자료는 무엇을 위한 건가요" why="여기서 틀이 정해져요" conf={guess("purpose")}>
+          <Pick items={PURPOSES.map((p) => ({ id: p.id, label: p.short, note: p.note }))} value={v.purpose}
+                onChange={(x) => { set("purpose", x); if (!api.NEEDS_ASSIGNMENT.has(x)) set("assignment", ""); }} />
+        </Q>
+        <Q n={3} title="과제를 받으신 건가요, 직접 제안하시는 건가요" why="승인이나 전략일 때만 물어요">
+          <Pick items={ASSIGNMENTS.map((a) => ({ ...a, off: !needsAssignment, note: needsAssignment ? "" : "이 목적에서는 안 물어요" }))}
+                value={needsAssignment ? v.assignment : null} onChange={(x) => set("assignment", x)} />
+        </Q>
+        <Q n={4} title="이 자료에서 무엇을 중요하게 보시나요" conf={guess("emphasis")}>
+          <Field label="강조할 것" value={v.emphasis} onChange={(x) => set("emphasis", x)} multiline
+                 placeholder="예: 혜택을 나열하지 말고 실제 여정 순서로" />
+        </Q>
+        <Q n={5} title="결론적으로 무엇을 말하고 싶으신가요" conf={guess("conclusion")}>
+          <Field label="결론 한 문장" value={v.conclusion} onChange={(x) => set("conclusion", x)} multiline
+                 placeholder="예: 다음 출장 전에 발급하면 공항부터 호텔까지 카드 한 장으로 끝난다" />
+        </Q>
+        <Q n={6} title="누구에게 보여주나요" why="말투와 깊이가 달라져요" conf={guess("audience")}>
+          <Pick items={[...AUDIENCES, { id: "__custom", label: "직접 적기" }]}
+                value={audienceCustom ? "__custom" : v.audience}
+                onChange={(x) => set("audience", x === "__custom" ? (audienceCustom ? v.audience : " ") : x)} />
+          {audienceCustom ? <Field label="누구인지 한 줄" value={v.audience.trim()} onChange={(x) => set("audience", x || " ")} placeholder="예: 카드 발급을 검토하는 고객" /> : null}
+        </Q>
+        <Q n={7} title="그 사람들이 무엇을 궁금해하나요" why="여럿 고를 수 있어요" conf={guess("interests")}>
+          <Pick items={INTERESTS.map((i) => ({ id: i, label: i }))} value={v.interests} multi onChange={(x) => set("interests", x)} />
+        </Q>
+        <Q n={8} title="얼마나 길게" why="자료 양과 목적으로 짐작해요. 바꿔도 돼요">
+          <Pick kind="card" cols={4} items={LENGTHS} value={v.length} onChange={(x) => set("length", x)} />
+          <div className="k">15장을 넘으면 파트로 나누고 부마다 간지를 넣어요. 부는 4~12장이에요. 50장을 넘으면 부를 편으로 한 번 더 묶어요. 지금은 뼈대가 장 수를 정하고, 여기서 고른 것은 기록으로 남아요.</div>
+        </Q>
+        <Q n={9} title="무엇을 만들까요" why="여기서 흐름이 갈려요" conf={guess("doc_kind")}>
+          <Pick kind="card" cols={3} items={DOC_KINDS.map((d) => ({ id: d.id, label: d.id, note: d.note }))} value={v.doc_kind} onChange={(x) => set("doc_kind", x)} />
+        </Q>
+      </Panel>
     </Shell>
   );
 }
+
+/** 옛 이름. App 이 아직 이 이름으로 부른다. */
+export const Intake = Interview;
+export type { Dict };

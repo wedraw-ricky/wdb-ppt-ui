@@ -1,143 +1,20 @@
-@import "tailwindcss";
-@import "@heroui/styles";
 @import "../system/tokens.css";
+@import "./screen.css";
 
 /* ==========================================================================
-   HeroUI 와 이 화면이 쓰는 이름을, 토큰 한 곳에서 끌어온다.
+   이름만 잇는 곳. 값은 ui/system/tokens.css 에만 있다.
 
-   값은 [`ui/system/tokens.css`](../system/tokens.css) 에만 있다. 여기는
-   "그 값을 무엇이라 부르는가" 만 적는다 — 값이 두 곳에 손으로 적혀 있으면
-   언젠가 어긋난다. 실제로 카드 경계선이 한쪽은 1.15:1, 다른 쪽은 3.37:1 로
-   갈렸던 적이 있다.
+   장 축소판(outline/art.tsx)과 스킬 문서가 옛 이름으로 색을 부른다. 그 이름을
+   새 토큰에 잇는다. 무대가 고른 색으로 칠해지는 것도 이 이름을 무대 안에서만
+   덮어쓰는 것이다 (slides.tsx Stage).
    ========================================================================== */
 :root {
-  /* 원색을 예전 이름으로도 부를 수 있게 — 스킬 문서와 SVG 가 이 이름을 쓴다 */
-  --wdb-primary: var(--brand-blue);
-  --wdb-cyan: var(--brand-cyan);
-  --wdb-secondary: var(--brand-indigo);
-  --wdb-card-bg: var(--sunken);
+  --wdb-primary: var(--accent);        /* 장 안의 강조 줄 */
+  --wdb-secondary: var(--main);        /* 장 안의 칠해진 면 */
   --wdb-charcoal: var(--ink);
   --wdb-gray: var(--ink-muted);
-  --wdb-grad-from: var(--brand-gradient-from);
-  --wdb-grad-to: var(--brand-blue);
-
-  /* HeroUI 가 읽는 이름 */
-  --accent-foreground: var(--ink-on-accent);
-  --background: var(--bg);
-  --foreground: var(--ink);
-  --surface-foreground: var(--ink);
-  --default: var(--sunken);
-  --default-foreground: var(--ink);
-  --muted: var(--ink-muted);
-  --faint: var(--ink-faint);
+  --wdb-card-bg: var(--sunken);
+  --surface: var(--white);
   --border: var(--line);
-  --border-strong: var(--line-strong);
-  --separator: var(--line);
-  --focus: var(--accent);
-  --link: var(--accent);
-  --success: var(--ok);
-  --warning: var(--warn);
-  --field-background: var(--sunken);
-  --field-border: var(--field-line);
-  --radius: var(--r-ctl);
-  --radius-card: var(--r-md);
-  --shadow-card: none;              /* 쉬는 상태에는 그림자를 쓰지 않는다 */
-  --shadow-lift: var(--shadow-hover);
+  --bg: var(--paper);
 }
-
-@font-face {
-  font-family: "Paperlogy";
-  font-weight: 400; font-style: normal; font-display: swap;
-  src: local("Paperlogy Regular"), local("Paperlogy-4Regular"), local("Paperlogy"),
-       url("/static/fonts/Paperlogy-4Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Paperlogy";
-  font-weight: 500; font-style: normal; font-display: swap;
-  src: local("Paperlogy Medium"), local("Paperlogy-5Medium"),
-       url("/static/fonts/Paperlogy-5Medium.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Paperlogy";
-  font-weight: 600; font-style: normal; font-display: swap;
-  src: local("Paperlogy SemiBold"), local("Paperlogy-6SemiBold"),
-       url("/static/fonts/Paperlogy-6SemiBold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Paperlogy";
-  font-weight: 700; font-style: normal; font-display: swap;
-  src: local("Paperlogy Bold"), local("Paperlogy-7Bold"),
-       url("/static/fonts/Paperlogy-7Bold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Paperlogy";
-  font-weight: 800; font-style: normal; font-display: swap;
-  src: local("Paperlogy ExtraBold"), local("Paperlogy-8ExtraBold"),
-       url("/static/fonts/Paperlogy-8ExtraBold.woff2") format("woff2");
-}
-
-html, body, #root { height: 100%; margin: 0; }
-body {
-  font-family: Paperlogy, Pretendard, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", "Malgun Gothic", sans-serif;
-  background: var(--background);
-  color: var(--foreground);
-}
-
-/* The one surface the WDB system allows the hero gradient on. */
-.wdb-hero {
-  background: linear-gradient(135deg, var(--wdb-grad-from) 0%, var(--wdb-grad-to) 100%);
-  color: #ffffff;
-}
-
-/* Indeterminate progress band. No percentage is claimed — the agent's work is
-   not instrumented, so the bar reports "running", not "how far". */
-@keyframes wdb-sweep {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(250%); }
-}
-.wdb-sweep { animation: wdb-sweep 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
-@media (prefers-reduced-motion: reduce) { .wdb-sweep { animation: none; width: 100%; } }
-
-/* 켬/끔 스위치의 누르는 줄. 기본이 20px 라 손이 떨리면 빗나간다.
-   한 곳에서 올려야 스위치가 새로 생겨도 같이 따라온다. */
-.switch__content {
-  min-height: 24px;
-  align-items: center;
-}
-
-/* ==========================================================================
-   글자 위계 — 원티드 디자인 시스템 값을 그대로 쓴다.
-
-   왜 바꿨나: 화면 글자 138곳 중 129곳이 10~15px 안에 몰려 있었다. 크기 차이가
-   5px 안이면 위계가 아니라 그냥 다 작은 글씨다 — 무엇이 중요한지 눈이 못 고른다.
-
-   내 짐작과 실제 값이 세 군데 달랐고, 셋 다 "얇고 작아 보이는" 원인이었다.
-     · 본문 굵기 400 이 아니라 **500**. 한글은 400 에서 얇아 보인다
-     · 제목은 800 이 아니라 700(title) / 600(heading·headline)
-     · 자간은 큰 글자만 음수. 작은 글자는 **양수**로 벌린다 — 반대로 하고 있었다
-
-   출처: Wanted Design System handoff, colors_and_type.css.
-   ========================================================================== */
-
-/* 원티드 층 이름 그대로. 나중에 층을 더 쓰게 되면 여기 이름으로 부른다. */
-.t-title1    { font-size: var(--t-title1-size);    line-height: var(--t-title1-lh);    letter-spacing: var(--t-title1-ls);    font-weight: var(--t-title1-w); }
-.t-title3    { font-size: var(--t-title3-size);    line-height: var(--t-title3-lh);    letter-spacing: var(--t-title3-ls);    font-weight: var(--t-title3-w); }
-.t-heading2  { font-size: var(--t-heading2-size);  line-height: var(--t-heading2-lh);  letter-spacing: var(--t-heading2-ls);  font-weight: var(--t-heading2-w); }
-.t-headline1 { font-size: var(--t-headline1-size); line-height: var(--t-headline1-lh); letter-spacing: var(--t-headline1-ls); font-weight: var(--t-headline1-w); }
-.t-headline2 { font-size: var(--t-headline2-size); line-height: var(--t-headline2-lh); letter-spacing: var(--t-headline2-ls); font-weight: var(--t-headline2-w); }
-.t-body1     { font-size: var(--t-body1-size);     line-height: var(--t-body1-lh);     letter-spacing: var(--t-body1-ls);     font-weight: var(--t-body1-w); }
-.t-body2     { font-size: var(--t-body2-size);     line-height: var(--t-body2-lh);     letter-spacing: var(--t-body2-ls);     font-weight: var(--t-body2-w); }
-.t-label1    { font-size: var(--t-label1-size);    line-height: var(--t-label1-lh);    letter-spacing: var(--t-label1-ls);    font-weight: var(--t-label1-w); }
-.t-label2    { font-size: var(--t-label2-size);    line-height: var(--t-label2-lh);    letter-spacing: var(--t-label2-ls);    font-weight: var(--t-label2-w); }
-.t-caption1  { font-size: var(--t-caption1-size);  line-height: var(--t-caption1-lh);  letter-spacing: var(--t-caption1-ls);  font-weight: var(--t-caption1-w); }
-.t-caption2  { font-size: var(--t-caption2-size);  line-height: var(--t-caption2-lh);  letter-spacing: var(--t-caption2-ls);  font-weight: var(--t-caption2-w); }
-
-/* 이 화면이 쓰는 이름. 층 이름 대신 자리 이름으로 부르면 어디에 쓰는지가
-   코드에 남는다 — 나중에 층을 바꿔도 부르는 쪽은 그대로다. */
-.t-page  { font-size: var(--t-title1-size);    line-height: var(--t-title1-lh);    letter-spacing: var(--t-title1-ls);    font-weight: var(--t-title1-w); }
-.t-sect  { font-size: var(--t-heading2-size);  line-height: var(--t-heading2-lh);  letter-spacing: var(--t-heading2-ls);  font-weight: var(--t-heading2-w); }
-.t-card  { font-size: var(--t-headline2-size); line-height: var(--t-headline2-lh); letter-spacing: var(--t-headline2-ls); font-weight: var(--t-headline2-w); }
-.t-body  { font-size: var(--t-body1-size);     line-height: var(--t-body1-lh);     letter-spacing: var(--t-body1-ls);     font-weight: var(--t-body1-w); }
-.t-sub   { font-size: var(--t-label1-size);    line-height: var(--t-label1-lh);    letter-spacing: var(--t-label1-ls);    font-weight: var(--t-label1-w); color: var(--muted); }
-.t-label { font-size: var(--t-caption1-size);  line-height: var(--t-caption1-lh);  letter-spacing: var(--t-caption1-ls);  font-weight: var(--t-caption1-w); color: var(--faint); }

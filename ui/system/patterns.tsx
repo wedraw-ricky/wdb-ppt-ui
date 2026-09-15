@@ -1,110 +1,115 @@
-/* 패턴 — 다음 화면을 만들 때 어떤 짜임을 쓰는가.
- *
- * 토큰은 "무슨 값을 쓰는가", 부품은 "무엇을 놓는가", 패턴은 "어떻게 짜는가" 다.
- * 이 셋이 있어야 다음 화면을 만들 때 판단할 게 없다.
- *
- * ── 이 화면이 쓰는 짜임은 넷뿐이다 ──────────────────────────────────
- *
- * ① 묻는 화면        `Shell` + `Ask` + `Pick` (+ 미리보기)
- *    한 번에 한 가지를 묻는다. 인터뷰·디자인 4단계가 이것이다.
- *    아래 고정 버튼이 다음으로 넘긴다.
- *
- * ② 다루는 화면      `Shell wide` + 목록 + 오른쪽 서랍
- *    여럿을 한눈에 보며 하나를 골라 고친다. 뼈대 화면이 이것이다.
- *    안쪽이 각자 스크롤한다 — 바깥이 같이 움직이면 서랍이 밀려 올라간다.
- *
- * ③ 알리는 화면      `Shell wide` + `Mid`
- *    고를 것이 없다. 여는 중·기다리는 중·못 읽음·다 됐어요.
- *    그림 하나 + 무슨 일인지 + (무엇을 하면 되는지).
- *
- * ④ 정해진 것       `Fold`
- *    이미 정해진 것은 **접혀 있다.** 한 줄(이름 · 고른 값 · «바꾸기») 이고,
- *    누르면 펴진다. 아직 안 정한 것만 펴 둔다.
- *
- *    왜: 56개를 같은 무게로 늘어놓는 것은 고르라는 게 아니라 떠넘기는 것이다.
- *    디자이너는 «나머지는 제가 정했습니다» 라고 말하고 바꿀 길만 열어 둔다.
- *
- * ⑤ 비었을 때        `Empty`
- *    있어야 할 것이 없다. **빈 격자를 그냥 두지 않는다** — 쓰는 사람은
- *    고장인지 원래 그런지 모른다. 아래를 반드시 말한다.
- *      · 무엇이 없는지
- *      · 왜 없는지
- *      · 무엇을 하면 되는지 (할 수 있는 게 있을 때만)
- *
- * ── 놓이는 면 ──────────────────────────────────────────────────────
- * 전부 흰 면(`--surface`) 위. 파란 면 위에 놓는 짜임은 이제 없다.
- */
+/* 패턴. 토큰은 «무슨 값», 부품(pick.tsx)은 «무엇을 놓는가», 여기는 «어떻게
+   짜는가». DESIGN.md «배치 · 구역 일곱» 과 «부품» 을 코드로 옮긴 것이다.
 
-import React from "react";
+   화면은 네 가지 짜임 중 하나다.
 
-/** 정해진 것 하나 — 접힌 한 줄. 눌러야 펴진다 (짜임 ④).
- *
- * 닫힌 모습:  ● 색      플래티넘 그레이            바꾸기 ▾
- * 열린 모습:  같은 줄 + 아래에 고르는 자리.
- *
- * 아직 안 정한 것은 `open` 을 처음부터 켜서 보낸다 — 접어 두면 «안 정했다» 는
- * 사실이 화면에서 사라진다. */
-export function Fold({ name, value, children, open: openInit = false, warn = false }: {
-  /** 무엇을 정하는 자리인지. 두세 글자. */
-  name: string;
-  /** 지금 정해져 있는 값. 접힌 줄에서 이것만 보인다. */
-  value: React.ReactNode;
-  children: React.ReactNode;
-  open?: boolean;
-  /** 아직 안 정했다 — 색만이 아니라 점으로도 말한다 (WCAG 1.4.1). */
-  warn?: boolean;
+   ① 묻는 화면 — 인터뷰, 디자인. 번호 붙은 대주제(<Q>) 아래 칩과 카드.
+      답은 미리 채워져 있고, 확실·짐작·모름 꼬리표(<Conf>)가 붙는다.
+      디자이너가 짧게 말하거나 하나 더 물을 때는 대주제 오른쪽 300 칸의
+      포스트잇(<Q note>)이다.
+   ② 다루는 화면 — 기획서, 뼈대, 완성. 결과물 판(<Panel kind="out">)이 제일
+      크고, 고르면 결과물이 바뀐다. 고치는 서랍은 곁(오른쪽 380)에 있다.
+   ③ 알리는 화면 — 만드는 중, 멈췄을 때. 무엇을 했고 무엇이 남았는지만.
+      몇 % 는 적지 않는다. 재는 게 없다.
+   ④ 비었을 때 — 목록이 비면 <Empty> 가 왜 비었는지 말한다. 빈 격자를 그냥
+      두면 고장인지 원래 그런지 모른다.
+
+   어느 짜임이든 디자이너의 긴 말은 곁 맨 위의 포스트잇(<Say>)이고, 본문 위에
+   세로로 놓지 않는다. 본문을 밀어내지 않기 위해서다. */
+
+import type React from "react";
+
+/* ---- 판 ------------------------------------------------------------------ */
+/** 흰 판. kind: "" 보통 · "out" 결과물(같은 흰 판, 이름으로 구분) ·
+    "warn" 걸린 것(주황 물) · "memo" 인수인계·메모(남색 물). */
+export function Panel({ label, kind = "", children, style }: {
+  label: React.ReactNode; kind?: "" | "out" | "warn" | "memo";
+  children: React.ReactNode; style?: React.CSSProperties;
 }) {
-  const [open, setOpen] = React.useState(openInit);
   return (
-    <div className="rounded-[var(--r-md)] border"
-         style={{ borderColor: warn ? "var(--warn)" : "var(--line-strong)",
-                  background: "var(--surface)" }}>
-      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)}
-              className="flex w-full items-center gap-[var(--s-3)] px-[var(--s-5)] text-left"
-              style={{ minHeight: "var(--hit-ctl)" }}>
-        {warn ? <span aria-hidden="true" style={{ color: "var(--warn)" }}>•</span> : null}
-        <span className="t-sub shrink-0" style={{ color: "var(--ink-faint)", minWidth: "6em" }}>
-          {name}
-        </span>
-        <span className="t-card truncate" style={{ color: warn ? "var(--warn)" : "var(--ink)" }}>
-          {value}
-        </span>
-        <span className="t-label ml-auto shrink-0" style={{ color: "var(--accent-ink)" }}>
-          {open ? "접기 ▴" : "바꾸기 ▾"}
-        </span>
-      </button>
-      {open ? (
-        <div className="border-t px-[var(--s-5)] pb-[var(--s-6)] pt-[var(--s-5)]"
-             style={{ borderColor: "var(--line)" }}>
-          {children}
-        </div>
-      ) : null}
+    <section className={`panel ${kind}`} style={style}>
+      <div className="ph">{label}</div>
+      {children}
+    </section>
+  );
+}
+
+/* ---- 디자이너 말 ---------------------------------------------------------- */
+/** 포스트잇. 곁 맨 위(긴 말)에는 그대로, 대주제 옆(짧은 말)에는 mini. */
+export function Say({ children, mini = false, when = "방금" }: {
+  children: React.ReactNode; mini?: boolean; when?: string;
+}) {
+  return (
+    <aside className={`say${mini ? " mini" : ""}`}>
+      <div className="who"><i>디</i>디자이너<em>{when}</em></div>
+      <div>{children}</div>
+    </aside>
+  );
+}
+
+/* ---- 대주제 ------------------------------------------------------------------ */
+export type ConfKind = "sure" | "guess" | "unk";
+const CONF: Record<ConfKind, string> = { sure: "자료에서 확실", guess: "제 짐작이에요", unk: "모르겠어요" };
+/** 확신 꼬리표. 확실은 안 봐도 되고, 짐작만 보면 되고, 모름은 대표가 채운다. */
+export const Conf = ({ kind }: { kind: ConfKind }) => <span className={`tag ${kind}`}>{CONF[kind]}</span>;
+
+export function Q({ n, title, why, conf, note, children }: {
+  n: number; title: string; why?: string; conf?: ConfKind;
+  /** 대주제 오른쪽 300 칸의 짧은 말. 그 자리에서 하나 더 묻는 것도 여기다. */
+  note?: React.ReactNode; children: React.ReactNode;
+}) {
+  const body = note ? <div className="qb"><div>{children}</div><Say mini>{note}</Say></div> : children;
+  return (
+    <div className="q">
+      <div className="qh">
+        <span className="n">{n}</span><span className="t">{title}</span>
+        {conf ? <Conf kind={conf} /> : null}
+        {why ? <span className="why">{why}</span> : null}
+      </div>
+      {body}
     </div>
   );
 }
 
-export function Empty({
-  title, children, action, compact = false,
-}: {
-  /** 무엇이 없는지. "아직 없습니다" 가 아니라 무엇이 없는지 이름을 댄다. */
-  title: string;
-  /** 왜 없는지. 한 줄. */
-  children?: React.ReactNode;
-  /** 무엇을 하면 되는지. 할 수 있는 게 있을 때만 넣는다. */
-  action?: React.ReactNode;
-  /** 목록 안에 들어가는 작은 자리면 true. 화면 전체면 false. */
-  compact?: boolean;
+/* ---- 꼬리표 · 되비추기 ------------------------------------------------------ */
+export const Tag = ({ kind, children }: { kind: "rec" | "need"; children: React.ReactNode }) =>
+  <span className={`tag ${kind}`}>{children}</span>;
+export const Need = () => <Tag kind="need">확인 필요</Tag>;
+/** 대표가 한 말을 되비춘다. 기획서 제목 아래, 뼈대의 디자이너 말에. */
+export const Quote = ({ children }: { children: React.ReactNode }) =>
+  <span className="quote"><b>대표님 말씀</b>«{children}»</span>;
+
+/* ---- 입력 -------------------------------------------------------------------- */
+export function Field({ label, hint, value, onChange, placeholder, multiline = false, readOnly = false }: {
+  label: string; hint?: string; value: string; onChange?: (v: string) => void;
+  placeholder?: string; multiline?: boolean; readOnly?: boolean;
 }) {
+  const common = { className: "in", value, placeholder, readOnly,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange?.(e.target.value) };
   return (
-    <div className={compact
-            ? "rounded-[var(--r-md)] px-[var(--s-5)] py-[var(--s-6)] text-center"
-            : "grid place-items-center rounded-[var(--r-md)] px-[var(--s-6)] py-[var(--s-12)] text-center"}
-         style={{ background: "var(--sunken)" }}>
-      <div style={{ maxWidth: "var(--measure)" }}>
-        <div className={compact ? "t-card" : "t-sect"}>{title}</div>
-        {children ? <div className="t-sub mt-2">{children}</div> : null}
-        {action ? <div className="mt-[var(--s-4)]">{action}</div> : null}
-      </div>
+    <label className="field">
+      <div className="lbl">{label}{hint ? <span className="k"> · {hint}</span> : null}</div>
+      {multiline ? <textarea {...common} /> : <input {...common} />}
+    </label>
+  );
+}
+
+/* ---- 비었을 때 --------------------------------------------------------------- */
+export function Empty({ title, children }: { title: string; children?: React.ReactNode }) {
+  return (
+    <div className="drop" style={{ padding: "var(--s-8) var(--s-6)" }}>
+      <div style={{ fontWeight: 700 }}>{title}</div>
+      {children ? <div className="k">{children}</div> : null}
+    </div>
+  );
+}
+
+/* ---- 알리는 화면의 가운데 ---------------------------------------------------- */
+export function Mid({ title, children }: { title: string; children?: React.ReactNode }) {
+  return (
+    <div className="mid">
+      <h1>{title}</h1>
+      {children ? <div className="sub">{children}</div> : null}
     </div>
   );
 }

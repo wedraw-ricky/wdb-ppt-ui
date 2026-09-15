@@ -1,142 +1,30 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import {
-  Button, Card, Checkbox, CheckboxGroup, Description, Input, Label,
-  Switch, TextArea, TextField,
-} from "@heroui/react";
+/* 흐름. DESIGN.md «서비스의 모양»: 기획(1 자료 넣기 → 2 인터뷰 → 3 기획서) →
+   문서(4) → 발표(5 뼈대 → 6 디자인 → 7 만드는 중 → 8 완성). 인터뷰 ⑨에서 갈린다.
+
+   어느 화면인지는 파이프라인이 남긴 파일이 정한다. intake.json 이 없으면 인터뷰,
+   outline.md 가 없으면 기획서(쓰는 중), 뼈대가 확정 전이면 뼈대, 확정됐으면
+   디자인. 세 단계 후보(stage1·2·3)는 디자인 화면 안에서 돈다. 주소 뒤의
+   #/n 은 검토용으로 그 화면을 억지로 연다 — 1 자료 넣기와 4 문서처럼 아직
+   파이프라인이 없는 껍데기도 그렇게 본다. */
+
+import { useEffect, useMemo, useState } from "react";
 import * as api from "./api";
-import type { Dict, Recommendations } from "./api";
-import { T, label, desc, candName, candNote } from "./i18n";
-import {
-  ArtChoice, AUDIENCE_PRESETS, Choice, DIVERGENCE_PRESETS, DiagramChoice, IconChoice,
-  IMAGE_PRESETS,
-  PresetField, RatioChoice, Star, StyleShortlist, ThumbChoice,
-} from "./selectors";
-import { Deriving, Disconnected, DoneArt, ErrorArt, LoadingArt } from "./states";
-import { Ask, Jump, Mid, Shell } from "./shell";
-import { Fold } from "../system/patterns";
-import modeContinuous from "./art/mode-continuous.png";
-import modePlanNo from "./art/mode-plan-no.png";
-import modePlanYes from "./art/mode-plan-yes.png";
-import modeSplit from "./art/mode-split.png";
-import {
-  DeckPreview, HexGrid, ImageSourceChoice, PageCount, PaletteChoice,
-  StrategyChoice, TypeSpecimen,
-} from "./stage23";
-import { AnchorPreview, ImagePreview, Proposal, stageSteps } from "./previews";
-import { Intake } from "./intake";
+import type { Recommendations } from "./api";
+import { Interview, type IntakeExtra } from "./intake";
+import { Input, Plan, Doc, parsePlanSpec, type PlanDoc } from "./planning";
 import { OutlineEditor } from "./outline";
-import {
-  localStamp, metaGet, metaSet, parseOutline, serializeOutline, type Doc, type Row,
-} from "./outline/model";
+import { type Doc as OutlineDoc, type Row, localStamp, metaGet, metaSet, parseOutline, serializeOutline } from "./outline/model";
+import { Design } from "./design";
+import { Making, Done, Broken, type WaitKind } from "./states";
 
-/* ---------- small building blocks ------------------------------------- */
+type Dict = Record<string, any>;
+type Phase = "loading" | "error" | "interview" | "plan" | "outline" | "form" | "wait" | "done";
+const HEARTBEAT_MS = 5000;
 
-/** Which question is on screen. Read by `Section`, written by the footer and
-    the rail — one source, so a jump from the rail and a press of 다음 cannot
-    land on different questions. */
-const StepCtx = createContext<{ current: string; index: (k: string) => number }>(
-  { current: "", index: () => 0 });
-
-const useStep = () => useContext(StepCtx);
-
-/** One decision, one screen.
-
-    Twelve of these stacked made a 4088px scroll: to answer the third question
-    you had to remember the first two were above you and the rest below. Each
-    now waits its turn, in the order the rail already lists — the rail and the
-    form read the same `stageSteps`, so they can never disagree about what is
-    left. */
-/* 한 번에 한 가지만 묻는다. 예전에는 질문이 카드 안 번호 동그라미 옆에
-   들어가 있어서, 화면의 주인공이 질문이 아니라 카드였다. 이제 질문이 곧
-   제목이다. 안내 문구는 첫 질문에서만 — 매 질문마다 같은 말을 반복하면
-   정작 질문이 밀려난다. */
-/* 네 구역을 한 장에 이어 붙인다.
-
-   예전에는 한 번에 한 구역만 보여주고 «다음» 으로 넘겼다. 그러면 앞에서
-   무엇을 골랐는지 다시 보려면 뒤로 가야 하고, 고칠 것을 한꺼번에 말할 수도
-   없다. 계약(SKILL.md Step 4)도 원래 "한 번에 다 보여주고 한 번에 확정" 이
-   기본이고, 단계별 확인은 사용자가 따로 요청할 때만이다.
-
-   맨 위 목록은 이제 남은 것을 세는 자리가 아니라 **바로 가는 자리**다. */
-function Section({ k, title, children }: { k: string; title: string; children: React.ReactNode }) {
-  const { index } = useStep();
-  const first = index(k) === 0;
-  return (
-    <section id={`sec-${k}`} className={first ? "" : "mt-[var(--s-16)] scroll-mt-[var(--s-6)]"}>
-      <Ask title={title} sub={first ? T.hint : undefined} />
-      <div className="flex flex-col gap-[var(--s-3)]">{children}</div>
-    </section>
-  );
-}
-
-/** 접힌 줄에 보이는 «지금 고른 값». 목록에서 이름을 찾아 준다.
-    못 찾으면 정하지 않은 것이니 그렇게 말한다 — 빈 줄을 두면 고장인지
-    안 정한 것인지 모른다. */
-const NOT_SET = "아직 정하지 않음";
-function named(list: any[] | undefined, id: any): string {
-  if (id === undefined || id === null || id === "") return NOT_SET;
-  const it = (list || []).find((x: Dict) => String(x.id) === String(id));
-  return it ? label(it) : String(id);
-}
-
-/** Generative candidates (colour / typography / image style) as pickable cards. */
-function Candidates({
-  block, selected, onSelect, render,
-}: {
-  block: any; selected: number; onSelect: (i: number) => void;
-  render: (c: any) => React.ReactNode;
-}) {
-  const list: any[] = block?.candidates || [];
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {list.map((c, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() => onSelect(i)}
-          className="rounded-xl border p-3 text-left transition"
-          style={{
-            borderColor: i === selected ? "var(--wdb-primary)" : "var(--border)",
-            boxShadow: i === selected ? "0 0 0 2px var(--accent-ring)" : "none",
-            background: "var(--surface)",
-          }}
-        >
-          <div className="mb-1 flex items-center text-sm font-semibold">
-            {candName(c)}
-            {i === (Number(block?.selected) || 0) ? <Star /> : null}
-          </div>
-          {candNote(c) ? (
-            <div className="mb-2 text-xs" style={{ color: "var(--muted)" }}>{candNote(c)}</div>
-          ) : null}
-          {render(c)}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* ---------- app -------------------------------------------------------- */
-
-type Phase = "loading" | "intake" | "outline" | "form" | "deriving" | "done" | "error";
-
-// Well inside the server's own idle budget (900s by default), and rare
-// enough that a page left open all afternoon costs nothing worth counting.
-const HEARTBEAT_MS = 30_000;
-
-/** Keep the confirm server alive while this page is open, and say so when it
-    is not. Filling in the form makes no requests — a person reads and types for
-    minutes — and the server's idle watchdog cannot tell that from a closed tab,
-    so it used to shut down under a waiting user. The ping restarts its clock;
-    closing the tab stops the ping and the idle timeout goes back to working.
-
-    One missed ping is a hiccup, not a death: the banner waits for two in a row
-    so a momentary blip does not flash an alarm at someone mid-decision. Pings
-    continue after that — a restarted server reconnects on its own. */
 function useServerAlive(): boolean {
   const [alive, setAlive] = useState(true);
   useEffect(() => {
-    let stopped = false;
-    let misses = 0;
+    let stopped = false, misses = 0;
     async function ping() {
       const ok = await api.heartbeat();
       if (stopped) return;
@@ -150,464 +38,147 @@ function useServerAlive(): boolean {
   return alive;
 }
 
-/* 맨 위 막대가 몇 %인지. 없는 진행률을 지어내지 않고, 전체 흐름을 여덟 걸음으로
-   보고 지금 몇 번째인지만 적는다 — 인터뷰 · 기획서 · 뼈대 · 1·2·3단계 · 끝. */
-/* 세 단계 안에서 몇 번째 질문인지까지 막대에 반영한다. 단계만 세면 질문
-   여덟 개를 지나는 동안 막대가 한 번도 안 움직여서, 가고 있는지 알 수 없다. */
-const stageProgress = (stageNum: number, at: number, len: number) => {
-  const within = len > 0 ? (at + 1) / len : 1;
-  if (!stageNum) return Math.round(40 + within * 56);
-  return Math.round([54, 68, 82][stageNum - 1] + within * 12);
-};
-
-/* 발표자료·문서가 쓰는 크기. 나머지는 카드뉴스 쪽 형식이라 이 화면에 안 낸다. */
-const DECK_FORMATS = new Set(["ppt169", "ppt43", "a4"]);
-const DECK_CANVAS = (cat: Dict) =>
-  (cat.canvas || []).filter((c: Dict) => DECK_FORMATS.has(String(c.id)));
-
-const derivingProgress = (target: number) =>
-  target === 0 ? 16 : target === 1 ? 48 : target === 2 ? 68 : 82;
-
-const derivingWhere = (target: number) =>
-  target === 0 ? "기획서 만드는 중"
-    : target === 1 ? "디자인 준비 중"
-    : `${target}단계 준비 중`;
+/** 주소 뒤 #/n. 검토용. */
+function useHashScreen(): number {
+  const read = () => Number((location.hash.match(/^#\/(\d)/) || [])[1] || 0);
+  const [n, setN] = useState(read);
+  useEffect(() => { const f = () => setN(read()); addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []);
+  return n;
+}
+const go = (n: number) => { location.hash = `#/${n}`; };
 
 export default function App() {
   const alive = useServerAlive();
-  return (
-    <>
-      {alive ? null : <Disconnected />}
-      <Confirm />
-    </>
-  );
+  const [retry, setRetry] = useState(0);
+  if (!alive) return <Broken reason="server" kept={["답하신 것", "기획서", "뼈대", "이 화면에 고른 것"]} onRetry={() => setRetry((v) => v + 1)} />;
+  return <Flow key={retry} />;
 }
 
-function Confirm() {
+function Flow() {
   const [phase, setPhase] = useState<Phase>("loading");
-  const [waitTarget, setWaitTarget] = useState(2);
-  const [mismatchAck, setMismatchAck] = useState(false);
-  const [intakeDraft, setIntakeDraft] = useState<any | null>(null);
-  const [outlineDoc, setOutlineDoc] = useState<Doc | null>(null);
+  const [wait, setWait] = useState<WaitKind>("plan");
   const [rec, setRec] = useState<Recommendations>({});
   const [cat, setCat] = useState<Dict>({});
   const [state, setState] = useState<Dict>({});
+  const [intake, setIntake] = useState<Partial<IntakeExtra> | null>(null);
+  const [plan, setPlan] = useState<PlanDoc | null>(null);
+  const [outline, setOutline] = useState<OutlineDoc | null>(null);
   const [msg, setMsg] = useState("");
-  // Which question is on screen, held by key so a changing list cannot strand
-  // it. Declared here, above every early return: a hook that only runs in one
-  // phase changes the hook count when the phase changes.
-  const [stepKey, setStepKey] = useState("");
+  const hash = useHashScreen();
 
   const stageNum = useMemo(() => {
     const s = String(rec.stage || "");
-    return s === "stage1" ? 1 : s === "stage2" ? 2 : s === "stage3" ? 3 : 0; // 0 = single pass
+    return s === "stage1" ? 1 : s === "stage2" ? 2 : s === "stage3" ? 3 : 0;
   }, [rec.stage]);
-
   const set = (k: string, v: any) => setState((s) => ({ ...s, [k]: v }));
+  const rows: Row[] = outline?.rows || [];
+  const confirmedRows: Row[] = outline && metaGet(outline, "confirmed_at") ? rows : [];
+  const docToo = intake?.doc_kind === "둘 다" || intake?.doc_kind === "보고서";
+  const deckToo = intake?.doc_kind !== "보고서";
+  const quote = (intake?.conclusion || "").trim().split(/[.。]/)[0].slice(0, 30) || undefined;
 
   async function load() {
     try {
-      const [r, c] = await Promise.all([
-        api.getJson("/api/recommendations"),
-        api.getJson("/api/catalogs"),
-      ]);
+      const [r, c] = await Promise.all([api.getJson("/api/recommendations"), api.getJson("/api/catalogs")]);
       setRec(r); setCat(c); setState(api.initialState(r, c));
-      // The planning artifacts live outside the three-stage machine; a missing
-      // intake.json means the run has not been through Step 3.5 yet.
-      let intake: any = null;
-      try { intake = await api.readPlanning("intake"); } catch { /* server may predate the route */ }
-      if (intake === null) { setIntakeDraft({}); setPhase("intake"); return; }
-      // The skeleton is settled before any design choice (SKILL.md Step 3.7):
-      // what the deck says decides what it needs to look like, not the reverse.
-      let outline: any = null;
-      try { outline = await api.readPlanning("outline"); } catch { /* same */ }
-      if (outline?.text) {
-        const doc = parseOutline(outline.text);
-        // 확정 여부와 무관하게 들고 있는다. 확정된 뼈대는 이 뒤 화면이 장 수를
-        // 아는 유일한 근거라, 안 들고 있으면 "몇 장으로 만들까요" 를 다시 묻게
-        // 된다 — 방금 확정한 사람에게.
-        setOutlineDoc(doc);
-        if (!metaGet(doc, "confirmed_at")) { setPhase("outline"); return; }
-      }
+      let ik: any = null, ps: any = null, ol: any = null;
+      try { ik = await api.readPlanning("intake"); } catch { /* 옛 서버 */ }
+      try { ps = await api.readPlanning("plan-spec"); } catch { /* 같음 */ }
+      try { ol = await api.readPlanning("outline"); } catch { /* 같음 */ }
+      setIntake(ik?.data ?? ik ?? null);
+      setPlan(ps?.text ? parsePlanSpec(ps.text) : null);
+      const doc = ol?.text ? parseOutline(ol.text) : null;
+      setOutline(doc);
+      if (!ik) { setPhase("interview"); return; }
+      if (!doc) { setPhase("plan"); return; }
+      if (!metaGet(doc, "confirmed_at")) { setPhase("outline"); return; }
       setPhase("form");
-    } catch {
-      setPhase("error");
-    }
+    } catch { setPhase("error"); }
   }
   useEffect(() => { load(); }, []);
-  // 템플릿이나 크기를 다시 고르면 불일치 확인과 그때 띄운 오류 문구를 함께 무효화한다
-  useEffect(() => { setMismatchAck(false); setMsg(""); }, [state?.template, state?.canvas]);
-  // A new stage starts at its own first question. Clearing the key is enough —
-  // an unknown key resolves to position 0 below.
-  useEffect(() => { setStepKey(""); }, [stageNum]);
 
-  /** After intake, wait for the agent to produce the outline the user edits. */
-  async function pollOutline() {
+  /** 인터뷰 뒤. 파이프라인이 기획서와 뼈대를 쓰는 동안 기다린다. 기획서가 먼저
+      오면 그걸 보여주고, 뼈대가 오면 뼈대로. */
+  async function pollPlanning() {
     for (let i = 0; i < 3600; i++) {
       await new Promise((r) => setTimeout(r, 1000));
       try {
         const all = await api.getJson("/api/planning");
         if (all?.outline?.exists) { await load(); return; }
-      } catch { /* server may be restarting; keep polling */ }
+        if (all?.["plan-spec"]?.exists) {
+          const ps = await api.readPlanning("plan-spec");
+          if (ps?.text) { setPlan(parsePlanSpec(ps.text)); setPhase("plan"); }
+        }
+      } catch { /* 서버가 다시 뜨는 중일 수 있다 */ }
     }
-    setMsg(T.errRetry);
+    setMsg("너무 오래 걸려요. 채팅을 봐 주세요.");
   }
 
-  /** After a stage submit, wait for the agent to write the next stage. */
+  /** 단계 제출 뒤. 파이프라인이 다음 단계 후보를 쓸 때까지. */
   async function pollNext(target: number) {
     for (let i = 0; i < 600; i++) {
       await new Promise((r) => setTimeout(r, 1000));
       try {
         const s = await api.getJson("/api/session");
         if (Number(s?.recommendation_stage_number || 0) >= target) { await load(); return; }
-        // 후보를 한 번에 다 쓰는 것이 기본이고(계약 Step 4), 그때는 stage 키가
-        // 없어 단계 번호가 0 이다. 그런데 뼈대를 확정하면 3단계 기계를 기다리게
-        // 되어 있어서, 기본 경로가 영원히 "준비 중" 에 머물렀다. 후보가 이미
-        // 쓰여 있고 단계가 안 붙어 있으면 그게 준비된 것이다.
+        // 후보를 한 번에 다 쓰는 것이 기본이고 그때는 stage 키가 없다. 후보가
+        // 이미 쓰여 있고 단계가 안 붙어 있으면 그게 준비된 것이다.
         if (!s?.recommendation_stage && s?.recommendation_version) { await load(); return; }
-      } catch { /* server may be restarting; keep polling */ }
+      } catch { /* 같음 */ }
     }
-    setMsg(T.errRetry);
+    setMsg("너무 오래 걸려요. 채팅을 봐 주세요.");
   }
 
-  async function onPrimary() {
+  async function onPrimary(refineFirst: boolean) {
     setMsg("");
-    // 쪽수를 안 물었으면 확정한 뼈대의 장 수가 곧 쪽수다. 빈 채로 넘기면
-    // 뒤 단계가 장 수를 모른다.
-    const sent = outlineSlides && !state.page_count
-      ? { ...state, page_count: String(outlineSlides) }
-      : state;
+    const sent = { ...state, refine_spec: refineFirst || state.refine_spec };
+    if (confirmedRows.length && !sent.page_count) sent.page_count = String(confirmedRows.length);
     try {
-      if (stageNum === 1) {
-        if (canvasMismatch && !mismatchAck) {
-          setMsg(T.errCanvasMismatch);
-          return;
-        }
-        await api.postConfirm(api.stage1Payload(sent, cat));
-        setWaitTarget(2); setPhase("deriving"); pollNext(2); return;
-      }
-      if (stageNum === 2) {
-        await api.postConfirm(api.stage2Payload(sent, cat));
-        setWaitTarget(3); setPhase("deriving"); pollNext(3); return;
-      }
+      if (stageNum === 1) { await api.postConfirm(api.stage1Payload(sent, cat)); setWait("stage"); setPhase("wait"); pollNext(2); return; }
+      if (stageNum === 2) { await api.postConfirm(api.stage2Payload(sent, cat)); setWait("stage"); setPhase("wait"); pollNext(3); return; }
       await api.postConfirm(api.finalPayload(sent, cat));
       setPhase("done");
       api.shutdown();
     } catch (e: any) {
-      if (e instanceof api.ValidationError) {
-        setMsg(e.message === "image_usage_required" ? T.errImageRequired : T.errImageNoneExclusive);
-      } else setMsg(T.errRetry);
+      if (e instanceof api.ValidationError)
+        setMsg(e.message === "image_usage_required" ? "사진을 어디서 가져올지 하나는 골라 주세요." : "«사진 없이»는 다른 것과 같이 못 골라요.");
+      else setMsg("저장이 안 됐어요. 다시 눌러 주세요.");
     }
   }
 
-  if (phase === "intake")
-    return (
-      <Intake
-        draft={intakeDraft || {}}
-        onDone={async (v) => {
-          try {
-            await api.savePlanning("intake", { data: v });
-            setWaitTarget(0);
-            setPhase("deriving");
-            pollOutline();
-          } catch {
-            setMsg(T.errRetry);
-          }
-        }}
-      />
-    );
-  if (phase === "outline" && outlineDoc)
-    return (
-      <OutlineEditor
-        doc={outlineDoc}
-        onConfirm={async (rows: Row[]) => {
-          // `confirmed_at` is the person's approval, and it is also what makes
-          // the write land: the agent waits on this file *changing*
-          // (`--wait-planning outline`), so confirming an outline nobody edited
-          // has to still differ from the version the agent wrote.
-          const next = metaSet({ ...outlineDoc, rows }, "confirmed_at", localStamp());
-          await api.savePlanning("outline", { text: serializeOutline(next) });
-          setWaitTarget(1);
-          setPhase("deriving");
-          pollNext(1);
-        }}
-      />
-    );
-  // 고를 것이 없는 화면 넷. 셋 다 같은 틀 안에서 가운데만 바뀐다 — 예전에는
-  // 여기만 머리띠도 없는 맨 화면이라 다른 물건처럼 보였다.
-  if (phase === "loading")
-    return (
-      <Shell where="여는 중" progress={4} wide>
-        <Mid art={<LoadingArt />} title={T.loading} />
-      </Shell>
-    );
-  if (phase === "error")
-    return (
-      <Shell where="자료를 읽지 못함" progress={0} wide>
-        <Mid art={<ErrorArt />} title={T.loadErrorTitle}>{T.loadError}</Mid>
-      </Shell>
-    );
-  if (phase === "deriving")
-    return (
-      <Shell where={derivingWhere(waitTarget)} progress={derivingProgress(waitTarget)} wide>
-        <Deriving target={waitTarget} />
-      </Shell>
-    );
-  if (phase === "done")
-    return (
-      <Shell where="다 정했습니다" progress={100} wide>
-        <Mid art={<DoneArt />} title={T.confirmedTitle}>{T.confirmedHint}</Mid>
-      </Shell>
-    );
+  async function saveIntake(v: IntakeExtra) {
+    await api.savePlanning("intake", { data: v });
+    setIntake(v); location.hash = ""; setWait("plan"); setPhase("wait"); pollPlanning();
+  }
+  const afterDoc = () => { location.hash = ""; setPhase(outline ? (metaGet(outline, "confirmed_at") ? "form" : "outline") : "plan"); };
 
-  const R = rec.recommend || {};
-  const showAnchors = stageNum === 0 || stageNum === 1;
-  const showDesign = stageNum === 0 || stageNum === 2;
-  const showImages = stageNum === 0 || stageNum === 3;
-  const isPpt = api.isPptCanvas(state.canvas, cat);
-  const aiOn = api.needsAi(state.image_usage || []);
-  const spectrum: Record<string, string> = {};
-  (rec.visual_style_spectrum || []).forEach((s: Dict) => {
-    if (s?.id) spectrum[s.id] = `${s.tag_ko || s.tag_en || ""}${s.note_ko ? " · " + s.note_ko : ""}`;
-  });
-  const styleItems = (cat.visual_styles || []).flatMap((g: Dict) => g.items || []);
-  // 덱 템플릿의 Master 기하는 그 덱의 canvas_format 에 고정돼 있다. 캔버스가 다르면
-  // 구조화 라우트가 성립하지 않고 색·서체만 가져오는 flat 이 된다 — 조용히 넘기지 않는다.
-  const pickedDeck = (cat.templates || []).find((d: Dict) => d.id === state.template);
-  const deckFormat = state.template && state.template !== "free" ? pickedDeck?.canvas_format : null;
-  const canvasMismatch = Boolean(deckFormat && deckFormat !== state.canvas);
-  const outlineSlides = outlineDoc && metaGet(outlineDoc, "confirmed_at")
-    ? outlineDoc.rows.length : 0;
-  const steps = stageSteps(stageNum, state, cat, isPpt, outlineSlides);
+  const palette = state.color?.palette || null;
+  const sources: string[] = []; // 자료 목록은 파이프라인이 아직 안 넘겨준다
 
-  // The list can change under us — picking a deck adds or drops a question — so
-  // an unknown key falls back to the first, never to an empty screen.
-  const at = Math.max(0, steps.findIndex((s) => s.key === stepKey));
-  const current = steps[at]?.key ?? "";
-  const stepCtx = { current, index: (k: string) => steps.findIndex((s) => s.key === k) };
-  const goTo = (i: number) => {
-    const next = steps[Math.min(Math.max(i, 0), steps.length - 1)];
-    if (next) setStepKey(next.key);
-  };
-  const isLast = at >= steps.length - 1;
-  const left = steps.filter((s) => s.required && !s.filled).length;
+  /* 검토용 강제 화면 */
+  if (hash === 1) return <Input sources={sources} onNext={() => go(2)} />;
+  if (hash === 2) return <Interview draft={intake || {}} onBack={() => go(1)} onDone={saveIntake} />;
+  if (hash === 3) return <Plan doc={plan} quote={quote} waiting={!outline} onBack={() => go(2)} onDoc={() => go(4)} onOutline={outline ? afterDoc : undefined} />;
+  if (hash === 4) return <Doc doc={plan} deckToo={deckToo} onBack={() => go(3)} onNext={afterDoc} />;
+  if (hash === 7) return <Making kind="final" rows={rows} palette={palette} />;
+  if (hash === 8 || phase === "done") return <Done rows={rows} palette={palette} docToo={docToo} />;
+
+  if (phase === "loading") return <Making kind="plan" rows={[]} />;
+  if (phase === "error") return <Broken reason="load" kept={[intake ? "답하신 것" : "", plan ? "기획서" : "", outline ? "뼈대" : ""].filter(Boolean)} onRetry={load} />;
+  if (phase === "wait") return <Making kind={wait} rows={confirmedRows} palette={palette} />;
+  if (phase === "interview") return <Interview draft={intake || {}} onDone={saveIntake} />;
+  if (phase === "plan") return <Plan doc={plan} quote={quote} waiting={!outline} onBack={() => go(2)} onDoc={() => go(4)} />;
+  if ((phase === "outline" || hash === 5) && outline)
+    return <OutlineEditor key={outline.rows.length} doc={outline} quote={quote} onBack={() => go(3)}
+      onConfirm={async (rs) => {
+        // confirmed_at 이 사람의 승인이고, 파이프라인은 이 파일이 «바뀌는» 것을 기다린다.
+        const next = metaSet({ ...outline, rows: rs }, "confirmed_at", localStamp());
+        await api.savePlanning("outline", { text: serializeOutline(next) });
+        setOutline(next); location.hash = ""; setWait("stage"); setPhase("wait"); pollNext(1);
+      }} />;
 
   return (
-    <Shell
-      where={stageNum ? `디자인 정하기 · 3단계 중 ${stageNum}` : T.title}
-      progress={stageProgress(stageNum, at, steps.length)}
-      footNote={
-        left
-          ? `아직 ${left}가지 남았습니다 — 그대로 두셔도 추천값으로 만듭니다`
-          : "네 가지 다 정하셨습니다"
-      }
-      footActions={
-        <>
-          {msg ? <span className="t-sub" style={{ color: "var(--danger)" }}>{msg}</span> : null}
-          <Button variant="primary" onPress={onPrimary}>
-            {stageNum && stageNum < 3 ? `${T.next} →` : T.confirm}
-          </Button>
-        </>
-      }>
-      {/* 제안이 먼저다. 디자이너는 «여기까지 이해했습니다» 를 보여주고 나서
-          바꿀 것을 묻는다 (DESIGN.md 흐름 ①). 예전에는 이 미리보기가 맨 아래
-          «글씨 크기» 안에 폭 160px 로 들어 있었다 — 제일 중요한 것이 제일
-          작았다. 칠해진 면도 여기 하나다 (컨셉 ②). */}
-      <Proposal rows={outlineDoc?.rows} state={state} />
-      <Jump steps={steps} />
-      <StepCtx.Provider value={stepCtx}>
-          {showAnchors && (
-            <Section k="frame" title="어떤 틀로 만들까요?">
-              <Fold name="시안" open={!state.template} warn={!state.template}
-                    value={named(cat.templates, state.template)}>
-                <ThumbChoice
-                  items={cat.templates} value={state.template}
-                  onChange={(v) => set("template", v)} recommended={R.template}
-                  srcFor={(it) =>
-                    it.id === "free" ? null
-                      : `/api/template_preview/${encodeURIComponent(it.id)}?lang=ko`}
-                />
-              </Fold>
-              {/* 발표자료가 쓰는 크기만 남긴다. 인스타·위챗·샤오홍슈·모먼츠·
-                  스토리·배너는 카드뉴스 형식이라 이 화면과 상관이 없다 —
-                  고를 수 없는 것을 늘어놓으면 고르는 사람이 헤맨다. */}
-              <Fold name="크기" open={!state.canvas} warn={!state.canvas}
-                    value={named(DECK_CANVAS(cat), state.canvas)}>
-                <RatioChoice items={DECK_CANVAS(cat)} value={state.canvas}
-                             onChange={(v) => set("canvas", v)} recommended={R.canvas} />
-                {/* 고른 크기가 실제로 어떤 비율인지, 그리고 템플릿과 안 맞으면
-                    여기서 막는다. */}
-                <AnchorPreview state={state} cat={cat} ack={mismatchAck}
-                               onFixCanvas={(id) => set("canvas", id)}
-                               onAck={() => setMismatchAck((v) => !v)} />
-              </Fold>
-            </Section>
-          )}
-
-          {showDesign && (
-            <Section k="look" title="어떤 느낌으로 만들까요?">
-              <Fold name="서술 방식" open={!state.mode} warn={!state.mode}
-                    value={named(cat.modes, state.mode)}>
-                <DiagramChoice items={cat.modes || []} value={state.mode}
-                               onChange={(v) => set("mode", v)} recommended={R.mode} />
-              </Fold>
-
-              {/* 후보를 열여덟 개 늘어놓는 것은 고르라는 게 아니라 떠넘기는
-                  것이다 (DESIGN.md 흐름). 정해 둔 것과 «안전 · 추천 · 과감»
-                  후보만 먼저 보이고, 나머지는 더 보기 뒤로. */}
-              <Fold name="화면 분위기" open={!state.visual_style} warn={!state.visual_style}
-                    value={named(styleItems, state.visual_style)}>
-                <StyleShortlist
-                  items={styleItems} value={state.visual_style}
-                  onChange={(v) => set("visual_style", v)} recommended={R.visual_style}
-                  spectrum={spectrum} />
-              </Fold>
-
-              {state.template_adherence && (
-                <Fold name="시안 따르기"
-                      value={named(cat.template_adherence, state.template_adherence)}>
-                  <Choice legend={T.subAdherence} items={cat.template_adherence || []}
-                          value={state.template_adherence}
-                          onChange={(v) => set("template_adherence", v)}
-                          recommended={R.template_adherence} />
-                </Fold>
-              )}
-
-              <Fold name="색" open={!state.color?.name} warn={!state.color?.name}
-                    value={state.color?.name || NOT_SET}>
-                <PaletteChoice
-                  candidates={rec.color?.candidates || []}
-                  selectedIndex={(rec.color?.candidates || []).findIndex(
-                    (c: Dict) => candName(c) === state.color?.name)}
-                  recommendedIndex={Number(rec.color?.selected) || 0}
-                  nameOf={candName} noteOf={candNote}
-                  onSelect={(i) => {
-                    const c = rec.color.candidates[i];
-                    set("color", { name: candName(c), palette: { ...c.palette } });
-                  }}
-                />
-                <div className="mt-[var(--s-6)]">
-                  <div className="mb-3 t-card">{T.hexOverride}</div>
-                  <div className="t-sub mb-3" style={{ maxWidth: "var(--measure)" }}>
-                    후보에 마음에 드는 게 없으면 여기서 직접 넣으세요. 여섯 자리를
-                    다 바꿔도 되고, 강조색 하나만 바꿔도 됩니다.
-                  </div>
-                  <HexGrid palette={state.color?.palette || {}} roles={T.roles}
-                           onChange={(role, v) =>
-                             setState((s) => ({ ...s,
-                               color: { ...s.color, palette: { ...s.color.palette, [role]: v } } }))} />
-                </div>
-              </Fold>
-
-              <Fold name="아이콘" value={named(cat.icons, state.icons)}>
-                <IconChoice items={cat.icons || []} value={state.icons}
-                            onChange={(v) => set("icons", v)} recommended={R.icons} />
-              </Fold>
-
-              <Fold name="글씨 크기"
-                    value={state.typography?.body_size
-                      ? `본문 ${state.typography.body_size}pt` : NOT_SET}>
-                <TypeSpecimen
-                  typography={state.typography || {}}
-                  onBody={(v) => setState((s) => {
-                    const next = parseFloat(v);
-                    const prev = Number(s.typography.body_size) || 1;
-                    const ratio = isFinite(next) && prev ? next / prev : 1;
-                    const sizes = { ...s.typography.sizes };
-                    if (isFinite(next)) for (const k of Object.keys(sizes))
-                      sizes[k] = Math.round((Number(sizes[k]) || 0) * ratio);
-                    return { ...s, typography: { ...s.typography, body_size: v, sizes } };
-                  })}
-                  onRole={(role, v) => setState((s) => ({ ...s,
-                    typography: { ...s.typography, sizes: { ...s.typography.sizes, [role]: v } } }))}
-                />
-              </Fold>
-            </Section>
-          )}
-
-          {showImages && (
-            <>
-              <Section k="images" title={T.secImages}>
-                <Fold name="어디서" open={!(state.image_usage || []).length}
-                      warn={!(state.image_usage || []).length}
-                      value={(Array.isArray(state.image_usage) ? state.image_usage : [])
-                        .map((u: string) => named(cat.image_usage, u)).join(" · ") || NOT_SET}>
-                  <ImageSourceChoice
-                    items={cat.image_usage || []} value={state.image_usage}
-                    onChange={(v) => set("image_usage", v)}
-                    recommended={Array.isArray(R.image_usage) ? R.image_usage : [R.image_usage].filter(Boolean)} />
-                </Fold>
-
-                <Fold name="더 할 말" value={String(state.image_notes || "").trim() || "없음"}>
-                  <PresetField
-                    legend={T.subImageNotes}
-                    hint="가까운 것을 고르고 필요하면 고쳐 쓰세요"
-                    presets={IMAGE_PRESETS} value={state.image_notes}
-                    onChange={(v) => set("image_notes", v)} placeholder={T.phImageNotes} />
-                </Fold>
-
-                {aiOn && (
-                  <>
-                    <Fold name="이미지 느낌" value={state.image_strategy?.name || NOT_SET}>
-                      <StrategyChoice
-                        candidates={rec.image_strategy?.candidates || []}
-                        selectedIndex={(rec.image_strategy?.candidates || []).findIndex(
-                          (c: Dict) => c.name === state.image_strategy?.name)}
-                        recommendedIndex={Number(rec.image_strategy?.selected) || 0}
-                        nameOf={candName} noteOf={candNote}
-                        onSelect={(i) => set("image_strategy", { ...rec.image_strategy.candidates[i] })}
-                      />
-                      <div className="mt-[var(--s-6)]"><ImagePreview state={state} /></div>
-                    </Fold>
-
-                    {/* 어디서 만들지는 결과가 같다 — 대표가 정할 일이 아니다.
-                        정해 두고 바꿀 길만 열어 둔다 (DESIGN.md 흐름 ⑤). */}
-                    <Fold name="만드는 곳" value={named(cat.image_ai_path, state.image_ai_path)}>
-                      <Choice legend={T.subImagePath} items={cat.image_ai_path || []}
-                              value={state.image_ai_path}
-                              onChange={(v) => set("image_ai_path", v)} recommended={R.image_ai_path} />
-                    </Fold>
-                  </>
-                )}
-              </Section>
-
-              <Section k="finish" title="마무리">
-                <Fold name="수식" value={named(cat.formula_policy, state.formula_policy)}>
-                  <Choice items={cat.formula_policy || []} value={state.formula_policy}
-                          onChange={(v) => set("formula_policy", v)} recommended={R.formula_policy} />
-                </Fold>
-
-                <Fold name="만들기" value={named(cat.generation_mode, state.generation_mode)}>
-                  <ArtChoice
-                    items={(cat.generation_mode || []).map((m: Dict) => ({
-                      id: String(m.id), label: String(m.label_ko || m.id),
-                      note: String(m.desc_ko || m.note_ko || ""),
-                    }))}
-                    value={state.generation_mode}
-                    onChange={(v) => set("generation_mode", v)}
-                    recommended={R.generation_mode}
-                    art={{ continuous: modeContinuous, split: modeSplit }} />
-                </Fold>
-
-                {/* 켬/끔 스위치였다. 두 갈래가 어떻게 다른지는 스위치가 말해주지
-                    못해서, 켠 상태의 글을 읽어야만 알 수 있었다. */}
-                <Fold name="계획서" value={state.refine_spec ? T.refineOn : T.refineOff}>
-                  <ArtChoice
-                    items={[
-                      { id: "yes", label: T.refineOn,
-                        note: "기획서를 먼저 확인하고, 고칠 것을 고친 뒤에 슬라이드를 만듭니다" },
-                      { id: "no", label: T.refineOff,
-                        note: "기획서를 건너뛰고 바로 슬라이드까지 만듭니다" },
-                    ]}
-                    value={state.refine_spec ? "yes" : "no"}
-                    onChange={(v) => set("refine_spec", v === "yes")}
-                    art={{ yes: modePlanYes, no: modePlanNo }} />
-                </Fold>
-              </Section>
-            </>
-          )}
-      </StepCtx.Provider>
-    </Shell>
+    <Design rec={rec} cat={cat} state={state} set={set} rows={confirmedRows} stageNum={stageNum}
+            onPrimary={onPrimary} error={msg} docToo={docToo} />
   );
 }
-
