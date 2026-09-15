@@ -19,7 +19,7 @@ import { Making, Done, Broken, type WaitKind } from "./states";
 import { StepsCtx, type StepInfo } from "./shell";
 
 type Dict = Record<string, any>;
-type Phase = "loading" | "error" | "interview" | "plan" | "outline" | "form" | "wait" | "done";
+type Phase = "loading" | "error" | "interview" | "plan" | "outline" | "form" | "wait" | "handoff" | "done";
 const HEARTBEAT_MS = 5000;
 
 function useServerAlive(): boolean {
@@ -52,11 +52,14 @@ const go = (n: number) => { location.hash = n === 6 ? "" : `#/${n}`; };
 export default function App() {
   const alive = useServerAlive();
   const [retry, setRetry] = useState(0);
-  if (!alive) return <Broken reason="server" kept={["답하신 것", "기획서", "뼈대", "이 화면에 고른 것"]} onRetry={() => setRetry((v) => v + 1)} />;
-  return <Flow key={retry} />;
+  // 고른 것을 넘기고 나면 서버가 일부러 꺼진다 (파이프라인의 약속). 그건 고장이
+  // 아니라 순서라서 «제 쪽 문제예요» 를 띄우지 않는다.
+  const [handed, setHanded] = useState(false);
+  if (!alive && !handed) return <Broken reason="server" kept={["답하신 것", "기획서", "뼈대", "이 화면에 고른 것"]} onRetry={() => setRetry((v) => v + 1)} />;
+  return <Flow key={retry} onHandoff={() => setHanded(true)} />;
 }
 
-function Flow() {
+function Flow({ onHandoff }: { onHandoff: () => void }) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [wait, setWait] = useState<WaitKind>("plan");
   const [rec, setRec] = useState<Recommendations>({});
@@ -66,6 +69,7 @@ function Flow() {
   const [plan, setPlan] = useState<PlanDoc | null>(null);
   const [outline, setOutline] = useState<OutlineDoc | null>(null);
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
   const hash = useHashScreen();
 
   const stageNum = useMemo(() => {
@@ -132,20 +136,23 @@ function Flow() {
   }
 
   async function onPrimary(refineFirst: boolean) {
-    setMsg("");
+    setMsg(""); setBusy(true);
     const sent = { ...state, refine_spec: refineFirst || state.refine_spec };
     if (confirmedRows.length && !sent.page_count) sent.page_count = String(confirmedRows.length);
     try {
       if (stageNum === 1) { await api.postConfirm(api.stage1Payload(sent, cat)); setWait("stage"); setPhase("wait"); pollNext(2); return; }
       if (stageNum === 2) { await api.postConfirm(api.stage2Payload(sent, cat)); setWait("stage"); setPhase("wait"); pollNext(3); return; }
       await api.postConfirm(api.finalPayload(sent, cat));
-      setPhase("done");
+      // 여기서부터는 채팅의 파이프라인이 만든다. 이 화면을 받쳐 주던 서버는
+      // 일을 넘기고 꺼진다. 그래서 «다 됐어요» 가 아니라 «만들기 시작했어요» 다.
+      onHandoff();
+      setPhase("handoff");
       api.shutdown();
     } catch (e: any) {
       if (e instanceof api.ValidationError)
         setMsg(e.message === "image_usage_required" ? "사진을 어디서 가져올지 하나는 골라 주세요." : "«사진 없이»는 다른 것과 같이 못 골라요.");
       else setMsg("저장이 안 됐어요. 다시 눌러 주세요.");
-    }
+    } finally { setBusy(false); }
   }
 
   /** 답이 그대로면 저장하지 않고 다음 화면으로. 바뀌었으면 저장하고, 기획서는
@@ -171,9 +178,9 @@ function Flow() {
   /* 여덟 걸음의 상태. 파일이 있으면 끝난 것이다. */
   const nowStep =
     hash || (phase === "interview" ? 2 : phase === "plan" ? 3 : phase === "outline" ? 5 : phase === "form" ? 6
-      : phase === "wait" ? ({ plan: 3, outline: 5, stage: 6, final: 7 } as const)[wait] : phase === "done" ? 8 : 1);
+      : phase === "wait" ? ({ plan: 3, outline: 5, stage: 6, final: 7 } as const)[wait] : phase === "handoff" ? 7 : phase === "done" ? 8 : 1);
   const doneFlags = [Boolean(intake), Boolean(intake), Boolean(plan), Boolean(plan && docToo), Boolean(confirmedAt),
-                     Boolean(rec._already_confirmed), false, false];
+                     Boolean(rec._already_confirmed) || phase === "handoff", false, false];
   const labels = ["자료", "인터뷰", "기획서", "문서", "뼈대", "디자인", "만드는 중", "완성"];
   const steps: StepInfo[] = labels.map((label, i) => ({
     n: i + 1, label,
@@ -188,7 +195,7 @@ function Flow() {
     if (hash === 3) return <Plan doc={plan} quote={quote} waiting={!outline && !plan} stale={intakeChanged}
                                  onBack={() => go(2)} onDoc={() => go(4)} onOutline={toOutline} />;
     if (hash === 4) return <Doc doc={plan} deckToo={deckToo} onBack={() => go(3)} onNext={toOutline} />;
-    if (hash === 7) return <Making kind="final" rows={rows} palette={palette} />;
+    if (hash === 7 || phase === "handoff") return <Making kind="final" rows={rows} palette={palette} handedOff={phase === "handoff"} />;
     if (hash === 8 || phase === "done") return <Done rows={rows} palette={palette} docToo={docToo} />;
 
     if (phase === "loading") return <Making kind="plan" rows={[]} />;
@@ -211,7 +218,7 @@ function Flow() {
 
     return (
       <Design rec={rec} cat={cat} state={state} set={set} rows={confirmedRows} stageNum={stageNum}
-              onPrimary={onPrimary} error={msg} docToo={docToo} lead={priorNote} />
+              onPrimary={onPrimary} error={msg} docToo={docToo} lead={priorNote} busy={busy} />
     );
   };
   return <StepsCtx.Provider value={{ steps, go }}>{view()}</StepsCtx.Provider>;

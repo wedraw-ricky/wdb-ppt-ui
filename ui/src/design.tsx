@@ -61,13 +61,15 @@ const named = (list: Dict[] | undefined, id: any) => {
 const SIZE_LABELS: Record<string, string> = { text: "작게 · 본문 20pt", balanced: "기본 · 본문 24pt", presentation: "크게 · 본문 28pt" };
 const DECK_CANVAS = (cat: Dict) => (cat.canvas || []).filter((c: Dict) => api.isPptCanvas(c.id, cat));
 
-export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo, lead }: {
+export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo, lead, busy = false }: {
   rec: api.Recommendations; cat: Dict; state: Dict;
   set: (k: string, v: any) => void;
   rows: Row[]; stageNum: number;
   onPrimary: (refineFirst: boolean) => void; error?: string; docToo: boolean;
   /** 앞 단계가 이미 끝나 있을 때 첫 줄에 하는 말. */
   lead?: string;
+  /** 넘기는 중. 버튼이 바로 «저장하는 중»으로 바뀌어야 눌렸는지 안다. */
+  busy?: boolean;
 }) {
   const R = rec.recommend || {};
   const [moreColors, setMoreColors] = useState(false);
@@ -144,11 +146,11 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
           </Panel>
         </>
       }
-      footNote={`이대로 만들면 ${rows.length || state.page_count || "?"}장 · 사진 ${aiOn ? photoCount : 0}장`}
       error={error}
+      footNote={busy ? "고르신 것을 저장하고 있어요" : `이대로 만들면 ${rows.length || state.page_count || "?"}장 · 사진 ${aiOn ? photoCount : 0}장`}
       actions={[
-        ...(stageNum === 0 || stageNum === 3 ? [{ label: "계획서 먼저 보기", onClick: () => onPrimary(true) }] : []),
-        { label: primaryLabel, kind: "pri" as const, onClick: () => onPrimary(false) },
+        ...(stageNum === 0 || stageNum === 3 ? [{ label: "계획서 먼저 보기", onClick: () => onPrimary(true), disabled: busy }] : []),
+        { label: busy ? "저장하는 중…" : primaryLabel, kind: "pri" as const, onClick: () => onPrimary(false), disabled: busy },
       ]}>
       <Panel label="결과물 · 스토리보드" kind="out">
         {rows.length ? <Storyboard rows={rows} palette={palette} /> : <Empty title="뼈대가 확정되면 여기 장이 보여요" />}
