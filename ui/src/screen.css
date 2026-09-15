@@ -29,6 +29,15 @@ input, textarea { font: inherit; color: inherit; }
 .bands span:last-child { border-right: 0; }
 .bands span.on { background: var(--main); color: var(--ink-on-main); }
 .step { font-size: var(--t-body2-size); color: var(--ink-muted); }
+.steps { display: flex; gap: 4px; margin-left: var(--s-2); }
+.steps .st { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px 0 5px; border-radius: var(--r-md); font-size: var(--t-tiny-size); font-weight: 600; color: var(--ink-faint); border: var(--w-hair) solid transparent; white-space: nowrap; }
+.steps .st i { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; font-style: normal; font-size: 11px; border: var(--w-hair) solid var(--line-strong); background: var(--white); color: var(--ink-faint); }
+.steps .st.done { color: var(--ink); }
+.steps .st.done i { border-color: var(--main); color: var(--main); }
+.steps .st.now { background: var(--main); color: var(--ink-on-main); cursor: default; }
+.steps .st.now i { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+.steps .st.todo { cursor: pointer; }
+.steps .st:disabled { opacity: 1; }
 .prog { margin-left: auto; width: var(--progress-w); height: var(--w-rule); background: var(--line); border-radius: 2px; overflow: hidden; }
 .prog i { display: block; height: 100%; background: var(--accent); transition: width 240ms; }
 .body { padding: var(--s-10) var(--edge) var(--s-12); flex: 1; }

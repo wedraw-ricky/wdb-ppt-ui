@@ -16,6 +16,7 @@ import { OutlineEditor } from "./outline";
 import { type Doc as OutlineDoc, type Row, localStamp, metaGet, metaSet, parseOutline, serializeOutline } from "./outline/model";
 import { Design } from "./design";
 import { Making, Done, Broken, type WaitKind } from "./states";
+import { StepsCtx, type StepInfo } from "./shell";
 
 type Dict = Record<string, any>;
 type Phase = "loading" | "error" | "interview" | "plan" | "outline" | "form" | "wait" | "done";
@@ -45,7 +46,8 @@ function useHashScreen(): number {
   useEffect(() => { const f = () => setN(read()); addEventListener("hashchange", f); return () => removeEventListener("hashchange", f); }, []);
   return n;
 }
-const go = (n: number) => { location.hash = `#/${n}`; };
+/** 6 디자인은 기본 화면이라 주소가 비어 있다. */
+const go = (n: number) => { location.hash = n === 6 ? "" : `#/${n}`; };
 
 export default function App() {
   const alive = useServerAlive();
@@ -146,39 +148,71 @@ function Flow() {
     }
   }
 
+  /** 답이 그대로면 저장하지 않고 다음 화면으로. 바뀌었으면 저장하고, 기획서는
+      파이프라인이 다시 써야 한다고 말한다 (이 서버만 떠 있을 때는 아무도 안 쓴다). */
+  const [intakeChanged, setIntakeChanged] = useState(false);
   async function saveIntake(v: IntakeExtra) {
+    const same = intake && JSON.stringify({ ...api.EMPTY_INTAKE, ...intake }) === JSON.stringify({ ...api.EMPTY_INTAKE, ...v });
+    if (same && plan) { go(3); return; }
     await api.savePlanning("intake", { data: v });
-    setIntake(v); location.hash = ""; setWait("plan"); setPhase("wait"); pollPlanning();
+    setIntake(v);
+    if (plan) { setIntakeChanged(true); go(3); return; }
+    location.hash = ""; setWait("plan"); setPhase("wait"); pollPlanning();
   }
-  const afterDoc = () => { location.hash = ""; setPhase(outline ? (metaGet(outline, "confirmed_at") ? "form" : "outline") : "plan"); };
+  const toOutline = () => { if (outline) go(5); else { location.hash = ""; setPhase("plan"); } };
 
   const palette = state.color?.palette || null;
   const sources: string[] = []; // 자료 목록은 파이프라인이 아직 안 넘겨준다
+  const confirmedAt = outline ? metaGet(outline, "confirmed_at") : "";
+  const priorNote = confirmedAt
+    ? `인터뷰, 기획서, 뼈대는 ${confirmedAt.slice(0, 10)}에 끝나 있어요. 여기서 이어가요. 앞 단계는 위 번호를 눌러 볼 수 있어요.`
+    : undefined;
 
-  /* 검토용 강제 화면 */
-  if (hash === 1) return <Input sources={sources} onNext={() => go(2)} />;
-  if (hash === 2) return <Interview draft={intake || {}} onBack={() => go(1)} onDone={saveIntake} />;
-  if (hash === 3) return <Plan doc={plan} quote={quote} waiting={!outline} onBack={() => go(2)} onDoc={() => go(4)} onOutline={outline ? afterDoc : undefined} />;
-  if (hash === 4) return <Doc doc={plan} deckToo={deckToo} onBack={() => go(3)} onNext={afterDoc} />;
-  if (hash === 7) return <Making kind="final" rows={rows} palette={palette} />;
-  if (hash === 8 || phase === "done") return <Done rows={rows} palette={palette} docToo={docToo} />;
+  /* 여덟 걸음의 상태. 파일이 있으면 끝난 것이다. */
+  const nowStep =
+    hash || (phase === "interview" ? 2 : phase === "plan" ? 3 : phase === "outline" ? 5 : phase === "form" ? 6
+      : phase === "wait" ? ({ plan: 3, outline: 5, stage: 6, final: 7 } as const)[wait] : phase === "done" ? 8 : 1);
+  const doneFlags = [Boolean(intake), Boolean(intake), Boolean(plan), Boolean(plan && docToo), Boolean(confirmedAt),
+                     Boolean(rec._already_confirmed), false, false];
+  const labels = ["자료", "인터뷰", "기획서", "문서", "뼈대", "디자인", "만드는 중", "완성"];
+  const steps: StepInfo[] = labels.map((label, i) => ({
+    n: i + 1, label,
+    state: i + 1 === nowStep ? "now" : doneFlags[i] ? "done" : "todo",
+    note: i === 3 && !docToo ? "발표자료만 만들어서 건너뛰어요" : undefined,
+  }));
 
-  if (phase === "loading") return <Making kind="plan" rows={[]} />;
-  if (phase === "error") return <Broken reason="load" kept={[intake ? "답하신 것" : "", plan ? "기획서" : "", outline ? "뼈대" : ""].filter(Boolean)} onRetry={load} />;
-  if (phase === "wait") return <Making kind={wait} rows={confirmedRows} palette={palette} />;
-  if (phase === "interview") return <Interview draft={intake || {}} onDone={saveIntake} />;
-  if (phase === "plan") return <Plan doc={plan} quote={quote} waiting={!outline} onBack={() => go(2)} onDoc={() => go(4)} />;
-  if ((phase === "outline" || hash === 5) && outline)
-    return <OutlineEditor key={outline.rows.length} doc={outline} quote={quote} onBack={() => go(3)}
-      onConfirm={async (rs) => {
-        // confirmed_at 이 사람의 승인이고, 파이프라인은 이 파일이 «바뀌는» 것을 기다린다.
-        const next = metaSet({ ...outline, rows: rs }, "confirmed_at", localStamp());
-        await api.savePlanning("outline", { text: serializeOutline(next) });
-        setOutline(next); location.hash = ""; setWait("stage"); setPhase("wait"); pollNext(1);
-      }} />;
+  const view = () => {
+    /* 검토용 강제 화면 */
+    if (hash === 1) return <Input sources={sources} onNext={() => go(2)} />;
+    if (hash === 2) return <Interview draft={intake || {}} onBack={() => go(1)} onDone={saveIntake} />;
+    if (hash === 3) return <Plan doc={plan} quote={quote} waiting={!outline && !plan} stale={intakeChanged}
+                                 onBack={() => go(2)} onDoc={() => go(4)} onOutline={toOutline} />;
+    if (hash === 4) return <Doc doc={plan} deckToo={deckToo} onBack={() => go(3)} onNext={toOutline} />;
+    if (hash === 7) return <Making kind="final" rows={rows} palette={palette} />;
+    if (hash === 8 || phase === "done") return <Done rows={rows} palette={palette} docToo={docToo} />;
 
-  return (
-    <Design rec={rec} cat={cat} state={state} set={set} rows={confirmedRows} stageNum={stageNum}
-            onPrimary={onPrimary} error={msg} docToo={docToo} />
-  );
+    if (phase === "loading") return <Making kind="plan" rows={[]} />;
+    if (phase === "error") return <Broken reason="load" kept={[intake ? "답하신 것" : "", plan ? "기획서" : "", outline ? "뼈대" : ""].filter(Boolean)} onRetry={load} />;
+    if (phase === "wait") return <Making kind={wait} rows={confirmedRows} palette={palette} />;
+    if (phase === "interview") return <Interview draft={intake || {}} onDone={saveIntake} />;
+    if (phase === "plan") return <Plan doc={plan} quote={quote} waiting={!outline} stale={intakeChanged} onBack={() => go(2)} onDoc={() => go(4)} onOutline={outline ? toOutline : undefined} />;
+    if ((phase === "outline" || hash === 5) && outline)
+      return <OutlineEditor key={outline.rows.length} doc={outline} quote={quote} onBack={() => go(3)}
+        onConfirm={async (rs) => {
+          // 확정된 뼈대를 다시 보기만 했으면 저장하지 않는다. 바뀌었거나 처음
+          // 확정이면 confirmed_at 을 새로 찍는다 — 파이프라인은 이 파일이
+          // «바뀌는» 것을 기다린다.
+          const untouched = confirmedAt && serializeOutline({ ...outline, rows: rs }) === serializeOutline(outline);
+          if (untouched) { location.hash = ""; setPhase("form"); return; }
+          const next = metaSet({ ...outline, rows: rs }, "confirmed_at", localStamp());
+          await api.savePlanning("outline", { text: serializeOutline(next) });
+          setOutline(next); location.hash = ""; setWait("stage"); setPhase("wait"); pollNext(1);
+        }} />;
+
+    return (
+      <Design rec={rec} cat={cat} state={state} set={set} rows={confirmedRows} stageNum={stageNum}
+              onPrimary={onPrimary} error={msg} docToo={docToo} lead={priorNote} />
+    );
+  };
+  return <StepsCtx.Provider value={{ steps, go }}>{view()}</StepsCtx.Provider>;
 }

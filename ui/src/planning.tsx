@@ -105,8 +105,10 @@ const needsCheck = (s: PlanSection) =>
   s.status !== "확정" || s.lines.some((l) => l.includes("확인 필요")) || s.lines.some((l) => l.includes("[확인 필요]"));
 
 /* ---- 3 기획서 ---------------------------------------------------------------- */
-export function Plan({ doc, quote, waiting, onBack, onDoc, onOutline }: {
+export function Plan({ doc, quote, waiting, stale = false, onBack, onDoc, onOutline }: {
   doc: PlanDoc | null; quote?: string; waiting: boolean;
+  /** 인터뷰 답이 바뀌었는데 기획서는 옛 답으로 쓴 것. */
+  stale?: boolean;
   onBack: () => void; onDoc: () => void; onOutline?: () => void;
 }) {
   const secs = doc?.sections || [];
@@ -119,7 +121,8 @@ export function Plan({ doc, quote, waiting, onBack, onDoc, onOutline }: {
         ? <>제목과 거버닝 메시지가 먼저, 나머지는 틀의 순서대로예요.<br />여기서는 읽기만 해요. 고칠 게 있으면 plan_spec.md 를 고치면 그대로 반영돼요.</>
         : <>인터뷰 답을 바탕으로 제목, 거버닝 메시지, 절을 쓰고 있어요.<br />창을 닫아도 계속돼요.</>}
       say={doc
-        ? <>{quote ? <>대표님이 «{quote}»라고 하셨죠. 그 말을 축으로 잡았어요.<br /></> : null}
+        ? <>{stale ? <><strong>답을 바꾸셨어요.</strong> 이 기획서는 옛 답으로 쓴 거예요. 채팅에서 «기획서 다시»라고 하면 새 답으로 다시 써요.<br /></> : null}
+            {quote ? <>대표님이 «{quote}»라고 하셨죠. 그 말을 축으로 잡았어요.<br /></> : null}
             숫자는 자료에 있는 것만 옮겼어요. 없는 건 <strong>확인 필요</strong>로 비워 뒀어요. 지어내지 않아요.
             {flagged.length ? <><br />확인 필요가 {flagged.length}절에 있어요. 오른쪽에 적어 뒀어요.</> : null}</>
         : <>자료를 읽고 틀의 절마다 무엇을 넣을지 정하는 중이에요. 보통 1~2분이에요.</>}

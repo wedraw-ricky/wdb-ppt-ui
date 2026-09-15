@@ -7,8 +7,16 @@
    모든 화면이 이 하나를 쓴다. 알리는 화면(만드는 중, 멈췄을 때)도 같은
    머리띠와 바닥 안에 있어야 다른 물건처럼 보이지 않는다. */
 
+import { createContext, useContext } from "react";
 import type React from "react";
 import { Say } from "../system/patterns";
+
+/** 여덟 걸음. 어디까지 왔고 지금 어디인지를 머리띠가 말한다. 끝난 걸음은
+    눌러서 다시 볼 수 있다 — 화면이 한 장씩 «갑자기» 뜨는 게 아니라 흐름 위의
+    한 자리라는 것이 보여야 한다. App 이 파일 상태로 계산해 넣는다. */
+export type StepState = "done" | "now" | "todo";
+export interface StepInfo { n: number; label: string; state: StepState; note?: string }
+export const StepsCtx = createContext<{ steps: StepInfo[]; go: (n: number) => void } | null>(null);
 
 export type Band = "기획" | "문서" | "발표";
 const BANDS: Band[] = ["기획", "문서", "발표"];
@@ -37,12 +45,22 @@ export function Shell({ band, step, pct, title, sub, say, side, children, footNo
   actions?: Action[];
   error?: string;
 }) {
+  const ctx = useContext(StepsCtx);
   return (
     <div className="scr">
       <header className="top">
         <div className="logo"><i />PPT 만들기</div>
         <div className="bands">{BANDS.map((b) => <span key={b} className={b === band ? "on" : ""}>{b}</span>)}</div>
-        <div className="step">{step}</div>
+        {ctx ? (
+          <nav className="steps" aria-label="진행">
+            {ctx.steps.map((st) => (
+              <button key={st.n} type="button" className={`st ${st.state}`} title={st.note || st.label}
+                      disabled={st.state === "now"} onClick={() => ctx.go(st.n)}>
+                <i>{st.state === "done" ? "✓" : st.n}</i>{st.label}
+              </button>
+            ))}
+          </nav>
+        ) : <div className="step">{step}</div>}
         <div className="prog" aria-label={`진행 ${pct}%`}><i style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} /></div>
       </header>
       <main className="body">

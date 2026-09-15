@@ -61,11 +61,13 @@ const named = (list: Dict[] | undefined, id: any) => {
 const SIZE_LABELS: Record<string, string> = { text: "작게 · 본문 20pt", balanced: "기본 · 본문 24pt", presentation: "크게 · 본문 28pt" };
 const DECK_CANVAS = (cat: Dict) => (cat.canvas || []).filter((c: Dict) => api.isPptCanvas(c.id, cat));
 
-export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo }: {
+export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo, lead }: {
   rec: api.Recommendations; cat: Dict; state: Dict;
   set: (k: string, v: any) => void;
   rows: Row[]; stageNum: number;
   onPrimary: (refineFirst: boolean) => void; error?: string; docToo: boolean;
+  /** 앞 단계가 이미 끝나 있을 때 첫 줄에 하는 말. */
+  lead?: string;
 }) {
   const R = rec.recommend || {};
   const [moreColors, setMoreColors] = useState(false);
@@ -110,6 +112,7 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
 
   const say = (
     <>
+      {lead ? <>{lead}<br /></> : null}
       {colorNote
         ? <>색은 <strong>{candName(colorNote)}</strong>로 잡았어요. {colorNote.note || colorNote.mood || ""}<br /></>
         : null}
