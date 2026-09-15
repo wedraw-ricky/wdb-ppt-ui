@@ -61,7 +61,7 @@ const named = (list: Dict[] | undefined, id: any) => {
 const SIZE_LABELS: Record<string, string> = { text: "작게 · 본문 20pt", balanced: "기본 · 본문 24pt", presentation: "크게 · 본문 28pt" };
 const DECK_CANVAS = (cat: Dict) => (cat.canvas || []).filter((c: Dict) => api.isPptCanvas(c.id, cat));
 
-export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo, lead, busy = false }: {
+export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo, lead, busy = false, agentWaiting = null }: {
   rec: api.Recommendations; cat: Dict; state: Dict;
   set: (k: string, v: any) => void;
   rows: Row[]; stageNum: number;
@@ -70,6 +70,8 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
   lead?: string;
   /** 넘기는 중. 버튼이 바로 «저장하는 중»으로 바뀌어야 눌렸는지 안다. */
   busy?: boolean;
+  /** 채팅이 이 프로젝트를 기다리고 있는가. false 면 누른 값이 저장만 된다. null 은 모름. */
+  agentWaiting?: boolean | null;
 }) {
   const R = rec.recommend || {};
   const [moreColors, setMoreColors] = useState(false);
@@ -147,7 +149,9 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
         </>
       }
       error={error}
-      footNote={busy ? "고르신 것을 저장하고 있어요" : `이대로 만들면 ${rows.length || state.page_count || "?"}장 · 사진 ${aiOn ? photoCount : 0}장`}
+      footNote={busy ? "고르신 것을 저장하고 있어요"
+        : agentWaiting === false ? "지금은 채팅이 이 값을 기다리고 있지 않아요. 누르면 저장만 되고, 채팅에서 이어 만들 때 이 값을 써요."
+        : `이대로 만들면 ${rows.length || state.page_count || "?"}장 · 사진 ${aiOn ? photoCount : 0}장`}
       actions={[
         ...(stageNum === 0 || stageNum === 3 ? [{ label: "계획서 먼저 보기", onClick: () => onPrimary(true), disabled: busy }] : []),
         { label: busy ? "저장하는 중…" : primaryLabel, kind: "pri" as const, onClick: () => onPrimary(false), disabled: busy },

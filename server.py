@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve()
@@ -155,15 +156,72 @@ def build() -> "object":
             return send_from_directory(str(base), filename)
 
         app.view_functions["static"] = _static
+
+        # (5) 채팅이 이 프로젝트를 기다리고 있는가. 파이프라인이 --wait 로 띄우면
+        # 부모가 표식을 남긴다(아래 main). 화면은 이걸 보고 «채팅에서 만들고
+        # 있어요» 와 «지금은 화면만 떠 있어요» 를 가른다. 손으로 띄운 서버에서
+        # 버튼을 누르고 채팅에 아무 변화가 없는 것을 화면이 고장처럼 보이게
+        # 하지 않기 위해서다.
+        project = Path(args[0] if args else kwargs.get("project_dir", "."))
+
+        @app.route("/api/agent")
+        def agent_waiting():
+            from flask import jsonify
+            marker = project / up.CONFIRM_DIR_NAME / AGENT_MARKER
+            info = {"waiting": False, "what": None, "since": None}
+            if marker.is_file():
+                try:
+                    data = json.loads(marker.read_text(encoding="utf-8"))
+                    os.kill(int(data.get("pid", 0)), 0)
+                    info = {"waiting": True, "what": data.get("what"), "since": data.get("since")}
+                except (ValueError, OSError, ProcessLookupError):
+                    info["stale"] = True
+            resp = jsonify(info)
+            resp.headers["Cache-Control"] = "no-store"
+            return resp
+
         return app
 
     up.create_app = create_app
     return up
 
 
+AGENT_MARKER = "agent_waiting.json"
+
+
+def _waiting_what(argv: list[str]) -> str | None:
+    """What this (parent) process is waiting for, or None when it is not a waiting launch."""
+    if "--wait-planning" in argv:
+        i = argv.index("--wait-planning")
+        return "planning:" + (argv[i + 1] if i + 1 < len(argv) else "?")
+    if "--wait" in argv or "--wait-only" in argv:
+        return "result"
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     up = build()
-    return up.main(sys.argv[1:] if argv is None else argv)
+    what = _waiting_what(argv)
+    positional = [a for a in argv if not a.startswith("-")]
+    if what is None or not positional:
+        return up.main(argv)
+    # 기다리는 부모(파이프라인)다. 표식을 남기고, 끝나면 지운다.
+    marker = Path(positional[0]) / up.CONFIRM_DIR_NAME / AGENT_MARKER
+    try:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(json.dumps({"pid": os.getpid(), "what": what,
+                                      "since": time.strftime("%Y-%m-%dT%H:%M:%S")}),
+                          encoding="utf-8")
+    except OSError:
+        pass
+    try:
+        return up.main(argv)
+    finally:
+        try:
+            marker.unlink()
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

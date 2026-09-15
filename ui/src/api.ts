@@ -262,6 +262,19 @@ export async function progressNotes(): Promise<ProgressNote[]> {
   }
 }
 
+/** 채팅(파이프라인)이 이 프로젝트를 기다리고 있는가. 손으로 띄운 서버면 false.
+    서버가 이 길을 모르는 옛 판이면 null. */
+export interface AgentInfo { waiting: boolean; what: string | null; since: string | null; stale?: boolean }
+export async function agentWaiting(): Promise<AgentInfo | null> {
+  try {
+    const r = await fetch("/api/agent", { cache: "no-store" });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
 /** Tell the server the page is still open. Resolves false when it is gone. */
 export async function heartbeat(): Promise<boolean> {
   try {

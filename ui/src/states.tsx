@@ -53,21 +53,27 @@ const WAIT: Record<WaitKind, { band: "기획" | "발표"; step: string; pct: num
              steps: ["사진 만들기", "장 그리기", "글자 넘침과 대비 검사", "파워포인트로 내보내기"], done: ["자료 읽음", "인터뷰 답", "기획서", "뼈대", "색과 사진 정함"] },
 };
 
-export function Making({ kind, rows, palette, onStop, handedOff = false }: {
+export function Making({ kind, rows, palette, onStop, handedOff = false, agentWaiting = null }: {
   kind: WaitKind; rows: Row[]; palette?: Palette | null; onStop?: () => void;
   /** 고른 것을 넘긴 뒤. 만드는 일은 채팅의 파이프라인이 하고, 이 화면을 받쳐
       주던 서버는 꺼진다. 그래서 진행은 여기 안 보이고, 그 사실을 말한다. */
   handedOff?: boolean;
+  /** 채팅이 기다리고 있었는가. false 면 «저장만 됐어요» 라고 말해야 한다. */
+  agentWaiting?: boolean | null;
 }) {
   const w = WAIT[kind];
   const elapsed = useElapsed();
   const notes = useNotes();
-  const title = handedOff ? "만들기 시작했어요" : w.title;
-  const sub = handedOff ? "고르신 것을 저장했어요. 이제 채팅에서 만들고 있어요. 이 창은 닫아도 돼요." : w.sub;
+  const nobody = handedOff && agentWaiting === false;
+  const title = nobody ? "고른 것을 저장했어요" : handedOff ? "만들기 시작했어요" : w.title;
+  const sub = nobody
+    ? "지금은 채팅이 이 프로젝트를 만들고 있지 않아요. 채팅에서 이어 만들 때 이 값을 써요. 이 창은 닫아도 돼요."
+    : handedOff ? "고르신 것을 저장했어요. 이제 채팅에서 만들고 있어요. 이 창은 닫아도 돼요." : w.sub;
   return (
     <Shell band={w.band} step={w.step} pct={w.pct} title={title} sub={sub}
       say={<>
-        {handedOff ? <><strong>여기서는 진행이 안 보여요.</strong> 이 화면을 받쳐 주던 쪽이 일을 채팅에 넘기고 꺼지거든요. 진행은 채팅에서 보여요.<br /></> : null}
+        {nobody ? <><strong>채팅이 기다리고 있지 않았어요.</strong> 이 화면은 손으로 띄운 거라, 누른 값은 저장만 됐어요. 채팅에서 «이 프로젝트 발표자료 이어서 만들어 줘»라고 하면 이 값으로 만들어요.<br /></>
+          : handedOff ? <><strong>여기서는 진행이 안 보여요.</strong> 이 화면을 받쳐 주던 쪽이 일을 채팅에 넘기고 꺼지거든요. 진행은 채팅에서 보여요.<br /></> : null}
         순서는 이래요.<ol>{w.steps.map((s) => <li key={s}>{s}</li>)}</ol>
         {handedOff ? <>다 되면 채팅에 PPTX 와 PDF 가 와요. 파워포인트에서 글자 하나까지 고칠 수 있게 만들어요.</> : <>끝나는 대로 아래에 채워져요.</>}
       </>}
@@ -93,7 +99,7 @@ export function Making({ kind, rows, palette, onStop, handedOff = false }: {
           </>
         )
       }
-      footNote={handedOff ? "이 창은 닫아도 돼요. 채팅으로 돌아가세요." : notes.length ? notes[notes.length - 1] : "채팅 창의 진행도 여기 함께 보여요"}
+      footNote={nobody ? "저장됐어요. 이 창은 닫아도 돼요." : handedOff ? "이 창은 닫아도 돼요. 채팅으로 돌아가세요." : notes.length ? notes[notes.length - 1] : "채팅 창의 진행도 여기 함께 보여요"}
       actions={!handedOff && onStop ? [{ label: "멈추기", kind: "ghost", onClick: onStop }] : []}>
       {kind === "final" && rows.length ? (
         <Panel label="결과물 · 채워지는 스토리보드" kind="out">
@@ -104,7 +110,7 @@ export function Making({ kind, rows, palette, onStop, handedOff = false }: {
       <Panel label="지금까지 한 것">
         <ul className="c" style={{ fontSize: 15, gap: 8 }}>
           {w.done.map((d) => <li key={d}>{d}</li>)}
-          {handedOff ? <><li>고른 것 저장</li><li className="now">채팅에서 만드는 중</li>{w.steps.map((s) => <li key={s} className="todo">{s}</li>)}</> : <>
+          {handedOff ? <><li>고른 것 저장</li><li className={nobody ? "todo" : "now"}>{nobody ? "채팅에서 이어 만들기 (아직)" : "채팅에서 만드는 중"}</li>{w.steps.map((s) => <li key={s} className="todo">{s}</li>)}</> : <>
             {notes.map((n, i) => <li key={i} className={i === notes.length - 1 ? "now" : ""}>{n}</li>)}
             {!notes.length ? <li className="now">{w.steps[0]}</li> : null}
             {w.steps.slice(notes.length ? 0 : 1).map((s) => <li key={s} className="todo">{s}</li>)}

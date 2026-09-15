@@ -70,6 +70,8 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
   const [outline, setOutline] = useState<OutlineDoc | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  // 채팅이 기다리고 있는가. null 이면 서버가 그 길을 모르는 것(옛 판).
+  const [agent, setAgent] = useState<api.AgentInfo | null>(null);
   const hash = useHashScreen();
 
   const stageNum = useMemo(() => {
@@ -85,8 +87,8 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
 
   async function load() {
     try {
-      const [r, c] = await Promise.all([api.getJson("/api/recommendations"), api.getJson("/api/catalogs")]);
-      setRec(r); setCat(c); setState(api.initialState(r, c));
+      const [r, c, ag] = await Promise.all([api.getJson("/api/recommendations"), api.getJson("/api/catalogs"), api.agentWaiting()]);
+      setRec(r); setCat(c); setState(api.initialState(r, c)); setAgent(ag);
       let ik: any = null, ps: any = null, ol: any = null;
       try { ik = await api.readPlanning("intake"); } catch { /* 옛 서버 */ }
       try { ps = await api.readPlanning("plan-spec"); } catch { /* 같음 */ }
@@ -142,6 +144,8 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
     try {
       if (stageNum === 1) { await api.postConfirm(api.stage1Payload(sent, cat)); setWait("stage"); setPhase("wait"); pollNext(2); return; }
       if (stageNum === 2) { await api.postConfirm(api.stage2Payload(sent, cat)); setWait("stage"); setPhase("wait"); pollNext(3); return; }
+      // 누르기 직전에 한 번 더 본다. 채팅이 기다리고 있는지는 그 사이 바뀔 수 있다.
+      setAgent(await api.agentWaiting());
       await api.postConfirm(api.finalPayload(sent, cat));
       // 여기서부터는 채팅의 파이프라인이 만든다. 이 화면을 받쳐 주던 서버는
       // 일을 넘기고 꺼진다. 그래서 «다 됐어요» 가 아니라 «만들기 시작했어요» 다.
@@ -195,7 +199,7 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
     if (hash === 3) return <Plan doc={plan} quote={quote} waiting={!outline && !plan} stale={intakeChanged}
                                  onBack={() => go(2)} onDoc={() => go(4)} onOutline={toOutline} />;
     if (hash === 4) return <Doc doc={plan} deckToo={deckToo} onBack={() => go(3)} onNext={toOutline} />;
-    if (hash === 7 || phase === "handoff") return <Making kind="final" rows={rows} palette={palette} handedOff={phase === "handoff"} />;
+    if (hash === 7 || phase === "handoff") return <Making kind="final" rows={rows} palette={palette} handedOff={phase === "handoff"} agentWaiting={agent?.waiting ?? null} />;
     if (hash === 8 || phase === "done") return <Done rows={rows} palette={palette} docToo={docToo} />;
 
     if (phase === "loading") return <Making kind="plan" rows={[]} />;
@@ -218,7 +222,7 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
 
     return (
       <Design rec={rec} cat={cat} state={state} set={set} rows={confirmedRows} stageNum={stageNum}
-              onPrimary={onPrimary} error={msg} docToo={docToo} lead={priorNote} busy={busy} />
+              onPrimary={onPrimary} error={msg} docToo={docToo} lead={priorNote} busy={busy} agentWaiting={agent?.waiting ?? null} />
     );
   };
   return <StepsCtx.Provider value={{ steps, go }}>{view()}</StepsCtx.Provider>;
