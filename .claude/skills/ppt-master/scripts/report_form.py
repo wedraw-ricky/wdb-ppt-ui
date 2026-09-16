@@ -348,6 +348,11 @@ class ReportWriter:
             return
         cell_size = size or sizes["table"]
         width = max(len(r) for r in rows)
+        # The line that introduces the table goes with it — a 핵심 line left
+        # alone at the foot of a page, pointing at a table on the next, reads
+        # as a mistake.
+        if self.doc.paragraphs:
+            self.doc.paragraphs[-1].paragraph_format.keep_with_next = True
         table = self.doc.add_table(rows=0, cols=width)
         table.alignment = self.TABLE_ALIGN.CENTER
         table.autofit = False
@@ -381,7 +386,30 @@ class ReportWriter:
                         else colors["text"],
                     )
         self._table_widths(table, width, rows)
+        self._table_keep_together(table)
         self.doc.add_paragraph().paragraph_format.space_after = self.Pt(2)
+
+    def _table_keep_together(self, table) -> None:
+        """A 통계표 stays whole across a page break.
+
+        Word splits a table row across pages and starts the next page with
+        the row's tail, and a 기획서 table of eight rows landed exactly there —
+        the 8칸 표 opened at the foot of page 2 with its first row cut in half.
+        Three settings, all Word-native: no row may split (`cantSplit`), the
+        header row repeats when a long table does span pages (`tblHeader`),
+        and every row but the last keeps with the next so a short table moves
+        to the following page as one piece.
+        """
+        rows = table.rows
+        for i, row in enumerate(rows):
+            tr_pr = row._tr.get_or_add_trPr()
+            tr_pr.append(self.OxmlElement("w:cantSplit"))
+            if i == 0:
+                tr_pr.append(self.OxmlElement("w:tblHeader"))
+            if i < len(rows) - 1:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        para.paragraph_format.keep_with_next = True
 
     def _table_widths(self, table, cols: int, rows: list) -> None:
         """Give the label column the room its text needs, split the rest evenly."""

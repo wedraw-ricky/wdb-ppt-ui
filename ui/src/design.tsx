@@ -58,7 +58,7 @@ const named = (list: Dict[] | undefined, id: any) => {
   const it = (list || []).find((x) => String(x.id) === String(id));
   return it ? String(it.label_ko || it.name_ko || it.label || it.id) : "";
 };
-const SIZE_LABELS: Record<string, string> = { text: "작게 · 본문 20pt", balanced: "기본 · 본문 24pt", presentation: "크게 · 본문 28pt" };
+const SIZE_LABELS: Record<string, string> = { text: "작게 · 본문 20px", balanced: "기본 · 본문 24px", presentation: "크게 · 본문 32px" };
 const DECK_CANVAS = (cat: Dict) => (cat.canvas || []).filter((c: Dict) => api.isPptCanvas(c.id, cat));
 
 export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error, docToo, lead, busy = false, agentWaiting = null }: {
@@ -109,7 +109,33 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
   const stratSel = strat.findIndex((c) => c.name === state.image_strategy?.name);
 
   const photoCount = rows.filter((r) => r.image && r.image !== "none").length;
-  const palette: Palette | null = state.color?.palette || null;
+
+  /* 시안. 시안을 고르면 그 시안이 정해 둔 서술·분위기·글씨·크기로 바뀌고, 색과
+     글꼴도 시안 것이 된다 (고른 색은 시안 없이 갈 때만 쓴다). «시안 없이» 로
+     돌아오면 파이프라인의 추천값으로 되돌린다. 연쇄는 시안을 바꿀 때 한 번뿐이고,
+     그 뒤에는 어느 값이든 다시 고를 수 있다. */
+  const tplList: Dict[] = cat.templates || [];
+  const deck: Dict | null = state.template && state.template !== "free" ? tplList.find((t) => String(t.id) === String(state.template)) || null : null;
+  const pickTemplate = (id: string) => {
+    const t = tplList.find((x) => String(x.id) === id);
+    if (!t || id === "free") {
+      set("template", "free"); set("template_adherence", undefined);
+      if (R.canvas) set("canvas", R.canvas);
+      if (R.mode) set("mode", R.mode);
+      if (R.visual_style) set("visual_style", R.visual_style);
+      if (R.delivery_purpose) set("delivery_purpose", R.delivery_purpose);
+      return;
+    }
+    const d: Dict = t.defaults || {};
+    set("template", id);
+    if (t.canvas_format) set("canvas", t.canvas_format);
+    if (d.mode) set("mode", d.mode);
+    if (d.visual_style) set("visual_style", d.visual_style);
+    if (d.delivery_purpose) set("delivery_purpose", d.delivery_purpose);
+    set("template_adherence", d.template_adherence || "adaptive");
+  };
+  const deckNote = deck ? `시안 «${deck.id}»이 색과 글꼴을 정해요. 고른 색은 시안 없이 갈 때만 써요.` : "";
+  const palette: Palette | null = deck?.primary_color ? { primary: deck.primary_color } : (state.color?.palette || null);
   const ratio = contrast(palette?.body_text, palette?.background);
   const stepLabel = stageNum ? `6 · 디자인 · 3단계 중 ${stageNum}` : "6 · 디자인";
   const primaryLabel = stageNum && stageNum < 3 ? "다음" : "이대로 만들기";
@@ -117,8 +143,10 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
   const say = (
     <>
       {lead ? <>{lead}<br /></> : null}
-      {colorNote
-        ? <>색은 <strong>{candName(colorNote)}</strong>로 잡았어요. {colorNote.note || colorNote.mood || ""}<br /></>
+      {deck
+        ? <>시안 <strong>{deck.id}</strong>을 고르셨어요. 색과 글꼴은 시안이 정하고, 고른 색은 시안 없이 갈 때만 써요.<br /></>
+        : colorNote
+        ? <>색은 <strong>«{candName(colorNote)}»</strong>. {colorNote.note || colorNote.mood || ""}<br /></>
         : null}
       분위기는 <strong>{named(styleItems, state.visual_style) || "아직"}</strong>{state.visual_style ? "이에요" : ""}.
       {aiOn && stratSel >= 0 ? <> 사진은 <strong>{candName(strat[stratSel])}</strong>, {strat[stratSel].visual || ""}</> : null}
@@ -137,7 +165,7 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
             <ul className="c">
               <li className={ratio !== null && ratio < 4.5 ? "bad" : ""}>{ratio !== null ? `색 대비 ${ratio}:1` : "색 대비는 색을 고르면 재요"}</li>
               <li>사진 자리 {photoCount}곳 정해짐</li>
-              <li>글꼴 Pretendard</li>
+              <li>{deck ? `글꼴은 시안 «${deck.id}» 대로` : "글꼴 Pretendard"}</li>
             </ul>
           </Panel>
           <Panel label="이대로 만들면">
@@ -158,7 +186,7 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
       ]}>
       <Panel label="결과물 · 스토리보드" kind="out">
         {rows.length ? <Storyboard rows={rows} palette={palette} /> : <Empty title="뼈대가 확정되면 여기 장이 보여요" />}
-        <div className="k">{[state.color?.name, named(styleItems, state.visual_style), aiOn ? `사진 ${photoCount}장` : "사진 없음"].filter(Boolean).join(" · ")}. 왼쪽부터 순서대로</div>
+        <div className="k">{[deck ? `시안 ${deck.id}` : state.color?.name, named(styleItems, state.visual_style), aiOn ? `사진 ${photoCount}장` : "사진 없음"].filter(Boolean).join(" · ")}. 왼쪽부터 순서대로{deck ? `. ${deckNote}` : ""}</div>
       </Panel>
 
       <Panel label="고르기 · 제작 순서대로">
@@ -225,13 +253,14 @@ export function Design({ rec, cat, state, set, rows, stageNum, onPrimary, error,
               {isPpt ? <><span>글씨</span>
                 <Pick items={(cat.delivery_purpose || []).map((d: Dict) => ({ id: d.id, label: SIZE_LABELS[d.id] || d.label_ko || d.id }))}
                       value={state.delivery_purpose} recommended={R.delivery_purpose} onChange={(v) => set("delivery_purpose", v)} /></> : null}
-              {(cat.templates || []).length > 1 ? <><span>시안</span>
-                <Pick items={(cat.templates || []).map((t: Dict) => ({ id: t.id, label: t.label_ko || t.summary || t.id }))}
-                      value={state.template} recommended={R.template} onChange={(v) => set("template", v)} /></> : null}
-              {state.template_adherence ? <><span>시안 따르기</span>
+              {tplList.length > 1 ? <><span>시안</span>
+                <Pick items={tplList.map((t: Dict) => ({ id: t.id, label: t.label_ko || t.label || t.id, note: t.desc_ko || t.desc || undefined }))}
+                      value={state.template || "free"} recommended={R.template || "free"} onChange={pickTemplate} /></> : null}
+              {deck ? <><span>시안 따르기</span>
                 <Pick items={(cat.template_adherence || []).map((t: Dict) => ({ id: t.id, label: t.label_ko || t.id }))}
-                      value={state.template_adherence} recommended={R.template_adherence} onChange={(v) => set("template_adherence", v)} /></> : null}
+                      value={state.template_adherence || "adaptive"} recommended={R.template_adherence || "adaptive"} onChange={(v) => set("template_adherence", v)} /></> : null}
             </div>
+            {deck ? <div className="k">{deckNote} 서술 · 분위기 · 글씨도 시안 기본값으로 바뀌었어요. 다시 고를 수 있어요.</div> : null}
           </Q>
         ) : null}
 

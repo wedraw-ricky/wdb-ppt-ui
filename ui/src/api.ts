@@ -42,6 +42,14 @@ export async function getJson(path: string): Promise<any> {
   return r.json();
 }
 
+/** 디자인 후보. 기획 단계에는 아직 없어서 404 가 정상이다 — 빈 것으로 돌려준다. */
+export async function getRecommendations(): Promise<Recommendations> {
+  const r = await fetch("/api/recommendations", { cache: "no-store" });
+  if (r.status === 404) return {};
+  if (!r.ok) throw new Error(`/api/recommendations → ${r.status}`);
+  return r.json();
+}
+
 export function firstCandidate(block: any): any {
   if (!block) return null;
   if (Array.isArray(block.candidates) && block.candidates.length) {

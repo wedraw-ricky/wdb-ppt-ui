@@ -462,7 +462,15 @@ Collect the answers only the user can give. One short round, not a section-by-se
 
 **Mandatory**: Draft candidate answers from `sources/` and present them alongside the blank fields. The user edits rather than composes.
 
-Write `<project_path>/intake.json`. `frame` is derived by `plan_spec.py`, never asked.
+Write the draft to `<project_path>/intake.json` with `"draft": true` — the page opens the interview with those answers tagged «제 짐작이에요» and leaves 언제·누가 blank (they are not in the sources). Then open the page and block until the user saves:
+
+```bash
+python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --daemon --wait-planning intake --wait-timeout 0
+```
+
+`--daemon` starts the page (or re-attaches to one already open) — `recommendations.json` does not exist yet and is not needed until Step 4; the same page carries the person through the interview, the plan and the outline, and the Step 4 launch attaches to it with `--wait-only`.
+
+The saved file has no `draft` key. `frame` is derived by `plan_spec.py`, never asked. The page also saves `when` · `presenter` · `length`; no script reads them — honour them by hand (`length` sets the page count you propose at Step 3.7, `presenter` sets the register of `script`).
 
 **✅ Checkpoint — `intake.json` exists.**
 
@@ -558,6 +566,8 @@ python3 ${SKILL_DIR}/scripts/outline.py <project_path> --scaffold --flow <chosen
 
 Present both flows with a one-line reason each and let the user pick one. Then fill `title` / `screen` / `script` on every row and hand the outline to the user for editing.
 
+> The page shows `outline.md` the moment it exists, so the person sees whatever `--scaffold` wrote — empty titles, one row per section — until the rows are filled. Fill them in the same turn, in one write; the unconfirmed skeleton screen re-reads the file when it changes, but a person who opened it in between has already read the wrong page count.
+
 **Outline editing surface** — the confirm server exposes the artifact; the page reads and writes it:
 
 | Endpoint | Use |
@@ -567,10 +577,10 @@ Present both flows with a one-line reason each and let the user pick one. Then f
 | `POST /api/planning/outline` | Save the user's edits |
 
 ```bash
-python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --wait-planning outline --wait-timeout 0
+python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --daemon --wait-planning outline --wait-timeout 0
 ```
 
-**Note**: `--wait-planning` is independent of the three-stage machine; it blocks on the file, not on `result.json`.
+**Note**: `--wait-planning` is independent of the three-stage machine; it blocks on the file, not on `result.json`. `--daemon` re-attaches to the page opened at Step 3.5, or reopens it if it idled out.
 
 Before blocking, check whether the flows you derived at Step 3.6 still hold:
 
@@ -702,6 +712,10 @@ Steps:
 2. **Launch + wait for the confirmation (the ⛔ BLOCKING wait).** Background launch; the parent returns when the page writes the final `result.json` (`status: confirmed`). **Long tool timeout — 600000 ms** (the `--wait` ≈590 s budget):
    ```bash
    python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --daemon --wait
+   ```
+   When the page is still open from the planning stretch (Steps 3.5–3.7 launched it with `--daemon --wait-planning`), `--daemon` refuses the duplicate — attach to it instead; the page is already polling for `recommendations.json` and switches to the design screen on its own:
+   ```bash
+   python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --wait-only --wait-timeout 0
    ```
    Page opens at the launch-log URL such as `http://127.0.0.1:5050` — the **same port as the Step 6 live preview** (they never run at once: this page shuts down at the end of Step 4). If 5050 is held, the launcher **auto-advances** (5051, …) — read the actual URL from the launch log and report it. **Launch or wait failure is non-fatal**: if it fails or times out (flask missing, port blocked, no GUI / remote / web host), do **NOT** troubleshoot — **on any non-zero exit, re-check `result.json` once** for a fresh `status: confirmed` before dropping to the chat fallback. Confirmed sizes are **already px** (the system is px-only — no pt anywhere, no conversion): write `result.json` `typography.body_size` / `sizes` into `design_spec.md` / `spec_lock.md` / SVG verbatim. `generation_mode: "split"` / `refine_spec: true` are explicit user choices.
 3. **Reconcile the confirmation before writing the spec (Mandatory — same turn).** Read `result.json`. **Deferred template install**: if the result carries `template: "<deck_id>"` and no template is installed yet, first run the Step 3 deferred install for that deck (same kind matrix + structured preflight — no bypass); on preflight failure report in chat and let the user re-pick instead of silently downgrading. Then apply the "Upstream override → re-derive untouched downstream" rule below: when the user changed an anchor (or picked a deck template), re-derive only the downstream fields the user did not themselves edit; every value the user set stays verbatim. Spot-illustration lean is **not** a confirmation field: it derives from the locked `visual_style`'s illustration propensity and is expressed only in `image_notes` rationale. Generated-image style palettes are **color behavior only**; final image colors follow the confirmed `color`.

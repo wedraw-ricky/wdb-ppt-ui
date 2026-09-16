@@ -1,13 +1,13 @@
 /* 흐름. DESIGN.md «서비스의 모양»: 기획(1 자료 넣기 → 2 인터뷰 → 3 기획서) →
    문서(4) → 발표(5 뼈대 → 6 디자인 → 7 만드는 중 → 8 완성). 인터뷰 ⑨에서 갈린다.
 
-   어느 화면인지는 파이프라인이 남긴 파일이 정한다. intake.json 이 없으면 인터뷰,
-   outline.md 가 없으면 기획서(쓰는 중), 뼈대가 확정 전이면 뼈대, 확정됐으면
-   디자인. 세 단계 후보(stage1·2·3)는 디자인 화면 안에서 돈다. 주소 뒤의
+   어느 화면인지는 파이프라인이 남긴 파일이 정한다. intake.json 이 없거나
+   draft 표시(파이프라인의 짐작)면 인터뷰, outline.md 가 없으면 기획서(쓰는 중),
+   뼈대가 확정 전이면 뼈대, 확정됐으면 디자인. 세 단계 후보(stage1·2·3)는 디자인 화면 안에서 돈다. 주소 뒤의
    #/n 은 검토용으로 그 화면을 억지로 연다 — 1 자료 넣기와 4 문서처럼 아직
    파이프라인이 없는 껍데기도 그렇게 본다. */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./api";
 import type { Recommendations } from "./api";
 import { Interview, type IntakeExtra } from "./intake";
@@ -68,6 +68,9 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
   const [intake, setIntake] = useState<Partial<IntakeExtra> | null>(null);
   const [plan, setPlan] = useState<PlanDoc | null>(null);
   const [outline, setOutline] = useState<OutlineDoc | null>(null);
+  // 파일이 바뀐 것을 알아보는 표. 채팅이 뼈대를 다시 쓰면(뼈대만 세우고 장을
+  // 채우는 사이 등) 확정 전 화면은 그 파일을 따라간다.
+  const [outlineVer, setOutlineVer] = useState<number | null>(null);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   // 채팅이 기다리고 있는가. null 이면 서버가 그 길을 모르는 것(옛 판).
@@ -87,27 +90,56 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
 
   async function load() {
     try {
-      const [r, c, ag] = await Promise.all([api.getJson("/api/recommendations"), api.getJson("/api/catalogs"), api.agentWaiting()]);
+      const [r, c, ag] = await Promise.all([api.getRecommendations(), api.getJson("/api/catalogs"), api.agentWaiting()]);
       setRec(r); setCat(c); setState(api.initialState(r, c)); setAgent(ag);
       let ik: any = null, ps: any = null, ol: any = null;
       try { ik = await api.readPlanning("intake"); } catch { /* 옛 서버 */ }
       try { ps = await api.readPlanning("plan-spec"); } catch { /* 같음 */ }
       try { ol = await api.readPlanning("outline"); } catch { /* 같음 */ }
-      setIntake(ik?.data ?? ik ?? null);
+      // 파이프라인이 자료를 읽고 답을 미리 채워 두면 draft 표시가 붙어 있다. 그건
+      // 아직 대표가 답한 게 아니라서 인터뷰로 간다 — 채워진 답은 «제 짐작이에요».
+      const ikData = ik?.data ?? ik ?? null;
+      const guessed = Boolean(ikData?.draft);
+      if (guessed) { const { draft: _d, ...rest } = ikData; setIntake(rest); } else setIntake(ikData);
       setPlan(ps?.text ? parsePlanSpec(ps.text) : null);
       const doc = ol?.text ? parseOutline(ol.text) : null;
-      setOutline(doc);
-      if (!ik) { setPhase("interview"); return; }
-      if (!doc) { setPhase("plan"); return; }
+      setOutline(doc); setOutlineVer(ol?.version ?? null);
+      if (!ik || guessed) { setPhase("interview"); return; }
+      // 기획서는 있는데 뼈대가 아직이다 — 새로 연 탭도 뼈대가 오면 넘어가야 한다.
+      if (!doc) { setPhase("plan"); if (ps?.text) pollPlanning(); return; }
       if (!metaGet(doc, "confirmed_at")) { setPhase("outline"); return; }
+      // 뼈대는 확정됐는데 디자인 후보가 아직 없다 — 채팅이 고르는 중이다.
+      if (!Object.keys(r).length) { setWait("stage"); setPhase("wait"); pollNext(1); return; }
       setPhase("form");
     } catch { setPhase("error"); }
   }
   useEffect(() => { load(); }, []);
 
+  /** 확정 전 뼈대는 파일이 바뀌면 다시 읽는다. 8장짜리 뼈대만 세워 둔 사이에
+      화면이 먼저 열리고, 22장으로 채운 뒤에도 8장이 보이던 일이 있었다. */
+  useEffect(() => {
+    if (phase !== "outline") return;
+    let stopped = false;
+    const id = setInterval(async () => {
+      try {
+        const all = await api.getJson("/api/planning");
+        const v = all?.outline?.version ?? null;
+        if (stopped || v === null || v === outlineVer) return;
+        const ol = await api.readPlanning("outline");
+        if (stopped || !ol?.text) return;
+        setOutline(parseOutline(ol.text)); setOutlineVer(ol.version ?? v);
+      } catch { /* 다음에 다시 */ }
+    }, 2000);
+    return () => { stopped = true; clearInterval(id); };
+  }, [phase, outlineVer]);
+
   /** 인터뷰 뒤. 파이프라인이 기획서와 뼈대를 쓰는 동안 기다린다. 기획서가 먼저
       오면 그걸 보여주고, 뼈대가 오면 뼈대로. */
+  const polling = useRef(false);
   async function pollPlanning() {
+    if (polling.current) return;
+    polling.current = true;
+    try {
     for (let i = 0; i < 3600; i++) {
       await new Promise((r) => setTimeout(r, 1000));
       try {
@@ -120,6 +152,7 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
       } catch { /* 서버가 다시 뜨는 중일 수 있다 */ }
     }
     setMsg("너무 오래 걸려요. 채팅을 봐 주세요.");
+    } finally { polling.current = false; }
   }
 
   /** 단계 제출 뒤. 파이프라인이 다음 단계 후보를 쓸 때까지. */
@@ -208,7 +241,7 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
     if (phase === "interview") return <Interview draft={intake || {}} onDone={saveIntake} />;
     if (phase === "plan") return <Plan doc={plan} quote={quote} waiting={!outline} stale={intakeChanged} onBack={() => go(2)} onDoc={() => go(4)} onOutline={outline ? toOutline : undefined} />;
     if ((phase === "outline" || hash === 5) && outline)
-      return <OutlineEditor key={outline.rows.length} doc={outline} quote={quote} onBack={() => go(3)}
+      return <OutlineEditor key={`${outlineVer}-${outline.rows.length}`} doc={outline} quote={quote} onBack={() => go(3)}
         onConfirm={async (rs) => {
           // 확정된 뼈대를 다시 보기만 했으면 저장하지 않는다. 바뀌었거나 처음
           // 확정이면 confirmed_at 을 새로 찍는다 — 파이프라인은 이 파일이
@@ -217,7 +250,7 @@ function Flow({ onHandoff }: { onHandoff: () => void }) {
           if (untouched) { location.hash = ""; setPhase("form"); return; }
           const next = metaSet({ ...outline, rows: rs }, "confirmed_at", localStamp());
           await api.savePlanning("outline", { text: serializeOutline(next) });
-          setOutline(next); location.hash = ""; setWait("stage"); setPhase("wait"); pollNext(1);
+          setOutline(next); setOutlineVer(null); location.hash = ""; setWait("stage"); setPhase("wait"); pollNext(1);
         }} />;
 
     return (

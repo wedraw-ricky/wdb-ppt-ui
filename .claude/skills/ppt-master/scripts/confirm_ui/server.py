@@ -1298,7 +1298,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--wait-planning', metavar='{intake,plan-spec,outline}',
         help='Block until the named planning artifact is written or changes, '
-             'then exit. Independent of the three-stage machine.',
+             'then exit. Independent of the three-stage machine. With --daemon, '
+             'start (or re-attach to) the page first — recommendations.json '
+             'need not exist yet.',
     )
     parser.add_argument(
         '--wait-stage', default='final', metavar='{stage2,final}',
@@ -1328,6 +1330,17 @@ PLANNING_ARTIFACTS = {
     'plan-spec': 'plan_spec.md',
     'outline': 'outline.md',
 }
+
+
+def _planning_underway(project_path: Path) -> bool:
+    """True once the pipeline has written any planning artifact.
+
+    The planning screens (interview, plan, outline) come before the Strategist
+    writes recommendations.json, so the page must be servable without it. The
+    only signal that a project is in that stretch is the artifacts themselves.
+    """
+    return any((project_path / fname).is_file()
+               for fname in PLANNING_ARTIFACTS.values())
 
 
 def _wait_planning(project_path: Path, name: str, timeout: int) -> int:
@@ -1368,7 +1381,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not project_path.is_dir():
         logger.error('%s is not a directory', project_path)
         return 1
-    if args.wait_planning:
+    if args.wait_planning and not args.daemon:
         return _wait_planning(project_path, args.wait_planning, args.wait_timeout)
 
     wait_stage = _stage_key(args.wait_stage)
@@ -1417,9 +1430,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
 
     rec_file = project_path / CONFIRM_DIR_NAME / RECOMMENDATIONS_NAME
-    if not rec_file.exists():
+    if not rec_file.exists() and not _planning_underway(project_path):
         logger.error(
-            '%s not found — Strategist must write recommendations.json before launch',
+            '%s not found — Strategist must write recommendations.json before launch '
+            '(or write intake.json first to open the planning screens)',
             rec_file,
         )
         return 1
@@ -1430,6 +1444,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         if existing and _process_alive(_lock_pid(existing)):
             existing_pid = existing.get('pid', '?')
             existing_port = existing.get('port', '?')
+            if args.wait_planning:
+                # The planning stretch re-attaches to the page it opened earlier.
+                logger.info('confirm UI already running (pid=%s, port=%s); waiting on it',
+                            existing_pid, existing_port)
+                return _wait_planning(project_path, args.wait_planning, args.wait_timeout)
             logger.error(
                 'confirm UI is already running for this project '
                 '(pid=%s, port=%s). Open http://%s:%s',
@@ -1450,6 +1469,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         except RuntimeError as exc:
             logger.error('%s', exc)
             return 1
+        if args.wait_planning:
+            return _wait_planning(project_path, args.wait_planning, args.wait_timeout)
         if args.wait:
             return _wait_for_result(result_file, proc, started_at, args.wait_timeout)
         return 0

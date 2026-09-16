@@ -465,3 +465,28 @@ class ClosingSlide(unittest.TestCase):
     def test_닫는_장은_한_번만(self):
         slides = self._slides()
         self.assertEqual(sum(1 for s in slides if s.role == "closing"), 1)
+
+
+class TableKeepsTogether(unittest.TestCase):
+    """A 통계표 never splits a row across pages, and a short table moves whole.
+
+    Seen on a rendered 기획서: the 8칸 표 opened at the foot of page 2 with its
+    first row cut in half. Skipped where python-docx is absent — the suite
+    installs nothing.
+    """
+
+    def test_rows_cannot_split_and_keep_with_next(self):
+        try:
+            import docx  # noqa: F401
+        except ImportError:
+            self.skipTest("python-docx is not installed")
+        w = report_form.ReportWriter(report_form.load_form("khnp"))
+        w.write_table([["칸", "적는 것"], ["현상", "지금의 상태"], ["영향", "계속되면"]])
+        table = w.doc.tables[0]
+        qn = w.qn
+        for i, row in enumerate(table.rows):
+            tr_pr = row._tr.trPr
+            self.assertIsNotNone(tr_pr.find(qn("w:cantSplit")), f"row {i} may split")
+            self.assertEqual(tr_pr.find(qn("w:tblHeader")) is not None, i == 0)
+            keep = row.cells[0].paragraphs[0].paragraph_format.keep_with_next
+            self.assertEqual(bool(keep), i < len(table.rows) - 1)
