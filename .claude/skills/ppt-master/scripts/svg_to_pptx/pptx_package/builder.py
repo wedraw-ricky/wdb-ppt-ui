@@ -3703,6 +3703,51 @@ def _presentation_format(width: float, height: float) -> str:
     return 'Custom'
 
 
+_FOOTER_PH_TYPES = ("dt", "ftr", "sldNum")
+
+
+def _strip_base_footer_placeholders(extract_dir: Path) -> int:
+    """Remove the date / footer / slide-number placeholders python-pptx's stock
+    template puts on every layout and on the master.
+
+    WeDraw judgment gate. The exported deck draws its own page numbers and
+    source lines as ordinary text, so the template's placeholders are never
+    wanted — and a deck opened in PowerPoint showed a stray date and slide
+    number beside the drawn ones (2026-09-16). Strips the placeholder shapes
+    from ``slideMasters/`` and ``slideLayouts/`` and pins ``<p:hf>`` to off so
+    Header & Footer cannot bring them back. Returns the number of shapes
+    removed. Only the stock base is touched; a preserved template base keeps
+    its own master contract and never reaches here.
+    """
+    removed = 0
+    for part in sorted(extract_dir.glob("ppt/slideMasters/slideMaster*.xml")) + \
+            sorted(extract_dir.glob("ppt/slideLayouts/slideLayout*.xml")):
+        tree = ET.parse(part)
+        root = tree.getroot()
+        changed = False
+        for sp_tree in root.iter(f"{{{PML_NS}}}spTree"):
+            for sp in list(sp_tree):
+                ph = sp.find(f"./{{{PML_NS}}}nvSpPr/{{{PML_NS}}}nvPr/{{{PML_NS}}}ph")
+                if ph is not None and ph.attrib.get("type") in _FOOTER_PH_TYPES:
+                    sp_tree.remove(sp)
+                    removed += 1
+                    changed = True
+        hf = root.find(f"{{{PML_NS}}}hf")
+        if hf is None:
+            hf = ET.Element(f"{{{PML_NS}}}hf")
+            trailing = {f"{{{PML_NS}}}timing", f"{{{PML_NS}}}transition", f"{{{PML_NS}}}extLst"}
+            at = next((i for i, c in enumerate(root) if c.tag in trailing), len(root))
+            root.insert(at, hf)
+            changed = True
+        for key in ("hdr", "dt", "ftr", "sldNum"):
+            if hf.get(key) != "0":
+                hf.set(key, "0")
+                changed = True
+        if changed:
+            _write_xml_tree(part, tree)
+    return removed
+
+
 def _stamp_docprops(
     extract_dir: Path,
     slide_count: int,
@@ -4074,6 +4119,7 @@ def create_pptx_with_native_svg(
 
     try:
         base_pptx = temp_dir / 'base.pptx'
+        stock_base_used = False
         if (
             use_native_shapes
             and pptx_structure == "preserve"
@@ -4096,6 +4142,7 @@ def create_pptx_with_native_svg(
             for _ in svg_files:
                 prs.slides.add_slide(blank_layout)
             prs.save(str(base_pptx))
+            stock_base_used = True
 
         # Extract PPTX
         extract_dir = temp_dir / 'pptx_content'
@@ -4783,6 +4830,10 @@ def create_pptx_with_native_svg(
         # accurate, tool-neutral document properties.
         pres_format = _presentation_format(width_emu, height_emu)
         _stamp_docprops(extract_dir, len(svg_files), pres_format, doc_metadata)
+        if stock_base_used:
+            stripped = _strip_base_footer_placeholders(extract_dir)
+            if verbose and stripped:
+                print(f"  Stripped {stripped} stock date/footer/slide-number placeholder(s)")
 
         # Repackage PPTX to a temporary file first. The public output path is
         # replaced only after every slide and relationship has succeeded.

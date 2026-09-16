@@ -47,7 +47,7 @@ changed. What differs is the *cost* of changing it.
 | SVG / direct-PPTX pipeline — `scripts/`, most `references/`, `templates/`, `workflows/` | Vendored (Hugo He → byungjunjang) | Ours to edit, but it is a large body of working code with conventions of its own |
 | Planning stage — `planner.md` · `storyline.md` · `report-format.md`, `plan_spec.py` · `outline.py` · `render_plan_doc.py` · `report_form.py`, `templates/report_forms/`, SKILL.md Steps 3.5–3.7 | WeDraw | New work; change it whenever the thinking changes |
 | Confirm UI — `ui/`, `static/`, [`DESIGN.md`](DESIGN.md) | WeDraw | Same |
-| Judgment gates — `template_install_preflight.py`, `compare_source_counts` in `_conversion_profile.py`, `deck_level_counts` / `verdict_line` in `svg_quality_checker.py`, `strategist.md` *When the contract is silent* + §e | WeDraw | New work sitting inside vendored files. Keep each one a self-contained function so it stays ours to change and to test |
+| Judgment gates — `template_install_preflight.py`, `compare_source_counts` in `_conversion_profile.py`, `deck_level_counts` / `verdict_line` in `svg_quality_checker.py`, `_strip_base_footer_placeholders` in `svg_to_pptx/pptx_package/builder.py`, `strategist.md` *When the contract is silent* + §e | WeDraw | New work sitting inside vendored files. Keep each one a self-contained function so it stays ours to change and to test |
 | This file, [`AGENTS.md`](AGENTS.md), [`docs/rules/`](docs/rules/), `docs/00-pm` · `01-plan` · `02-design` | WeDraw | Same |
 
 **Hard rule — two kinds of rule, two different bars**:
