@@ -462,10 +462,12 @@ Collect the answers only the user can give. One short round, not a section-by-se
 
 **Mandatory**: Draft candidate answers from `sources/` and present them alongside the blank fields. The user edits rather than composes.
 
+> **Confirm page launcher — one file, every step.** `${SKILL_DIR}/../../../server.py` is the repository-root launcher: it wraps upstream's `scripts/confirm_ui/server.py` (same arguments, same lock and wait lifecycle, same `/api/*` contract) but serves the current page under `static/app/` and records that the chat is waiting (`/api/agent`). Upstream's own `scripts/confirm_ui/server.py` still serves the old page — never launch it directly from this repository.
+
 Write the draft to `<project_path>/intake.json` with `"draft": true` — the page opens the interview with those answers tagged «제 짐작이에요» and leaves 언제·누가 blank (they are not in the sources). Then open the page and block until the user saves:
 
 ```bash
-python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --daemon --wait-planning intake --wait-timeout 0
+python3 ${SKILL_DIR}/../../../server.py <project_path> --daemon --wait-planning intake --wait-timeout 0
 ```
 
 `--daemon` starts the page (or re-attaches to one already open) — `recommendations.json` does not exist yet and is not needed until Step 4; the same page carries the person through the interview, the plan and the outline, and the Step 4 launch attaches to it with `--wait-only`.
@@ -577,7 +579,7 @@ Present both flows with a one-line reason each and let the user pick one. Then f
 | `POST /api/planning/outline` | Save the user's edits |
 
 ```bash
-python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --daemon --wait-planning outline --wait-timeout 0
+python3 ${SKILL_DIR}/../../../server.py <project_path> --daemon --wait-planning outline --wait-timeout 0
 ```
 
 **Note**: `--wait-planning` is independent of the three-stage machine; it blocks on the file, not on `result.json`. `--daemon` re-attaches to the page opened at Step 3.5, or reopens it if it idled out.
@@ -711,17 +713,17 @@ Steps:
 1. **Write the complete recommendations** to `<project_path>/confirm_ui/recommendations.json` with **no top-level `stage` key** — the page then renders every section in one pass (the `stage` selector is reserved for the explicit staged flow). One authoring pass carries all fields. Enumerable fields name a recommended canonical `id` in a `recommend` block (the page lists common options from `confirm_ui/static/catalogs.json`): `canvas` / `mode` / `visual_style` / `delivery_purpose` / `icons` / `formula_policy` / `image_usage` (source-id array; `none` exclusive) / `image_ai_path` (only when `image_usage` includes `ai`) / `generation_mode`. `visual_style` also carries the ≥3-style `visual_style_spectrum` (safe / shifted / bold — same hard rule as h.5). When Step 3 loaded a deck/layout template, also set `recommend.template_adherence` to `strict` or `adaptive`; omit the field entirely for free design and brand-only templates so the page does not display it. Always set `recommend.template` for the template card: a deck id from `decks_index.json` only when the content genuinely matches that deck's use cases, otherwise `"free"` (the honest default — see strategist.md §1). When a template is already installed via an explicit path the card renders locked and the key may be omitted. `audience` and `content_divergence` are plain `{ "value": "<free text>" }` (`content_divergence`: how closely to follow the source vs how freely to reshape it — blank = balanced; facts stay sourced at every level; consumed for `§IX`, recorded in `design_spec.md §I`, never written to `spec_lock.md`). `page_count` follows content volume × the recommended `delivery_purpose`. `color` and `typography` are **generative ≥3-candidate** fields (a hard-locked field — e.g. the install-local Pretendard typography lock or a template-declared skin — is an honest-shortfall case: author the single locked plan instead of 3) (color: core `palette` with background/secondary_bg/primary/accent/secondary_accent/body_text; typography: CJK + Latin for `heading` and `body` with `css` preview stacks, topic-matched `sample_*` texts, and `body_size` in **px** — one fixed value per recommended `delivery_purpose`: `text` 20 / `balanced` 24 / `presentation` 32). When `image_usage` includes `ai`, `image_strategy.candidates` carries **exactly three non-custom** h.5 rendering × palette recommendations (the page adds the fourth Custom card itself), with usage rationale in `image_notes`. Include `refine_spec` (recommended boolean). Set `lang` to the page language (`zh` / `en` / `ja` / `ko`); visible text matches `lang`, or provide multilingual `name_zh` / `name_en` / `name_ja` / `name_ko` + `note_zh` / `note_en` / `note_ja` / `note_ko` — when the user's language is Japanese or Korean, set `lang: "ja"` / `lang: "ko"` and always include the matching `_ja` / `_ko` variants (labels resolve in the page language first, so missing `_ja` / `_ko` labels silently render in English). Full schema: [`scripts/docs/confirm_ui.md`](scripts/docs/confirm_ui.md).
 2. **Launch + wait for the confirmation (the ⛔ BLOCKING wait).** Background launch; the parent returns when the page writes the final `result.json` (`status: confirmed`). **Long tool timeout — 600000 ms** (the `--wait` ≈590 s budget):
    ```bash
-   python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --daemon --wait
+   python3 ${SKILL_DIR}/../../../server.py <project_path> --daemon --wait
    ```
    When the page is still open from the planning stretch (Steps 3.5–3.7 launched it with `--daemon --wait-planning`), `--daemon` refuses the duplicate — attach to it instead; the page is already polling for `recommendations.json` and switches to the design screen on its own:
    ```bash
-   python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --wait-only --wait-timeout 0
+   python3 ${SKILL_DIR}/../../../server.py <project_path> --wait-only --wait-timeout 0
    ```
    Page opens at the launch-log URL such as `http://127.0.0.1:5050` — the **same port as the Step 6 live preview** (they never run at once: this page shuts down at the end of Step 4). If 5050 is held, the launcher **auto-advances** (5051, …) — read the actual URL from the launch log and report it. **Launch or wait failure is non-fatal**: if it fails or times out (flask missing, port blocked, no GUI / remote / web host), do **NOT** troubleshoot — **on any non-zero exit, re-check `result.json` once** for a fresh `status: confirmed` before dropping to the chat fallback. Confirmed sizes are **already px** (the system is px-only — no pt anywhere, no conversion): write `result.json` `typography.body_size` / `sizes` into `design_spec.md` / `spec_lock.md` / SVG verbatim. `generation_mode: "split"` / `refine_spec: true` are explicit user choices.
 3. **Reconcile the confirmation before writing the spec (Mandatory — same turn).** Read `result.json`. **Deferred template install**: if the result carries `template: "<deck_id>"` and no template is installed yet, first run the Step 3 deferred install for that deck (same kind matrix + structured preflight — no bypass); on preflight failure report in chat and let the user re-pick instead of silently downgrading. Then apply the "Upstream override → re-derive untouched downstream" rule below: when the user changed an anchor (or picked a deck template), re-derive only the downstream fields the user did not themselves edit; every value the user set stays verbatim. Spot-illustration lean is **not** a confirmation field: it derives from the locked `visual_style`'s illustration propensity and is expressed only in `image_notes` rationale. Generated-image style palettes are **color behavior only**; final image colors follow the confirmed `color`.
 4. **Close the confirm page (Mandatory cleanup — every path).** Shut the server down before leaving Step 4 so it cannot keep holding port 5050 (which Step 6 live preview reuses):
    ```bash
-   python3 ${SKILL_DIR}/scripts/confirm_ui/server.py <project_path> --shutdown
+   python3 ${SKILL_DIR}/../../../server.py <project_path> --shutdown
    ```
    **Idempotent and required regardless of whether Confirm was clicked**: clicking Confirm already shuts the page down (then a no-op); the chat-fallback path leaves it running. Run it after reading the confirmation, before Step 5.
 
